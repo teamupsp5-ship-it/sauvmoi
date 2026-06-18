@@ -13,6 +13,7 @@
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body style="margin:0; background:#f0eee9;">
   <div id="root"></div>
@@ -42,15 +43,17 @@
   <!-- Écrans d'authentification -->
   <script type="text/babel" src="screen-auth.jsx"></script>
 
-  <!-- Écrans profil, QR code, CGU -->
+  <!-- Écrans profil, QR code, CGU, fiche victime -->
   <script type="text/babel" src="screen-profile.jsx"></script>
   <script type="text/babel" src="screen-qr-code.jsx"></script>
   <script type="text/babel" src="screen-terms.jsx"></script>
+  <script type="text/babel" src="screen-victim-card.jsx"></script>
 
   <!-- Surcharges "vivantes" (branchées au backend) — chargées APRÈS pour remplacer -->
   <script type="text/babel" src="live-chat.jsx"></script>
   <script type="text/babel" src="live-sos.jsx"></script>
   <script type="text/babel" src="live-emergency.jsx"></script>
+  <script type="text/babel" src="screen-qr-scanner.jsx"></script>
 
   <!-- Point d'entrée application -->
   <script type="text/babel" src="app-live.jsx"></script>

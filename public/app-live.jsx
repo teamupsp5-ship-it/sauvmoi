@@ -25,6 +25,7 @@ const PHONE_SCREENS = {
   profile:          window.ProfileScreen,
   qr_code:          window.QrCodeScreen,
   terms:            window.TermsScreen,
+  victim_card:      window.VictimCardScreen,
 };
 
 function applyTweaks(t) {

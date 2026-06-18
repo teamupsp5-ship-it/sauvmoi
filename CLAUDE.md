@@ -23,6 +23,8 @@ et propose des formations PSC1 gamifiées. Cible : Abidjan et Afrique de l'Ouest
 | IA | Claude `claude-haiku-4-5-20251001` via Anthropic API — fallback protocoles PSC1 si pas de clé |
 | Persistance | Fichier JSON `.data/db.json` via `src/store.js` (démo — pas de vraie BDD) |
 | Mobile | Capacitor.js v8 (`@capacitor/android`) — Android uniquement pour l'instant |
+| QR Scan | `@capacitor-mlkit/barcode-scanning` (natif Android) + `jsQR` (fallback web via CDN) |
+| Caméra | `@capacitor/camera` — installé, branché dans `screen-qr-scanner.jsx` |
 | Polices | Spectral (serif) · Public Sans (UI) · JetBrains Mono (code) — Google Fonts |
 
 **Aucun bundler.** Babel transpile le JSX directement dans le navigateur.
@@ -153,6 +155,11 @@ charger le fichier dans `index.html`, l'ajouter ici.
 | `live-chat.jsx` | Chat live complet : POST `/api/chat`, fallback PSC1 local (6 protocoles embarqués), Web Speech API (FR/EN), envoi image, auto-scroll, indicateur En ligne/Hors ligne. Surcharge `ChatListening` et `ChatResponse`. |
 | `live-sos.jsx` | Version branchée backend du SOS (WebSocket) — surcharge `screen-sos.jsx` |
 | `live-emergency.jsx` | Version branchée backend de l'urgence — surcharge `screen-emergency.jsx` |
+| `screen-profile.jsx` | Profil complet : avatar, infos perso, profil médical, contacts d'urgence, QR lien, mdp, déconnexion. Mode édition visible (rouge + fond bleuté + barre sticky). |
+| `screen-qr-code.jsx` | Affichage du QR PNG médical personnel (depuis `/api/medical-record/qr`). |
+| `screen-terms.jsx` | Conditions générales d'utilisation (8 sections). |
+| `screen-victim-card.jsx` | Fiche d'urgence victime après scan QR : groupe sanguin en rouge, allergies en orange, contacts avec appel direct. |
+| `screen-qr-scanner.jsx` | Scanner QR (surcharge `QrScannerScreen`). Natif : `@capacitor-mlkit/barcode-scanning`. Web : file input + jsQR. Navigue vers `victim_card`. |
 | `app-live.jsx` | Point d'entrée app réelle. Registre `PHONE_SCREENS`. Démarre sur `initial="auth"`. Classe CSS `sm-live` pour le plein écran natif. |
 | `app.jsx` | Point d'entrée canvas design. Sections : 0·Auth · 1·Accueil · 2·Urgence · 3·Chat · 4·SOS · 5·Formation |
 | `sm-state.js` | Bus d'état global `window.SM` |
@@ -209,6 +216,8 @@ Le code OTP (legacy) est toujours `123456`.
 | Fallback chat hors-ligne | 6 protocoles PSC1 embarqués dans `live-chat.jsx` (`_PSC1`) | Indépendant du backend — fonctionne même si le serveur est coupé |
 | Onglet Localisation | Désactivé (opacity 0.25) | Écran carte non encore créé |
 | URL API | `https://sauvmoi-production.up.railway.app` en dur dans `api-client.js` | Backend Railway en prod — plus besoin de détecter Capacitor vs navigateur |
+| QR Scanner web | `jsQR` (CDN) + `<input type="file" capture="environment">` | Sans bundler : impossible d'importer ES modules Capacitor côté JS — le plugin s'enregistre côté natif et est accessible via `window.Capacitor.Plugins.BarcodeScanner` |
+| Données victime QR | `window.SM_VICTIM` (variable globale temporaire) | Passage de données entre QrScannerScreen → VictimCardScreen sans router |
 
 ---
 
@@ -233,10 +242,12 @@ Le code OTP (legacy) est toujours `123456`.
 ## Feuille de route restante 🔲
 
 ### Priorité haute (avant démo)
-- [ ] Écran Profil utilisateur (affichage + édition carnet médical)
-- [ ] Brancher `@capacitor/camera` sur `QrScannerScreen`
+- [ ] Brancher `@capacitor/camera` sur les uploads photo du profil (Capacitor natif)
 - [ ] Écran Localisation / carte des secouristes proches
 - [x] Déployer le backend sur Railway — `https://sauvmoi-production.up.railway.app` ✅
+- [x] Écran Profil utilisateur (affichage + édition + photo) ✅
+- [x] Scanner QR natif (`@capacitor-mlkit/barcode-scanning`) + fallback web jsQR ✅
+- [x] Fiche victime après scan QR ✅
 
 ### Priorité moyenne
 - [ ] Vrai Google OAuth (Firebase Auth ou OAuth2)
