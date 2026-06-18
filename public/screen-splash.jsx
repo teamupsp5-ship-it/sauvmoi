@@ -26,13 +26,13 @@ function SplashScreen({ nav }) {
       document.head.appendChild(s);
     }
 
-    const t0 = setTimeout(() => setPhase(1), 800);
-    const t1 = setTimeout(() => setPhase(2), 1500);
-    const t2 = setTimeout(() => setPhase(3), 2500);
+    const t0 = setTimeout(() => setPhase(1), 1500);
+    const t1 = setTimeout(() => setPhase(2), 2800);
+    const t2 = setTimeout(() => setPhase(3), 4500);
     const t3 = setTimeout(() => {
       const target = (window.SM.token && window.SM.user) ? 'home' : 'auth';
       nav.reset(target);
-    }, 3200);
+    }, 6500);
 
     return () => [t0, t1, t2, t3].forEach(clearTimeout);
   }, []);
@@ -45,7 +45,7 @@ function SplashScreen({ nav }) {
       ecgRef.current.style.strokeDashoffset = len;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (ecgRef.current) {
-          ecgRef.current.style.transition = 'stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)';
+          ecgRef.current.style.transition = 'stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1)';
           ecgRef.current.style.strokeDashoffset = '0';
         }
       }));
@@ -64,7 +64,7 @@ function SplashScreen({ nav }) {
           position: 'absolute', top: '50%', left: '50%',
           width: '200vmax', height: '200vmax',
           borderRadius: '50%', background: 'white',
-          animation: 'sp-circle 0.82s cubic-bezier(0.4,0,0.2,1) forwards',
+          animation: 'sp-circle 1.5s cubic-bezier(0.4,0,0.2,1) forwards',
           pointerEvents: 'none',
         }} />
       )}
@@ -89,7 +89,7 @@ function SplashScreen({ nav }) {
             style={{
               width: 140, height: 140, objectFit: 'contain',
               opacity: 0,
-              animation: 'sp-logo 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards',
+              animation: 'sp-logo 0.9s cubic-bezier(0.34,1.3,0.64,1) forwards',
             }}
           />
         )}
@@ -120,7 +120,7 @@ function SplashScreen({ nav }) {
             fontFamily: "'Poppins', 'Public Sans', sans-serif",
             letterSpacing: '-0.02em',
             opacity: 0,
-            animation: 'sp-fadein 0.5s ease 0.1s forwards',
+            animation: 'sp-fadein 0.8s ease 0.3s forwards',
           }}>
             Sauv'Moi
           </h1>
@@ -133,7 +133,7 @@ function SplashScreen({ nav }) {
             color: '#5B6677', textAlign: 'center',
             fontFamily: "'Poppins', 'Public Sans', sans-serif",
             opacity: 0,
-            animation: 'sp-fadein 0.4s ease forwards',
+            animation: 'sp-fadein 0.9s ease forwards',
           }}>
             Premiers secours · partout · toujours
           </p>
