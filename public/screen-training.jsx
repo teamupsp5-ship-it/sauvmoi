@@ -17,8 +17,11 @@ function TrainingMobile({ nav, lang }) {
   return (
     <>
       <StatusBar />
-      {/* Header with streak */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 20px 12px' }}>
+      {/* Header with back + streak */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 16px 12px' }}>
+        <button onClick={() => goBack(nav)} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--sm-paper-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, marginRight: 4 }}>
+          <Icon name="arrow-left" size={18} />
+        </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,

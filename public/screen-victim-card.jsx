@@ -17,7 +17,7 @@ function VictimCardScreen({ nav }) {
       <div style={{ background: 'var(--sm-red)', padding: '14px 16px 26px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
           <button
-            onClick={() => nav.back()}
+            onClick={() => goBack(nav)}
             style={{ background: 'rgba(255,255,255,0.2)', border: 'none', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
           >
             <Icon name="arrow-left" size={18} color="white" />

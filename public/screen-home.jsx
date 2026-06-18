@@ -62,10 +62,11 @@ function HomeTabBar({ active, nav }) {
           ? 'rgba(255,255,255,0.25)'
           : isActive ? 'white' : 'rgba(255,255,255,0.5)';
 
+        const GO = { home: () => nav.reset('home'), training: () => nav.go('training'), map: () => nav.go('map'), profile: () => nav.go('profile') };
         return (
           <button
             key={tab.id}
-            onClick={() => !tab.disabled && nav.reset(tab.id)}
+            onClick={() => !tab.disabled && GO[tab.id]?.()}
             style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
               padding: '8px 4px 0',
@@ -93,10 +94,12 @@ function HomeMobile({ nav, lang }) {
   window.useSM(); // re-render quand SM.user change (après connexion)
 
   // Salutation dynamique
-  const hour   = new Date().getHours();
-  const user   = window.SM?.user;
-  const prenom = (user?.prenom || user?.name?.split(' ')[0] || '').trim() || 'vous';
+  const hour     = new Date().getHours();
+  const user     = window.SM?.user;
+  const prenom   = (user?.prenom || user?.name?.split(' ')[0] || '').trim() || 'vous';
   const initials = user?.initials || prenom.slice(0, 2).toUpperCase();
+  const _AV_COLORS = ['#E53935', '#4A90C2', '#2E6B4F', '#C77A2B', '#6B4F8C'];
+  const avatarBg = _AV_COLORS[(initials.charCodeAt(0) || 0) % _AV_COLORS.length];
 
   // Conseil du jour (indexé sur le jour de la semaine)
   const tip = DAILY_TIPS[new Date().getDay()];
@@ -133,15 +136,28 @@ function HomeMobile({ nav, lang }) {
           </h1>
         </div>
 
-        {/* Avatar initiales à droite */}
-        <div style={{
-          width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-          background: 'var(--sm-ink)', color: 'white',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 13, fontWeight: 700, letterSpacing: '0.02em',
-        }}>
-          {initials}
-        </div>
+        {/* Avatar cliquable → profil */}
+        <button
+          onClick={() => nav.go('profile')}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+        >
+          {user?.photo ? (
+            <img
+              src={user.photo}
+              alt="avatar"
+              style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid white', boxShadow: '0 0 0 1.5px var(--sm-line)' }}
+            />
+          ) : (
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%',
+              background: avatarBg, color: 'white',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 700, letterSpacing: '0.02em',
+            }}>
+              {initials}
+            </div>
+          )}
+        </button>
       </div>
 
       {/* ── Corps scrollable ────────────────────────────────────────────── */}

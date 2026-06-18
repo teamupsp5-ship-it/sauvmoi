@@ -31,6 +31,11 @@ function Icon({ name, size, color, strokeWidth = 1.75, style, className = '' }) 
   );
 }
 
+// Retour cohérent : dépile si possible, sinon revient à home
+function goBack(nav) {
+  nav.canBack() ? nav.back() : nav.reset('home');
+}
+
 // Render lucide on every paint (idempotent)
 function useLucide(deps = []) {
   useEffect(() => {
@@ -60,7 +65,8 @@ function PhoneFrame({ initial = 'home', screens, lang = 'FR' }) {
     home: () => setStack(['home']),
     reset: (id) => setStack([id]),
     current: screenId,
-  }), [screenId]);
+    canBack: () => stack.length > 1,
+  }), [screenId, stack.length]);
 
   const ScreenComp = screens[screenId] || screens[initial];
   return (

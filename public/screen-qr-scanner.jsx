@@ -113,7 +113,7 @@ function QrScannerScreen({ nav }) {
 
       {/* Header */}
       <div style={{ padding: '16px 18px 14px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <button onClick={() => nav.back()} style={{ padding: 8, margin: -8, background: 'none', border: 'none', cursor: 'pointer' }}>
+        <button onClick={() => goBack(nav)} style={{ padding: 8, margin: -8, background: 'none', border: 'none', cursor: 'pointer' }}>
           <Icon name="arrow-left" size={22} color="white" />
         </button>
         <h2 className="sm-serif" style={{ fontSize: 20, color: 'white', flex: 1 }}>
@@ -193,7 +193,7 @@ function QrScannerScreen({ nav }) {
         )}
 
         <button
-          onClick={() => nav.back()}
+          onClick={() => goBack(nav)}
           style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.15)', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}
         >
           Retour

@@ -130,7 +130,7 @@ function ChatScreen({ nav, lang }) {
         borderBottom: '1px solid var(--sm-line)',
       }}>
         <button
-          onClick={() => nav.go('home')}
+          onClick={() => goBack(nav)}
           style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--sm-paper-2)', border: 'none', flexShrink: 0, cursor: 'pointer' }}
         >
           <Icon name="arrow-left" size={18} />

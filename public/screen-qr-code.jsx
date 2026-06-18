@@ -20,7 +20,7 @@ function QrCodeScreen({ nav }) {
 
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px 10px', borderBottom: '1px solid var(--sm-line)', flexShrink: 0 }}>
-        <button onClick={() => nav.back()} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--sm-paper-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <button onClick={() => goBack(nav)} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--sm-paper-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <Icon name="arrow-left" size={18} />
         </button>
         <span style={{ flex: 1, fontWeight: 700, fontSize: 16 }}>QR Code médical</span>
