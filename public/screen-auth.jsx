@@ -47,7 +47,8 @@ function AppleIcon() {
 
 // ── Utilitaire de connexion au backend ────────────────────────────────────
 async function authFetch(path, body) {
-  const res = await fetch(path, {
+  const base = (window.API && window.API.base) || '';
+  const res = await fetch(base + path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -57,8 +58,15 @@ async function authFetch(path, body) {
 }
 
 function applySession(data, nav) {
-  if (data.token) window.SM.token = data.token;
-  if (data.user) { window.SM.user = data.user; window.SM.emit(); }
+  if (data.token) {
+    window.SM.token = data.token;
+    localStorage.setItem('sm_token', data.token);
+  }
+  if (data.user) {
+    window.SM.user = data.user;
+    localStorage.setItem('sm_user', JSON.stringify(data.user));
+    window.SM.emit();
+  }
   nav.reset('home');
 }
 

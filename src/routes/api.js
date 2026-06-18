@@ -6,6 +6,7 @@ import {
 } from '../data/seed.js';
 import { PROTOCOLS } from '../data/protocols.js';
 import { analyzeImage } from '../ai.js';
+import QRCode from 'qrcode';
 
 const router = Router();
 
@@ -30,6 +31,20 @@ router.post('/auth/verify', (req, res) => {
 });
 
 router.get('/me', (req, res) => res.json(DEMO_USER));
+
+router.put('/me', (req, res) => {
+  const { name, phone, birthdate, gender, photo, medicalRecord } = req.body || {};
+  if (name !== undefined) DEMO_USER.name = name;
+  if (phone !== undefined) DEMO_USER.phone = phone;
+  if (birthdate !== undefined) DEMO_USER.birthdate = birthdate;
+  if (gender !== undefined) DEMO_USER.gender = gender;
+  if (photo !== undefined) DEMO_USER.photo = photo;
+  if (medicalRecord) DEMO_USER.medicalRecord = { ...DEMO_USER.medicalRecord, ...medicalRecord };
+  const db = get();
+  if (db.users['u_demo']) Object.assign(db.users['u_demo'], DEMO_USER);
+  save();
+  res.json(DEMO_USER);
+});
 
 // ─── ACCUEIL ────────────────────────────────────────────────────────────────
 router.get('/home', (req, res) => {
@@ -127,19 +142,27 @@ router.put('/medical-record', (req, res) => {
   res.json(DEMO_USER.medicalRecord);
 });
 
-router.get('/medical-record/qr', (req, res) => {
-  // Payload minimal qu'un secouriste peut scanner (en prod : signé + lien court)
+router.get('/medical-record/qr', async (req, res) => {
+  const now = Date.now();
+  const SIX_MONTHS = 6 * 30 * 24 * 60 * 60 * 1000;
+  const dob = DEMO_USER.birthdate ? new Date(DEMO_USER.birthdate) : null;
+  const age = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : null;
   const payload = {
-    name: DEMO_USER.name,
+    id: DEMO_USER.id,
+    nom: DEMO_USER.name,
+    age,
     bloodType: DEMO_USER.medicalRecord.bloodType,
     allergies: DEMO_USER.medicalRecord.allergies,
     contacts: DEMO_USER.medicalRecord.emergencyContacts,
+    generatedAt: now,
+    expiresAt: now + SIX_MONTHS,
   };
-  const data = encodeURIComponent(JSON.stringify(payload));
-  res.json({
-    payload,
-    qrUrl: `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${data}`,
-  });
+  try {
+    const qrDataUrl = await QRCode.toDataURL(JSON.stringify(payload), { width: 300, margin: 2 });
+    res.json({ payload, qrDataUrl });
+  } catch (e) {
+    res.status(500).json({ error: 'Génération QR échouée', detail: e.message });
+  }
 });
 
 export default router;

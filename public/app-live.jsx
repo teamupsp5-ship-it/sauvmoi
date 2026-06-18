@@ -1,38 +1,31 @@
-// app-live.jsx — point d'entrée de l'APPLICATION RÉELLE (et non le design canvas).
-// Affiche un seul téléphone plein écran, branché au backend.
+// app-live.jsx — point d'entrée de l'APPLICATION RÉELLE.
+// Session persistante : lecture localStorage avant le premier render.
+
+(function restoreSession() {
+  try {
+    const token = localStorage.getItem('sm_token');
+    const user  = JSON.parse(localStorage.getItem('sm_user') || 'null');
+    if (token && user) { window.SM.token = token; window.SM.user = user; }
+  } catch {}
+})();
 
 const PHONE_SCREENS = {
-  auth: window.AuthScreen,
-  register: window.RegisterScreen,
-  home: window.HomeMobile,
-  qr_scanner: window.QrScannerScreen,
-  emergency: window.EmergencyMobile,
-  emergency_cam: window.EmergencyCamera,
-  emergency_guide: window.EmergencyGuide,
-  chat: window.ChatListening,
-  chat_response: window.ChatListening,
-  sos: window.SOSCountdown,
-  sos_confirm: window.SOSConfirm,
-  training: window.TrainingMobile,
-  profile: ProfileMobileLive,
+  auth:             window.AuthScreen,
+  register:         window.RegisterScreen,
+  home:             window.HomeMobile,
+  qr_scanner:       window.QrScannerScreen,
+  emergency:        window.EmergencyMobile,
+  emergency_cam:    window.EmergencyCamera,
+  emergency_guide:  window.EmergencyGuide,
+  chat:             window.ChatListening,
+  chat_response:    window.ChatListening,
+  sos:              window.SOSCountdown,
+  sos_confirm:      window.SOSConfirm,
+  training:         window.TrainingMobile,
+  profile:          window.ProfileScreen,
+  qr_code:          window.QrCodeScreen,
+  terms:            window.TermsScreen,
 };
-
-function ProfileMobileLive({ nav }) {
-  useLucide();
-  return (
-    <>
-      <StatusBar />
-      <div style={{ flex: 1, padding: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 14 }}>
-        <Icon name="construction" size={48} color="var(--sm-ink-400)" />
-        <h2 className="sm-serif" style={{ fontSize: 22 }}>Profil & carnet médical</h2>
-        <p style={{ fontSize: 14, color: 'var(--sm-ink-500)' }}>Déprioritisé pour cette V1 — focus sur les 5 écrans phares.</p>
-        <button onClick={() => nav.home()} className="sm-btn sm-btn-outline">Revenir à l'accueil</button>
-      </div>
-      <TabBar active="profile" onNav={(id) => nav.reset(id === 'profile' ? 'home' : id)} onSOS={() => nav.go('sos')} />
-      <HomeIndicator />
-    </>
-  );
-}
 
 function applyTweaks(t) {
   const root = document.documentElement;
@@ -46,6 +39,8 @@ function applyTweaks(t) {
 function LiveApp() {
   const t = window.TWEAK_DEFAULTS;
   const SM = window.useSM();
+  const initialScreen = (window.SM.token && window.SM.user) ? 'home' : 'auth';
+
   React.useEffect(() => { applyTweaks(t); window.SM.bootstrap(); }, []);
   React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
 
@@ -53,10 +48,10 @@ function LiveApp() {
     <div className="sm-live" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       {SM.offline && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100, background: '#7a1414', color: 'white', padding: '8px 14px', fontSize: 13, fontFamily: 'var(--font-ui, sans-serif)', textAlign: 'center' }}>
-          Backend injoignable — lancez <code>npm start</code> puis rechargez.
+          Backend injoignable — mode hors-ligne actif.
         </div>
       )}
-      <PhoneFrame initial="auth" screens={PHONE_SCREENS} lang={t.lang} />
+      <PhoneFrame initial={initialScreen} screens={PHONE_SCREENS} lang={t.lang} />
     </div>
   );
 }

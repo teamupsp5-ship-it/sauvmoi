@@ -47,6 +47,9 @@
       req('/api/payments/initiate', { method: 'POST', body: { courseId, method, phone } }),
     payConfirm: (id) => req('/api/payments/' + id + '/confirm', { method: 'POST' }),
 
+    // Profil utilisateur
+    updateMe: (data) => req('/api/me', { method: 'PUT', body: data }),
+
     // Carnet médical
     medicalRecord: () => req('/api/medical-record'),
     medicalQr: () => req('/api/medical-record/qr'),

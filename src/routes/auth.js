@@ -68,6 +68,15 @@ router.post('/auth/register', (req, res) => {
   res.json({ token: `demo.${id}`, user });
 });
 
+// ─── Changement de mot de passe ─────────────────────────────────────────────
+router.post('/auth/change-password', (req, res) => {
+  const { newPassword } = req.body || {};
+  if (!newPassword || newPassword.length < 6)
+    return res.status(400).json({ error: 'Nouveau mot de passe : 6 caractères minimum' });
+  // Démo : accepté sans vérification de l'ancien
+  res.json({ ok: true });
+});
+
 // ─── Anciens endpoints OTP conservés pour compatibilité ─────────────────────
 router.post('/auth/request-otp', (req, res) => {
   const { phone } = req.body || {};
