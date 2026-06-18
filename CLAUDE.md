@@ -208,6 +208,7 @@ Le code OTP (legacy) est toujours `123456`.
 | Chat unifié | `ChatListening = ChatResponse` dans `live-chat.jsx` | Un seul écran gère tout le fil de conversation — `nav.replace('chat_response')` supprimé |
 | Fallback chat hors-ligne | 6 protocoles PSC1 embarqués dans `live-chat.jsx` (`_PSC1`) | Indépendant du backend — fonctionne même si le serveur est coupé |
 | Onglet Localisation | Désactivé (opacity 0.25) | Écran carte non encore créé |
+| URL API | `https://sauvmoi-production.up.railway.app` en dur dans `api-client.js` | Backend Railway en prod — plus besoin de détecter Capacitor vs navigateur |
 
 ---
 
@@ -221,6 +222,8 @@ Le code OTP (legacy) est toujours `123456`.
 - SOS géolocalisé (compte à rebours + WebSocket temps réel)
 - Formations (parcours gamifié)
 - Backend complet (auth, home, urgences, protocoles, chat IA, SOS, formations, paiements, carnet médical)
+- Backend déployé sur Railway : `https://sauvmoi-production.up.railway.app`
+- Dépôt GitHub : `https://github.com/teamupsp5-ship-it/sauvmoi` (branche `main`)
 - Capacitor configuré pour Android (`ci.sauvmoi.app`)
 - Mode plein écran natif (`.sm-live`, `viewport-fit=cover`, sans cadre téléphone fictif)
 - `StatusBar` et `HomeIndicator` neutralisés (le vrai OS gère)
@@ -233,7 +236,7 @@ Le code OTP (legacy) est toujours `123456`.
 - [ ] Écran Profil utilisateur (affichage + édition carnet médical)
 - [ ] Brancher `@capacitor/camera` sur `QrScannerScreen`
 - [ ] Écran Localisation / carte des secouristes proches
-- [ ] Déployer le backend (Render, Railway ou VPS) pour que l'APK puisse appeler l'API
+- [x] Déployer le backend sur Railway — `https://sauvmoi-production.up.railway.app` ✅
 
 ### Priorité moyenne
 - [ ] Vrai Google OAuth (Firebase Auth ou OAuth2)
@@ -259,6 +262,18 @@ Le code OTP (legacy) est toujours `123456`.
 - **API calls** : `window.API.*` pour les appels standards, `fetch` direct pour les routes auth
 - **Pas de commentaires** sauf WHY non-évident
 - **ES modules** côté backend (`"type": "module"` dans package.json)
+
+---
+
+## Déploiement & infrastructure
+
+| Élément | Valeur |
+|---|---|
+| Backend prod | `https://sauvmoi-production.up.railway.app` |
+| Dépôt GitHub | `https://github.com/teamupsp5-ship-it/sauvmoi` |
+| Branche principale | `main` |
+| Déploiement | Automatique sur push Railway ← GitHub |
+| Variable Railway | `ANTHROPIC_API_KEY` (optionnel) |
 
 ---
 
