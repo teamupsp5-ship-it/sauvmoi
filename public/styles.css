@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* Sauv'Moi — design tokens */
 :root {
   /* Brand palette */
@@ -28,20 +30,33 @@
 
   /* Type */
   --font-display: 'Spectral', Georgia, serif;
-  --font-ui: 'Public Sans', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Poppins', 'Public Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Shapes */
   --r-field: 6px;
-  --r-card: 10px;
-  --r-modal: 14px;
+  --r-card: 16px;
+  --r-modal: 16px;
   --r-pill: 999px;
+  --sm-radius: 16px;
+  --sm-radius-sm: 10px;
 
   --shadow-1: 0 1px 2px rgba(10,22,40,.06);
   --shadow-2: 0 4px 16px rgba(10,22,40,.08);
   --shadow-3: 0 16px 48px rgba(10,22,40,.14);
+  --sm-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  --sm-shadow-md: 0 4px 20px rgba(0,0,0,0.12);
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Soft tints supplémentaires */
+  --sm-red-soft: #FDEDEC;
+  --sm-blue-soft: #EBF5FB;
+}
+
+/* Police globale */
+body {
+  font-family: 'Poppins', 'Public Sans', system-ui, sans-serif;
 }
 
 /* Scope-friendly resets only within our frames */
@@ -173,7 +188,7 @@
   background: white;
   border: 1px solid var(--sm-line);
   border-radius: var(--r-card);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--sm-shadow);
 }
 .sm-card-flat {
   background: white;
@@ -202,7 +217,7 @@
   transition: transform 50ms var(--ease), filter 150ms var(--ease), background 150ms var(--ease);
   white-space: nowrap;
 }
-.sm-btn:active { transform: scale(0.99); filter: brightness(0.92); }
+.sm-btn:active { transform: scale(0.97); filter: brightness(0.92); transition: transform 0.1s ease; }
 .sm-btn-primary { background: var(--sm-red); color: white; }
 .sm-btn-primary:hover { background: var(--sm-red-press); }
 .sm-btn-ink { background: var(--sm-ink); color: var(--sm-paper); }

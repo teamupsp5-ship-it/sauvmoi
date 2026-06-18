@@ -23,7 +23,10 @@ function HomeTabBar({ active, nav }) {
 
   return (
     <div style={{
-      background: 'var(--sm-ink)',
+      background: 'rgba(15,23,42,0.92)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderTop: '1px solid rgba(255,255,255,0.1)',
       display: 'flex',
       alignItems: 'flex-start',
       padding: '10px 0 28px',
@@ -69,8 +72,11 @@ function HomeTabBar({ active, nav }) {
             onClick={() => !tab.disabled && GO[tab.id]?.()}
             style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              padding: '8px 4px 0',
-              background: 'none', border: 'none',
+              paddingTop: isActive && !tab.disabled ? '6px' : '8px',
+              paddingBottom: 0, paddingLeft: '4px', paddingRight: '4px',
+              background: 'none',
+              borderLeft: 'none', borderRight: 'none', borderBottom: 'none',
+              borderTop: isActive && !tab.disabled ? '2px solid white' : '2px solid transparent',
               cursor: tab.disabled ? 'default' : 'pointer',
               fontFamily: 'var(--font-ui)',
             }}
@@ -106,9 +112,9 @@ function HomeMobile({ nav, lang }) {
 
   return (
     <>
-      {/* ── En-tête fond blanc ─────────────────────────────────────────── */}
+      {/* ── En-tête dégradé ─────────────────────────────────────────── */}
       <div style={{
-        background: 'white',
+        background: 'linear-gradient(180deg, #f8f9fa, white)',
         padding: '16px 20px 14px',
         display: 'flex', alignItems: 'center', gap: 12,
         borderBottom: '1px solid var(--sm-line)',
@@ -160,16 +166,17 @@ function HomeMobile({ nav, lang }) {
           onClick={() => nav.go('chat')}
           style={{
             display: 'flex', width: '100%', alignItems: 'center', gap: 14,
-            padding: '20px 18px', borderRadius: 20, marginBottom: 14,
+            padding: '24px 20px', borderRadius: 20, marginBottom: 14,
+            minHeight: 120,
             background: '#1565c0', border: 'none', cursor: 'pointer', textAlign: 'left',
             boxShadow: '0 8px 28px rgba(21,101,192,0.35)',
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="sm-serif" style={{ fontSize: 21, color: 'white', marginBottom: 7, lineHeight: 1.15 }}>
+            <h2 className="sm-serif" style={{ fontSize: 22, color: 'white', marginBottom: 10, lineHeight: 1.15 }}>
               Que se passe-t-il ?
             </h2>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 1.4 }}>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', lineHeight: 1.5 }}>
               Écrivez, parlez ou envoyez une photo
             </p>
           </div>
