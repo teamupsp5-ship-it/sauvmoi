@@ -1,10 +1,9 @@
 // Client API Sauv'Moi — pont entre le frontend et le backend.
-// Sur mobile Capacitor, le WebView ne peut pas atteindre localhost : on cible l'IP LAN.
 // (Pour pointer ailleurs : window.SAUVMOI_API = 'https://mon-url'; avant le chargement.)
 
 (function () {
   const BASE = window.SAUVMOI_API
-    || (window.Capacitor ? 'http://192.168.1.8:3000' : '');
+    || 'https://sauvmoi-production.up.railway.app';
 
   async function req(path, { method = 'GET', body } = {}) {
     const res = await fetch(BASE + path, {
