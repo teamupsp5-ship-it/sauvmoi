@@ -104,19 +104,22 @@ window.SM.bootstrap()  // charge home + emergencies + user depuis l'API
 
 ```js
 const PHONE_SCREENS = {
-  auth:             window.AuthScreen,        // écran initial
+  auth:             window.AuthScreen,
   register:         window.RegisterScreen,
   home:             window.HomeMobile,
-  qr_scanner:       window.QrScannerScreen,
+  qr_scanner:       window.QrScannerScreen,   // surchargé par screen-qr-scanner.jsx
   emergency:        window.EmergencyMobile,
   emergency_cam:    window.EmergencyCamera,
   emergency_guide:  window.EmergencyGuide,
-  chat:             window.ChatListening,   // écran chat unifié
-  chat_response:    window.ChatListening,   // même écran — plus de navigation inter-écrans
+  chat:             window.ChatListening,      // écran chat unifié
+  chat_response:    window.ChatListening,      // même écran — plus de navigation inter-écrans
   sos:              window.SOSCountdown,
   sos_confirm:      window.SOSConfirm,
   training:         window.TrainingMobile,
-  profile:          ProfileMobileLive,       // défini inline dans app-live.jsx
+  profile:          window.ProfileScreen,
+  qr_code:          window.QrCodeScreen,
+  terms:            window.TermsScreen,
+  victim_card:      window.VictimCardScreen,
 };
 ```
 
@@ -145,13 +148,13 @@ charger le fichier dans `index.html`, l'ajouter ici.
 
 | Fichier | Rôle |
 |---|---|
-| `frames.jsx` | Primitives partagées : `Icon`, `PhoneFrame`, `DesktopFrame`, `TabBar`, `PulseCircle`, `Waveform`. `StatusBar()` et `HomeIndicator()` retournent `null` (le vrai OS gère ça). |
+| `frames.jsx` | Primitives partagées : `Icon`, `PhoneFrame`, `DesktopFrame`, `TabBar`, `PulseCircle`, `Waveform`. `StatusBar()` et `HomeIndicator()` retournent `null`. Définit `goBack(nav)` (helper global) et `nav.canBack()`. |
 | `screen-auth.jsx` | `AuthScreen` (email + mdp, boutons Google/Apple) · `RegisterScreen` (2 étapes : infos perso + profil médical) |
-| `screen-home.jsx` | `HomeMobile` (en-tête blanc, carte IA bleue, QR, conseil du jour, `HomeTabBar` bleu nuit) · `QrScannerScreen` · `HomeDesktop` · `Sidebar` |
+| `screen-home.jsx` | `HomeMobile` (en-tête blanc, carte IA bleue, QR, conseil du jour, `HomeTabBar` bleu nuit) · avatar en haut à droite cliquable → profil, photo si disponible. `HomeDesktop` · `Sidebar`. `QrScannerScreen` défini ici mais surchargé par `screen-qr-scanner.jsx`. |
 | `screen-emergency.jsx` | `EmergencyMobile` · `EmergencyCamera` · `EmergencyGuide` |
 | `screen-chat.jsx` | `ChatScreen` unifié (canvas statique) · `ChatUserBubble` · `ChatAIBubble` · `ChatTypingDots` · `ChatDesktop`. `ChatListening = ChatResponse = ChatScreen`. Surcharge par `live-chat.jsx` en live. |
 | `screen-sos.jsx` | `SOSCountdown` · `SOSConfirm` — remplacés par `live-sos.jsx` en live |
-| `screen-training.jsx` | `TrainingMobile` |
+| `screen-training.jsx` | `TrainingMobile` — bouton retour en haut à gauche du header. |
 | `live-chat.jsx` | Chat live complet : POST `/api/chat`, fallback PSC1 local (6 protocoles embarqués), Web Speech API (FR/EN), envoi image, auto-scroll, indicateur En ligne/Hors ligne. Surcharge `ChatListening` et `ChatResponse`. |
 | `live-sos.jsx` | Version branchée backend du SOS (WebSocket) — surcharge `screen-sos.jsx` |
 | `live-emergency.jsx` | Version branchée backend de l'urgence — surcharge `screen-emergency.jsx` |
@@ -218,22 +221,30 @@ Le code OTP (legacy) est toujours `123456`.
 | URL API | `https://sauvmoi-production.up.railway.app` en dur dans `api-client.js` | Backend Railway en prod — plus besoin de détecter Capacitor vs navigateur |
 | QR Scanner web | `jsQR` (CDN) + `<input type="file" capture="environment">` | Sans bundler : impossible d'importer ES modules Capacitor côté JS — le plugin s'enregistre côté natif et est accessible via `window.Capacitor.Plugins.BarcodeScanner` |
 | Données victime QR | `window.SM_VICTIM` (variable globale temporaire) | Passage de données entre QrScannerScreen → VictimCardScreen sans router |
+| Boutons retour | `goBack(nav)` partout | `nav.back()` seul plante si la pile est vide (= stack.length === 1) ; `goBack` bascule sur `nav.reset('home')` dans ce cas |
+| Avatar accueil | Bouton cliquable → `nav.go('profile')` | Re-render immédiat via `window.useSM()` déjà présent dans `HomeMobile` |
 
 ---
 
 ## Ce qui est fait ✅
 
-- Authentification complète (connexion email/mdp + inscription 2 étapes avec profil médical)
+- Authentification complète (connexion email/mdp + inscription 2 étapes avec profil médical) + session persistante (localStorage)
 - Écran d'accueil redesigné (en-tête dynamique, carte IA bleue, QR scanner, conseil du jour, tabbar bleu nuit avec SOS pulsé)
-- Écran QR Scanner (placeholder — attend plugin `@capacitor/camera`)
+- Avatar accueil cliquable → profil, affiche la photo si disponible, réactif via `useSM()`
 - Écran urgence (voix + caméra IA + guidage pas-à-pas)
 - Chat IA unifié : interface bulle complète (texte, voix Web Speech API, image), POST `/api/chat` (Claude ou fallback PSC1 backend), fallback PSC1 local si backend injoignable, indicateur En ligne/Hors ligne, auto-scroll, actions suggérées `tel:185`/`tel:180`
 - SOS géolocalisé (compte à rebours + WebSocket temps réel)
-- Formations (parcours gamifié)
-- Backend complet (auth, home, urgences, protocoles, chat IA, SOS, formations, paiements, carnet médical)
+- Formations (parcours gamifié + bouton retour)
+- Profil utilisateur complet : avatar + photo (resize canvas), infos perso, carnet médical, contacts d'urgence (max 5), changement mdp, déconnexion. Mode édition avec champs bleutés, barre sticky Annuler/Sauvegarder, toast vert.
+- QR Code médical généré côté serveur (`qrcode` npm) — fiche lisible par les secours
+- Scanner QR : natif Android (MLKit) + fallback web (jsQR + file input caméra). Validation JSON Sauv'Moi + expiration.
+- Fiche victime après scan QR : groupe sanguin rouge, allergies orange, contacts avec appel direct
+- Conditions générales d'utilisation
+- Navigation cohérente : `goBack(nav)` sur tous les boutons retour, `nav.canBack()` dans `frames.jsx`
+- Backend complet (auth, home, urgences, protocoles, chat IA, SOS, formations, paiements, carnet médical, PUT /me, QR médical)
 - Backend déployé sur Railway : `https://sauvmoi-production.up.railway.app`
 - Dépôt GitHub : `https://github.com/teamupsp5-ship-it/sauvmoi` (branche `main`)
-- Capacitor configuré pour Android (`ci.sauvmoi.app`)
+- Capacitor configuré pour Android (`ci.sauvmoi.app`) + permission CAMERA dans AndroidManifest
 - Mode plein écran natif (`.sm-live`, `viewport-fit=cover`, sans cadre téléphone fictif)
 - `StatusBar` et `HomeIndicator` neutralisés (le vrai OS gère)
 
@@ -242,18 +253,14 @@ Le code OTP (legacy) est toujours `123456`.
 ## Feuille de route restante 🔲
 
 ### Priorité haute (avant démo)
-- [ ] Brancher `@capacitor/camera` sur les uploads photo du profil (Capacitor natif)
 - [ ] Écran Localisation / carte des secouristes proches
-- [x] Déployer le backend sur Railway — `https://sauvmoi-production.up.railway.app` ✅
-- [x] Écran Profil utilisateur (affichage + édition + photo) ✅
-- [x] Scanner QR natif (`@capacitor-mlkit/barcode-scanning`) + fallback web jsQR ✅
-- [x] Fiche victime après scan QR ✅
+- [ ] Brancher `@capacitor/camera` sur les uploads photo du profil (natif Android)
+- [ ] `npm run build:mobile` + rebuild APK pour activer le scanner MLKit
 
 ### Priorité moyenne
 - [ ] Vrai Google OAuth (Firebase Auth ou OAuth2)
 - [ ] Vraie authentification Apple Sign-In
 - [ ] Notifications push (`@capacitor/push-notifications`)
-- [ ] Génération QR code du carnet médical (endpoint `/api/medical-record/qr` déjà prêt)
 - [ ] Mode hors-ligne partiel (`@capacitor/preferences` ou cache local)
 
 ### Priorité basse
@@ -261,6 +268,7 @@ Le code OTP (legacy) est toujours `123456`.
 - [ ] i18n complet FR/EN (structure `T(key, lang)` déjà en place)
 - [ ] Écran desktop pour Localisation et Profil
 - [ ] Tests automatisés
+- [ ] Écran Formations desktop complet
 
 ---
 
@@ -268,7 +276,8 @@ Le code OTP (legacy) est toujours `123456`.
 
 - **Composants JSX** : PascalCase, exposés sur `window` à la fin du fichier via `Object.assign(window, {...})`
 - **Styles** : inline JSX uniquement, jamais de classes inventées — utiliser les tokens `--sm-*` et les classes utilitaires de `styles.css`
-- **Navigation** : `nav.go('id')` empile · `nav.reset('id')` remplace tout · `nav.back()` dépile
+- **Navigation** : `nav.go('id')` empile · `nav.reset('id')` remplace tout · `nav.back()` dépile · `nav.canBack()` teste si la pile a > 1 écran
+- **Retour** : toujours utiliser `goBack(nav)` (défini dans `frames.jsx`) — dépile si possible, sinon `nav.reset('home')`. Ne jamais appeler `nav.back()` directement dans les boutons retour.
 - **State** : données live via `window.SM` + `window.useSM()` dans les composants live
 - **API calls** : `window.API.*` pour les appels standards, `fetch` direct pour les routes auth
 - **Pas de commentaires** sauf WHY non-évident
