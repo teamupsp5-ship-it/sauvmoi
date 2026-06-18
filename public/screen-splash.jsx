@@ -135,7 +135,7 @@ function SplashScreen({ nav }) {
             opacity: 0,
             animation: 'sp-fadein 0.9s ease forwards',
           }}>
-            Premiers secours · partout · toujours
+            Chaque seconde compte
           </p>
         )}
 

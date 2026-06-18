@@ -2,6 +2,7 @@
 
 Application de premiers secours mobile pour la Côte d'Ivoire.
 Projet hackathon "IA et service universel des télécommunications TIC".
+Tagline : **"Chaque seconde compte"** (affiché sur splash screen et écran de connexion).
 
 ---
 
