@@ -1,0 +1,31 @@
+DÉMARRAGE EN UN CLIC — Sauv'Moi
+================================
+
+▶ WINDOWS
+  Double-cliquez sur :  Lancer-Sauvmoi.bat
+  (Si Windows affiche un avertissement « Windows a protégé votre PC » :
+   cliquez sur « Informations complémentaires » puis « Exécuter quand même ».)
+
+▶ macOS
+  Double-cliquez sur :  Lancer-Sauvmoi.command
+  (Au tout premier lancement, macOS peut bloquer le fichier : faites
+   clic-droit → Ouvrir → Ouvrir. Ou, dans le Terminal une seule fois :
+   chmod +x Lancer-Sauvmoi.command)
+
+▶ LINUX
+  Double-cliquez sur Lancer-Sauvmoi.command (cochez « exécuter » si demandé),
+  ou dans un terminal :  ./Lancer-Sauvmoi.command
+
+CE QUE FAIT LE LANCEUR
+  1. Vérifie que Node.js est installé (sinon, vous indique où le télécharger).
+  2. Installe les dépendances la PREMIÈRE fois seulement (~1 min).
+  3. Démarre le serveur local.
+  4. Ouvre votre navigateur sur http://localhost:3000
+
+PENDANT LA DÉMO
+  • Ne fermez pas la fenêtre noire (le serveur) tant que vous présentez.
+  • Pour arrêter : fermez la fenêtre (Windows) ou Ctrl+C (Mac/Linux).
+
+PRÉREQUIS
+  • Node.js installé : https://nodejs.org (version 18 ou plus récente).
+    C'est le seul logiciel nécessaire.

@@ -1,0 +1,11 @@
+{
+  "appId": "ci.sauvmoi.app",
+  "appName": "Sauv'Moi",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
