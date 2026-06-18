@@ -101,13 +101,11 @@ function AuthScreen({ nav }) {
 
         {/* ── Logo ── */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 42 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: 22, background: 'var(--sm-ink)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 16, boxShadow: '0 8px 28px rgba(10,22,40,.20)',
-          }}>
-            <Icon name="life-buoy" size={38} color="var(--sm-paper)" />
-          </div>
+          <img
+            src="logo_80.png"
+            alt="Sauv'Moi"
+            style={{ width: 80, height: 80, objectFit: 'contain', marginBottom: 16, borderRadius: 22, boxShadow: '0 8px 28px rgba(10,22,40,.15)' }}
+          />
           <h1 className="sm-serif" style={{ fontSize: 30, marginBottom: 6 }}>Sauv'Moi</h1>
           <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.4 }}>
             Premiers secours · partout · toujours

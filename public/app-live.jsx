@@ -10,6 +10,7 @@
 })();
 
 const PHONE_SCREENS = {
+  splash:           window.SplashScreen,
   auth:             window.AuthScreen,
   register:         window.RegisterScreen,
   home:             window.HomeMobile,
@@ -40,7 +41,7 @@ function applyTweaks(t) {
 function LiveApp() {
   const t = window.TWEAK_DEFAULTS;
   const SM = window.useSM();
-  const initialScreen = (window.SM.token && window.SM.user) ? 'home' : 'auth';
+  const initialScreen = 'splash';
 
   React.useEffect(() => { applyTweaks(t); window.SM.bootstrap(); }, []);
   React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });

@@ -114,20 +114,12 @@ function HomeMobile({ nav, lang }) {
         borderBottom: '1px solid var(--sm-line)',
         flexShrink: 0,
       }}>
-        {/* Cloche à gauche */}
-        <button style={{
-          width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--sm-paper-2)', border: 'none', cursor: 'pointer',
-          position: 'relative',
-        }}>
-          <Icon name="bell" size={20} color="var(--sm-ink-700)" />
-          <span style={{
-            position: 'absolute', top: 7, right: 8,
-            width: 8, height: 8, borderRadius: '50%',
-            background: 'var(--sm-red)', border: '1.5px solid white',
-          }} />
-        </button>
+        {/* Logo Sauv'Moi */}
+        <img
+          src="logo_80.png"
+          alt="Sauv'Moi"
+          style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 10, flexShrink: 0 }}
+        />
 
         {/* Salutation */}
         <div style={{ flex: 1, minWidth: 0 }}>
