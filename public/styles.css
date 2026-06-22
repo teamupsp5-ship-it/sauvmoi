@@ -12,7 +12,7 @@
   --sm-orange: #C77A2B;
   --sm-violet: #6B4F8C;
 
-  --sm-paper: #FAF7F2;
+  --sm-paper: #FFFFFF;
   --sm-paper-2: #F4EFE6;
   --sm-paper-3: #ECE5D7;
   --sm-ink: #0A1628;
@@ -54,9 +54,10 @@
   --sm-blue-soft: #EBF5FB;
 }
 
-/* Police globale */
+/* Police et fond global */
 body {
   font-family: 'Poppins', 'Public Sans', system-ui, sans-serif;
+  background: #FFFFFF;
 }
 
 /* Scope-friendly resets only within our frames */

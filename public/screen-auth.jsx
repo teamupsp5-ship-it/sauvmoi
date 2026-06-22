@@ -108,7 +108,7 @@ function AuthScreen({ nav }) {
           />
           <h1 className="sm-serif" style={{ fontSize: 30, marginBottom: 6 }}>Sauv'Moi</h1>
           <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.4 }}>
-            Chaque seconde compte
+            Restez calme, tout ira bien
           </p>
         </div>
 
