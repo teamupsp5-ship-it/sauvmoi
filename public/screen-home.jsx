@@ -204,10 +204,10 @@ function HomeMobile({ nav, lang }) {
         >
           <div style={{
             width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-            background: 'var(--sm-soft-green)',
+            background: '#F1F2F4',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name="camera" size={22} color="var(--sm-ink)" strokeWidth={1.9} />
+            <Icon name="camera" size={22} color="#1a1a1a" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sm-serif" style={{ fontSize: 16, color: 'var(--sm-ink)', marginBottom: 3 }}>
@@ -225,10 +225,10 @@ function HomeMobile({ nav, lang }) {
         <div className="sm-card" style={{ padding: '18px 16px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-            background: 'var(--sm-soft-red)',
+            background: '#F1F2F4',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name={tip.icon} size={22} color="var(--sm-ink)" strokeWidth={1.9} />
+            <Icon name={tip.icon} size={22} color="#1a1a1a" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h4 className="sm-serif" style={{ fontSize: 16, marginBottom: 6 }}>{tip.title}</h4>
