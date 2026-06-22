@@ -23,7 +23,7 @@ function HomeTabBar({ active, nav }) {
 
   return (
     <div style={{
-      background: 'rgba(15,23,42,0.92)',
+      background: 'linear-gradient(180deg, #1565C0, #0D47A1)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
       borderTop: '1px solid rgba(255,255,255,0.1)',
@@ -207,7 +207,7 @@ function HomeMobile({ nav, lang }) {
             background: 'var(--sm-soft-green)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name="camera" size={22} color="var(--sm-green)" strokeWidth={1.9} />
+            <Icon name="camera" size={22} color="var(--sm-ink)" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sm-serif" style={{ fontSize: 16, color: 'var(--sm-ink)', marginBottom: 3 }}>
@@ -228,7 +228,7 @@ function HomeMobile({ nav, lang }) {
             background: 'var(--sm-soft-red)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name={tip.icon} size={22} color="var(--sm-red)" strokeWidth={1.9} />
+            <Icon name={tip.icon} size={22} color="var(--sm-ink)" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h4 className="sm-serif" style={{ fontSize: 16, marginBottom: 6 }}>{tip.title}</h4>
