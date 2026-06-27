@@ -54,6 +54,10 @@
     medicalRecord: () => req('/api/medical-record'),
     medicalQr: () => req('/api/medical-record/qr'),
 
+    // Notifications in-app
+    notifications: () => req('/api/notifications'),
+    markNotifRead: (id) => req('/api/notifications/' + id + '/read', { method: 'POST' }),
+
     // WebSocket SOS temps réel → renvoie le socket
     sosSocket: (alertId, onEvent) => {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';

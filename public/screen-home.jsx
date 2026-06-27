@@ -110,6 +110,24 @@ function HomeMobile({ nav, lang }) {
   // Conseil du jour (indexé sur le jour de la semaine)
   const tip = DAILY_TIPS[new Date().getDay()];
 
+  // Notifications in-app
+  const [notifs, setNotifs] = useState([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const unreadCount = notifs.filter(n => !n.read).length;
+
+  useEffect(() => {
+    window.API.notifications().then(setNotifs).catch(() => {});
+  }, []);
+
+  const openNotif = () => {
+    setShowNotifs(true);
+    // Marquer toutes comme lues
+    notifs.filter(n => !n.read).forEach(n => {
+      window.API.markNotifRead(n.id).catch(() => {});
+    });
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
   return (
     <>
       {/* ── En-tête dégradé ─────────────────────────────────────────── */}
@@ -120,12 +138,26 @@ function HomeMobile({ nav, lang }) {
         borderBottom: '1px solid var(--sm-line)',
         flexShrink: 0,
       }}>
-        {/* Logo Sauv'Moi */}
-        <img
-          src="logo_80.png"
-          alt="Sauv'Moi"
-          style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 10, flexShrink: 0 }}
-        />
+        {/* Logo Sauv'Moi — cliquable → notifications */}
+        <button
+          onClick={openNotif}
+          style={{ position: 'relative', background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+        >
+          <img src="logo_80.png" alt="Sauv'Moi" style={{ width: 38, height: 38, objectFit: 'contain', borderRadius: 10, display: 'block' }} />
+          {unreadCount > 0 && (
+            <div style={{
+              position: 'absolute', top: -5, right: -5,
+              width: 18, height: 18, borderRadius: '50%',
+              background: 'var(--sm-red)', color: 'white',
+              fontSize: 10, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: '2px solid white',
+              fontFamily: 'var(--font-ui)',
+            }}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </div>
+          )}
+        </button>
 
         {/* Salutation */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -239,6 +271,67 @@ function HomeMobile({ nav, lang }) {
 
       {/* ── Barre de navigation bleue foncée ───────────────────────────── */}
       <HomeTabBar active="home" nav={nav} />
+
+      {/* ── Bottom sheet notifications ───────────────────────────────────── */}
+      {showNotifs && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowNotifs(false)}
+            style={{ flex: 1, background: 'rgba(10,22,40,0.4)' }}
+          />
+          {/* Sheet */}
+          <div style={{ background: 'white', borderRadius: '20px 20px 0 0', maxHeight: '78%', display: 'flex', flexDirection: 'column', boxShadow: '0 -4px 30px rgba(0,0,0,0.12)' }}>
+            {/* Handle */}
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#E0E0E0', margin: '12px auto 0', flexShrink: 0 }} />
+            {/* Header sheet */}
+            <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid var(--sm-line)' }}>
+              <h2 className="sm-serif" style={{ fontSize: 18 }}>Alertes reçues</h2>
+              <button onClick={() => setShowNotifs(false)} style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer' }}>
+                <Icon name="x" size={20} color="var(--sm-ink-400)" />
+              </button>
+            </div>
+            {/* Liste */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 32px' }}>
+              {notifs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--sm-ink-500)', fontSize: 14 }}>
+                  Aucune alerte pour le moment
+                </div>
+              ) : notifs.map(n => (
+                <div key={n.id} style={{
+                  padding: '14px 16px', borderRadius: 'var(--sm-radius)',
+                  background: 'white', boxShadow: 'var(--sm-shadow)',
+                  marginBottom: 10, display: 'flex', gap: 12, alignItems: 'flex-start',
+                  opacity: n.read ? 0.65 : 1,
+                }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name="siren" size={20} color="var(--sm-red)" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-ink)', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{n.message}</div>
+                    <div style={{ fontSize: 12, color: 'var(--sm-ink-500)', marginTop: 4 }}>
+                      {new Date(n.createdAt).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                    </div>
+                    {n.lat != null && n.lng != null && (
+                      <a
+                        href={'https://maps.google.com/?q=' + n.lat + ',' + n.lng}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, color: 'var(--sm-blue)', textDecoration: 'none', fontWeight: 500 }}
+                      >
+                        <Icon name="map-pin" size={13} color="var(--sm-blue)" />
+                        Voir sur la carte
+                      </a>
+                    )}
+                  </div>
+                  {!n.read && (
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)', flexShrink: 0, marginTop: 5 }} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

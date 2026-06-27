@@ -13,6 +13,7 @@ const empty = {
   sosAlerts: {},       // id -> alert
   payments: {},        // id -> payment
   otps: {},            // phone -> code
+  notifications: {},   // id -> { id, userId, alertId, message, lat, lng, createdAt, read }
 };
 
 let db = structuredClone(empty);
@@ -22,6 +23,20 @@ export function load() {
     if (existsSync(DB_PATH)) db = { ...structuredClone(empty), ...JSON.parse(readFileSync(DB_PATH, 'utf8')) };
   } catch (e) {
     console.warn('[store] lecture échouée, repart à zéro:', e.message);
+  }
+  if (!db.notifications) db.notifications = {};
+  // Notification de démo pour montrer le badge dès le premier lancement
+  if (Object.keys(db.notifications).length === 0) {
+    db.notifications['notif_seed'] = {
+      id: 'notif_seed',
+      userId: 'u_demo',
+      alertId: 'sos_demo',
+      message: '🚨 Mamadou Kouassi a déclenché une alerte SOS',
+      lat: 5.354,
+      lng: -3.987,
+      createdAt: Date.now() - 25 * 60000,
+      read: false,
+    };
   }
 }
 

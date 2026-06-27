@@ -1,280 +1,345 @@
-// Screen 4 — SOS géolocalisé · mobile
-// 4a: 3-second countdown with cancel
-// 4b: confirmation — help is on the way
+// screen-sos.jsx — Module SOS · version canvas (design statique)
+// La version live (avec GPS, WebSocket, WhatsApp) est dans live-sos.jsx
 
-function SOSCountdown({ nav, lang }) {
+(function injectSosKf() {
+  if (document.getElementById('sm-sos-kf')) return;
+  const s = document.createElement('style');
+  s.id = 'sm-sos-kf';
+  s.textContent = `
+    @keyframes sos-ring {
+      0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.55; }
+      100% { transform: translate(-50%, -50%) scale(1.65); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+// ── 4a · Écran SOS (idle + compte à rebours) ─────────────────────────────────
+function SOSCountdown({ nav }) {
   useLucide();
-  const [count, setCount] = useState(3);
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'counting'
+  const [count, setCount] = useState(5);
+
   useEffect(() => {
+    if (phase !== 'counting') return;
     if (count <= 0) {
-      const t = setTimeout(() => nav.replace('sos_confirm'), 400);
-      return () => clearTimeout(t);
+      nav.replace('sos_confirm');
+      return;
     }
     const t = setTimeout(() => setCount(c => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [count]);
+  }, [phase, count]);
 
-  const R = 100;
-  const C = 2 * Math.PI * R;
-  const elapsed = 3 - count; // 0..3
-  const progress = elapsed / 3;
-  const dashoffset = C * progress;
+  const handleStart = () => { setPhase('counting'); setCount(5); };
+  const handleCancel = () => { setPhase('idle'); setCount(5); };
 
-  return (
-    <div style={{
-      position: 'absolute', inset: 0,
-      background: 'var(--sm-red)',
-      color: 'white',
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      {/* Concentric wave rings */}
-      {[300, 460, 620, 780].map((s, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          width: s, height: s,
-          left: '50%', top: '46%',
-          marginLeft: -s/2, marginTop: -s/2,
-          borderRadius: '50%',
-          border: '1.5px solid rgba(255,255,255,0.18)',
-          opacity: 1 - i * 0.18,
-          animation: `sm-pulse-halo 2.4s var(--ease) infinite`,
-          animationDelay: `${i * 0.4}s`,
-        }} />
-      ))}
+  // ── État initial : grand bouton + numéros rapides ──────────────────────────
+  if (phase === 'idle') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      <StatusBar light />
-      {/* Header */}
-      <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 16px 0' }}>
-        <button onClick={() => nav.back()} style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="x" size={20} color="white" />
-        </button>
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{T('sos_in', lang)}</span>
-        <div style={{ width: 36, height: 36 }} />
-      </div>
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12,
+          borderBottom: '1px solid var(--sm-line)',
+          background: 'linear-gradient(180deg, #f8f9fa, white)',
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => goBack(nav)}
+            style={{ background: 'none', border: 'none', padding: '4px', margin: '-4px', cursor: 'pointer' }}
+          >
+            <Icon name="arrow-left" size={22} color="var(--sm-ink)" />
+          </button>
+          <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>Urgence SOS</h1>
+        </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px', position: 'relative', zIndex: 2 }}>
-        {/* Progress ring + number */}
-        <div style={{ position: 'relative', width: 220, height: 220 }}>
-          <svg width={220} height={220} style={{ transform: 'rotate(-90deg)' }}>
-            <circle cx={110} cy={110} r={R} fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
-            <circle
-              cx={110} cy={110} r={R}
-              fill="none"
-              stroke="white"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={C}
-              strokeDashoffset={dashoffset}
-              style={{ transition: 'stroke-dashoffset 980ms linear' }}
-            />
-          </svg>
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span className="sm-serif" style={{ fontSize: 96, fontWeight: 500, lineHeight: 1 }}>
-              {Math.max(0, count)}
-            </span>
-            <span style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>{T('seconds', lang)}</span>
+        {/* Corps */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px 32px' }}>
+
+          {/* Grand bouton SOS pulsant */}
+          <div style={{ position: 'relative', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: 200, height: 200, borderRadius: '50%', background: 'rgba(231,76,60,0.1)', animation: 'sos-ring 2.2s ease-out infinite' }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: 164, height: 164, borderRadius: '50%', background: 'rgba(231,76,60,0.16)', animation: 'sos-ring 2.2s ease-out infinite', animationDelay: '0.7s' }} />
+            <button
+              onClick={handleStart}
+              style={{
+                position: 'relative', zIndex: 1,
+                width: 140, height: 140, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #E74C3C, #C0392B)',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 8px 32px rgba(192,57,43,0.45)',
+                color: 'white',
+                transition: 'transform 0.1s ease',
+              }}
+              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
+              onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <Icon name="siren" size={42} color="white" strokeWidth={2} />
+              <span style={{ fontSize: 20, fontWeight: 700, marginTop: 6, fontFamily: 'var(--font-ui)', letterSpacing: '0.06em' }}>SOS</span>
+            </button>
+          </div>
+
+          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', marginBottom: 40, fontFamily: 'var(--font-ui)' }}>
+            Appuyez en cas d'urgence
+          </p>
+
+          {/* Numéros d'urgence rapides */}
+          <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14, width: '100%', color: 'var(--sm-ink)' }}>
+            Numéros d'urgence
+          </h3>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[
+              { label: 'SAMU',      number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
+              { label: 'Pompiers',  number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
+              { label: 'Police',    number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
+            ].map(item => (
+              <a key={item.number} href={'tel:' + item.number}
+                style={{ textDecoration: 'none', display: 'block' }}>
+                <div style={{
+                  padding: '14px 16px', borderRadius: 'var(--sm-radius)',
+                  background: 'white', boxShadow: 'var(--sm-shadow)',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 14, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon name={item.icon} size={22} color={item.color} strokeWidth={1.9} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{item.label}</div>
+                    <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Appel direct · {item.number}</div>
+                  </div>
+                  <Icon name="phone" size={18} color={item.color} />
+                </div>
+              </a>
+            ))}
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <h2 className="sm-serif" style={{ fontSize: 24, marginTop: 36, textAlign: 'center', maxWidth: 280 }}>
-          {T('sos_sending', lang)}
-        </h2>
+  // ── Compte à rebours 5 secondes ───────────────────────────────────────────
+  const R = 90, C = 2 * Math.PI * R;
+  const dashoffset = C * (count / 5);
 
-        <div style={{ marginTop: 20, display: 'flex', gap: 14, alignItems: 'center', fontSize: 13, opacity: 0.85 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="map-pin" size={14} /> Cocody · Riviera 2
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
+
+      <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center', fontFamily: 'var(--font-ui)' }}>
+        Alerte SOS en cours d'envoi…
+      </p>
+
+      {/* Cercle de progression SVG */}
+      <div style={{ position: 'relative', width: 220, height: 220, marginBottom: 48 }}>
+        <svg width={220} height={220} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={110} cy={110} r={R} fill="var(--sm-red-soft)" stroke="rgba(192,57,43,0.12)" strokeWidth="2" />
+          <circle
+            cx={110} cy={110} r={R}
+            fill="none" stroke="var(--sm-red)" strokeWidth="7" strokeLinecap="round"
+            strokeDasharray={C} strokeDashoffset={dashoffset}
+            style={{ transition: 'stroke-dashoffset 980ms linear' }}
+          />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 72, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)', lineHeight: 1 }}>
+            {Math.max(0, count)}
           </span>
-          <span style={{ opacity: 0.4 }}>·</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="signal" size={14} /> GPS ±8 m
-          </span>
+          <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 6, fontFamily: 'var(--font-ui)' }}>secondes</span>
         </div>
       </div>
 
-      {/* Cancel button */}
-      <div style={{ padding: '14px 28px 30px', position: 'relative', zIndex: 2 }}>
-        <button
-          onClick={() => nav.home()}
-          className="sm-btn sm-btn-outline-white"
-          style={{ width: '100%', padding: '18px', fontSize: 16, fontWeight: 700, minHeight: 56 }}
-        >
-          {T('cancel', lang)}
-        </button>
-        <p style={{ textAlign: 'center', fontSize: 11, opacity: 0.7, marginTop: 10 }}>
-          {lang === 'EN' ? 'Maintain pressure on the cancel button to abort' : 'Vous pouvez annuler à tout moment'}
-        </p>
-      </div>
-      <HomeIndicator light />
+      <button
+        onClick={handleCancel}
+        style={{
+          width: '100%', maxWidth: 340, padding: '16px',
+          borderRadius: 'var(--sm-radius)',
+          border: '2px solid var(--sm-red)',
+          background: 'white', color: 'var(--sm-red)',
+          fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
+          cursor: 'pointer', letterSpacing: '0.04em',
+          boxShadow: '0 2px 8px rgba(192,57,43,0.12)',
+          transition: 'transform 0.1s ease',
+        }}
+        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        ANNULER
+      </button>
     </div>
   );
 }
 
-// ── 4b · Confirmation ─────────────────────────────────────────────────────
-function SOSConfirm({ nav, lang }) {
+// ── 4b · Confirmation (canvas — données statiques) ────────────────────────────
+function SOSConfirm({ nav }) {
   useLucide();
+
+  // Contacts de démo avec hasAccount mocked
+  const DEMO_CONTACTS = [
+    { name: 'Mamadou Kouassi', relation: 'Époux',  phone: '+22507111111', hasAccount: true },
+    { name: 'Awa Koné',        relation: 'Sœur',   phone: '+22507222222', hasAccount: false },
+  ];
+  const DEMO_LAT = 5.354, DEMO_LNG = -3.987;
+
+  const waUrl = (phone, name) => {
+    const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const msg = `🚨 ALERTE URGENCE - Sauv'Moi\nAïcha a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${DEMO_LAT},${DEMO_LNG}\nHeure : ${now}`;
+    return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+  };
+
   return (
-    <>
-      <StatusBar />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 16px 0' }}>
-        <button onClick={() => nav.home()} style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="x" size={20} color="var(--sm-ink-700)" />
-        </button>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-red)' }}>
-          <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)', marginRight: 6, verticalAlign: 'middle' }} className="sm-blink" />
-          Alerte active
-        </span>
-        <button style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="more-horizontal" size={20} color="var(--sm-ink-700)" />
-        </button>
+    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+      {/* ── Header fixe ── */}
+      <div style={{ flexShrink: 0, background: 'white', borderBottom: '1px solid var(--sm-line)' }}>
+        {/* Barre statut alerte */}
+        <div style={{ padding: '12px 20px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-red)', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span className="sm-blink" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)' }} />
+            Alerte active
+          </span>
+          <button onClick={() => nav.reset('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+            <Icon name="x" size={20} color="var(--sm-ink-400)" />
+          </button>
+        </div>
+
+        {/* Bouton SAMU sticky */}
+        <div style={{ padding: '0 16px 14px' }}>
+          <a href="tel:185" style={{ textDecoration: 'none', display: 'block' }}>
+            <button style={{
+              width: '100%', padding: '14px', borderRadius: 'var(--sm-radius)',
+              background: 'var(--sm-red)', color: 'white', border: 'none',
+              fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
+              transition: 'transform 0.1s ease',
+            }}
+            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
+              Appeler SAMU 185
+            </button>
+          </a>
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 16px' }}>
-        {/* Success */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '14px 0 22px' }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: '50%',
-            background: 'var(--sm-green)', color: 'white',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 22px rgba(46,107,79,0.3)',
-            marginBottom: 16,
-          }}>
-            <Icon name="check" size={36} strokeWidth={2.2} />
+      {/* ── Corps scrollable ── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 24px' }}>
+
+        {/* Checkmark succès */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
+          <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(39,174,96,0.3)', marginBottom: 14 }}>
+            <Icon name="check" size={34} color="white" strokeWidth={2.5} />
           </div>
-          <h2 className="sm-serif" style={{ fontSize: 26 }}>{T('help_coming', lang)}</h2>
-          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginTop: 6 }}>{T('sent_to', lang)}</p>
+          <h2 className="sm-serif" style={{ fontSize: 22, textAlign: 'center' }}>Les secours sont alertés</h2>
+          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginTop: 6, textAlign: 'center' }}>Votre position a été partagée</p>
         </div>
 
-        {/* Card 1 — SAMU */}
-        <div className="sm-card" style={{ padding: 16, marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 12,
-            background: 'var(--sm-red)', color: 'white',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="ambulance" size={24} strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1, lineHeight: 1.3 }}>
-            <div className="sm-serif" style={{ fontSize: 17 }}>SAMU 185</div>
-            <div style={{ fontSize: 12, color: 'var(--sm-ink-500)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--sm-green)' }} />
-              Reçu · ETA 4 min
-            </div>
-          </div>
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: 'var(--sm-soft-green)', color: 'var(--sm-green)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="check" size={16} strokeWidth={2.4} />
-          </div>
-        </div>
-
-        {/* Card 2 — Proches */}
-        <div className="sm-card" style={{ padding: 16, marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 12,
-            background: 'var(--sm-soft-red)', color: 'var(--sm-red)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="heart" size={22} strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1, lineHeight: 1.3 }}>
-            <div className="sm-serif" style={{ fontSize: 17 }}>Proches notifiés</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <div style={{ display: 'flex' }}>
-                {[0,1,2].map(i => (
-                  <div key={i} className="sm-photo-placeholder" style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    marginLeft: i > 0 ? -7 : 0,
-                    border: '2px solid white', fontSize: 9, fontWeight: 600,
-                    color: 'var(--sm-ink)',
-                  }}>
-                    <span style={{ position: 'relative', zIndex: 1 }}>{['M','A','K'][i]}</span>
-                  </div>
-                ))}
+        {/* Étapes */}
+        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '16px', marginBottom: 16 }}>
+          {[
+            { label: 'Alerte créée',       done: true },
+            { label: 'Position partagée',  done: true },
+            { label: 'Contacts notifiés',  done: false },
+          ].map((step, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: i < 2 ? '1px solid var(--sm-line)' : 'none' }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: step.done ? '#27AE60' : 'var(--sm-line)' }}>
+                {step.done
+                  ? <Icon name="check" size={13} color="white" strokeWidth={2.5} />
+                  : <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-ink-400)' }} />
+                }
               </div>
-              <span style={{ fontSize: 12, color: 'var(--sm-ink-500)' }}>Mamadou en route · 8 min</span>
+              <span style={{ fontSize: 14, fontWeight: step.done ? 500 : 400, color: step.done ? 'var(--sm-ink)' : 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>
+                {step.label}
+              </span>
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Card 3 — Secouristes */}
-        <div className="sm-card" style={{ padding: 16, marginBottom: 18, display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 12,
-            background: 'var(--sm-soft-green)', color: 'var(--sm-green)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="map-pin" size={22} strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1, lineHeight: 1.3 }}>
-            <div className="sm-serif" style={{ fontSize: 17 }}>12 secouristes alertés</div>
-            <div style={{ fontSize: 12, color: 'var(--sm-ink-500)', marginTop: 2 }}>
-              3 ont accepté · le plus proche à 200 m
+        {/* Contacts */}
+        <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>Contacts d'urgence</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          {DEMO_CONTACTS.map(c => (
+            <div key={c.phone} style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: c.hasAccount ? 0 : 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>
+                    {c.name.charAt(0)}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{c.name}</div>
+                  <div style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{c.relation}</div>
+                </div>
+                {c.hasAccount && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#EAFAF1', borderRadius: 999, padding: '4px 10px', flexShrink: 0 }}>
+                    <Icon name="check" size={12} color="#27AE60" strokeWidth={2.5} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#27AE60', fontFamily: 'var(--font-ui)' }}>Notifié dans l'app</span>
+                  </div>
+                )}
+              </div>
+              {!c.hasAccount && (
+                <a href={waUrl(c.phone, c.name)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                  <button style={{
+                    width: '100%', padding: '11px 14px',
+                    borderRadius: 'var(--sm-radius)',
+                    background: '#25D366', color: 'white', border: 'none',
+                    fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-ui)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
+                    transition: 'transform 0.1s ease',
+                  }}>
+                    <Icon name="message-circle" size={18} color="white" strokeWidth={2} />
+                    Alerter via WhatsApp
+                  </button>
+                </a>
+              )}
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Mini-map */}
-        <div className="sm-card" style={{ overflow: 'hidden', marginBottom: 18, padding: 0 }}>
-          <div style={{ height: 160, position: 'relative', background: '#E8E2D2' }}>
-            {/* fake map: grid lines */}
-            <svg viewBox="0 0 390 160" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-              <defs>
-                <pattern id="mapgrid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-                  <path d="M40 0L0 0L0 40" fill="none" stroke="#D2C8AE" strokeWidth="1" />
-                </pattern>
-              </defs>
-              <rect width="390" height="160" fill="url(#mapgrid)" />
-              <path d="M -20 110 C 60 80, 200 130, 320 60 L 410 100 L 410 160 L -20 160 Z" fill="#DCE7DA" opacity="0.6" />
-              <path d="M 0 80 C 80 60, 180 100, 280 70 L 410 90" fill="none" stroke="#A8B6C5" strokeWidth="3" />
-              <path d="M 30 30 C 100 50, 180 30, 240 50" fill="none" stroke="#A8B6C5" strokeWidth="2" strokeDasharray="3 3" />
-              {/* SAMU pin */}
-              <g transform="translate(280 50)">
-                <circle r="20" fill="rgba(229,57,53,0.18)" />
-                <circle r="11" fill="var(--sm-red)" />
-                <text y="4" textAnchor="middle" fontSize="11" fill="white" fontWeight="700">S</text>
-              </g>
-              {/* User pin */}
-              <g transform="translate(170 95)">
-                <circle r="22" fill="rgba(74,144,194,0.18)" />
-                <circle r="9" fill="var(--sm-blue)" stroke="white" strokeWidth="3" />
-              </g>
-              {/* Rescuer pins */}
-              <g transform="translate(120 75)"><circle r="7" fill="var(--sm-green)" stroke="white" strokeWidth="2" /></g>
-              <g transform="translate(200 60)"><circle r="7" fill="var(--sm-green)" stroke="white" strokeWidth="2" /></g>
-              <g transform="translate(220 100)"><circle r="7" fill="var(--sm-green)" stroke="white" strokeWidth="2" /></g>
-            </svg>
-            <div style={{
-              position: 'absolute', left: 10, bottom: 10,
-              background: 'white', padding: '6px 10px', borderRadius: 999,
-              fontSize: 11, fontWeight: 600,
-              boxShadow: 'var(--shadow-1)',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}>
-              <Icon name="navigation" size={12} color="var(--sm-blue)" />
-              ETA ambulance · 4 min
+        {/* SAMU ETA */}
+        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="ambulance" size={24} color="var(--sm-red)" strokeWidth={2} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>SAMU 185</div>
+            <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#27AE60', display: 'inline-block' }} />
+              En route · ETA 4 min
             </div>
           </div>
+          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>4</span>
         </div>
 
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="sm-btn sm-btn-outline" style={{ flex: 1 }}>
-            <Icon name="map" size={18} /> {T('view_map', lang)}
-          </button>
-          <button onClick={() => nav.home()} className="sm-btn sm-btn-outline-red" style={{ flex: 1 }}>
-            <Icon name="x-circle" size={18} /> {T('cancel_all', lang)}
-          </button>
-        </div>
+        {/* Bouton annuler */}
+        <button
+          onClick={() => nav.reset('home')}
+          style={{
+            width: '100%', padding: '14px',
+            borderRadius: 'var(--sm-radius)',
+            border: '2px solid var(--sm-red)',
+            background: 'white', color: 'var(--sm-red)',
+            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-ui)',
+            cursor: 'pointer', letterSpacing: '0.03em',
+            transition: 'transform 0.1s ease',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <Icon name="x-circle" size={18} color="var(--sm-red)" />
+          Annuler l'alerte
+        </button>
       </div>
-
-      <HomeIndicator />
-    </>
+    </div>
   );
 }
 

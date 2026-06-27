@@ -72,23 +72,47 @@ function runSimulation(alert) {
 
 // POST /api/sos/trigger — déclenche l'alerte (après le compte à rebours côté front)
 router.post('/sos/trigger', (req, res) => {
-  const { lat = 5.354, lng = -3.987, label = 'Cocody · Riviera 2' } = req.body || {};
+  const { lat = 5.354, lng = -3.987, label = 'Abidjan' } = req.body || {};
+  const db = get();
   const id = uid('sos');
+
+  // Pour chaque contact d'urgence, vérifier s'il a un compte Sauv'Moi
+  const contacts = DEMO_USER.medicalRecord.emergencyContacts.map(c => {
+    const registeredUser = Object.values(db.users).find(u => u.phone === c.phone);
+    const hasAccount = !!registeredUser;
+    if (hasAccount && registeredUser) {
+      const notifId = uid('notif');
+      if (!db.notifications) db.notifications = {};
+      db.notifications[notifId] = {
+        id: notifId,
+        userId: registeredUser.id,
+        alertId: id,
+        message: `🚨 ${DEMO_USER.name.split(' ')[0]} a déclenché une alerte SOS`,
+        lat, lng,
+        createdAt: Date.now(),
+        read: false,
+      };
+    }
+    return { name: c.name, phone: c.phone, relation: c.relation, hasAccount };
+  });
+
   const alert = {
     id,
     status: 'active',
+    userId: DEMO_USER.id,
     createdAt: Date.now(),
     location: { lat, lng, label, accuracyM: 8 },
     samu: { number: SAMU, status: 'notified', etaMin: 6 },
-    relatives: DEMO_USER.medicalRecord.emergencyContacts.map((c) => ({ name: c.name, phone: c.phone, status: 'notified' })),
+    relatives: contacts.map(c => ({ name: c.name, phone: c.phone, status: 'notified', hasAccount: c.hasAccount })),
     rescuers: RESCUERS.map((r) => ({ ...r, status: 'alerted' })),
     rescuersAlerted: RESCUERS.length,
     rescuersAccepted: 0,
+    contacts,
   };
-  get().sosAlerts[id] = alert;
+  db.sosAlerts[id] = alert;
   save();
   runSimulation(alert);
-  res.json({ alertId: id, ...alert });
+  res.json({ alertId: id, contacts, ...alert });
 });
 
 router.get('/sos/:id/status', (req, res) => {

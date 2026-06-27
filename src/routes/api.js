@@ -165,4 +165,22 @@ router.get('/medical-record/qr', async (req, res) => {
   }
 });
 
+// ─── NOTIFICATIONS IN-APP ────────────────────────────────────────────────────
+router.get('/notifications', (req, res) => {
+  const db = get();
+  const notifs = Object.values(db.notifications || {})
+    .filter(n => n.userId === 'u_demo')
+    .sort((a, b) => b.createdAt - a.createdAt);
+  res.json(notifs);
+});
+
+router.post('/notifications/:id/read', (req, res) => {
+  const db = get();
+  const n = (db.notifications || {})[req.params.id];
+  if (!n) return res.status(404).json({ error: 'notification inconnue' });
+  n.read = true;
+  save();
+  res.json({ ok: true });
+});
+
 export default router;
