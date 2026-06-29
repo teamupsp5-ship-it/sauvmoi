@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import apiRoutes from './routes/api.js';
 import chatRoutes from './routes/chat.js';
 import sosRoutes from './routes/sos.js';
+import trainingRoutes from './routes/training.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = join(__dirname, '..', 'public');
@@ -48,6 +49,7 @@ app.use('/api', authRoutes);
 app.use('/api', apiRoutes);
 app.use('/api', chatRoutes);
 app.use('/api', sosRoutes);
+app.use('/api', trainingRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -40,6 +40,9 @@
     trainingPath: () => req('/api/training/path'),
     courses: (filter) => req('/api/training/courses' + (filter ? '?filter=' + filter : '')),
     trainingMe: () => req('/api/training/me'),
+    trainingModules: () => req('/api/training/modules'),
+    trainingComplete: (moduleId, score, total) =>
+      req('/api/training/' + moduleId + '/complete', { method: 'POST', body: { score, total } }),
 
     // Paiements
     paymentMethods: () => req('/api/payments/methods'),

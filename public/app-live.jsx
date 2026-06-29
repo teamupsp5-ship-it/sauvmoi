@@ -23,6 +23,7 @@ const PHONE_SCREENS = {
   sos:              window.SOSCountdown,
   sos_confirm:      window.SOSConfirm,
   training:         window.TrainingMobile,
+  training_module:  window.TrainingModuleScreen,
   map:              window.MapScreen,
   profile:          window.ProfileScreen,
   profile_personal: window.ProfilePersonal,
