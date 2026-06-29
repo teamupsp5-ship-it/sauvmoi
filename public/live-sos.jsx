@@ -111,6 +111,7 @@ function SOSCountdown({ nav }) {
             ))}
           </div>
         </div>
+        <HomeTabBar active="sos" nav={nav} />
       </div>
     );
   }
