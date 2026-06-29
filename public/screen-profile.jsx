@@ -353,6 +353,9 @@ function ProfileScreen({ nav }) {
         </div>
       </div>
 
+      {/* ── Barre de navigation ──────────────────────────────────────────── */}
+      <HomeTabBar active="profile" nav={nav} />
+
       {/* ── Bottom sheet : mot de passe ──────────────────────────────────── */}
       {showPw && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 150, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
