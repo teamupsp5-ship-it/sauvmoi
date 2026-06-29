@@ -17,7 +17,7 @@ function HomeTabBar({ active, nav }) {
     { id: 'home',     icon: 'home',      label: 'Accueil' },
     { id: 'training', icon: 'book-open', label: 'Formation' },
     { id: 'sos',      icon: 'siren',     label: 'SOS', special: true },
-    { id: 'map',      icon: 'map-pin',   label: 'Localisation', disabled: true },
+    { id: 'map',      icon: 'map-pin',   label: 'Localisation' },
     { id: 'profile',  icon: 'user',      label: 'Profil' },
   ];
 
@@ -552,4 +552,4 @@ function HomeDesktop({ nav, lang }) {
   );
 }
 
-Object.assign(window, { HomeMobile, HomeDesktop, Sidebar, QrScannerScreen });
+Object.assign(window, { HomeMobile, HomeDesktop, Sidebar, QrScannerScreen, HomeTabBar });

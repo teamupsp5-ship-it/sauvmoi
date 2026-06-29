@@ -57,5 +57,8 @@
     // Notifications in-app
     notifications: () => req('/api/notifications'),
     markNotifRead: (id) => req('/api/notifications/' + id + '/read', { method: 'POST' }),
+
+    // Centres de santé
+    healthCenters: (lat, lng) => req('/api/health-centers' + (lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : '')),
   };
 })();

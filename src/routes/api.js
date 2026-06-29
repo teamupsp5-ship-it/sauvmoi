@@ -5,8 +5,18 @@ import {
   PAYMENT_METHODS, TIPS, DEMO_USER,
 } from '../data/seed.js';
 import { PROTOCOLS } from '../data/protocols.js';
+import { HEALTH_CENTERS } from '../data/health-centers.js';
 import { analyzeImage } from '../ai.js';
 import QRCode from 'qrcode';
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const router = Router();
 
@@ -163,6 +173,19 @@ router.get('/medical-record/qr', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Génération QR échouée', detail: e.message });
   }
+});
+
+// ─── CENTRES DE SANTÉ ────────────────────────────────────────────────────────
+router.get('/health-centers', (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  const hasCoords = !isNaN(lat) && !isNaN(lng);
+  const list = HEALTH_CENTERS.map(c => ({
+    ...c,
+    distanceKm: hasCoords ? haversineKm(lat, lng, c.lat, c.lng) : null,
+  }));
+  if (hasCoords) list.sort((a, b) => a.distanceKm - b.distanceKm);
+  res.json(list);
 });
 
 // ─── NOTIFICATIONS IN-APP ────────────────────────────────────────────────────
