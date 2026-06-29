@@ -174,18 +174,17 @@ function SOSCountdown({ nav }) {
   );
 }
 
-// ── 4b · Confirmation (canvas — données statiques) ────────────────────────────
+// ── 4b · Confirmation (canvas — données statiques, structure identique au live) ──
 function SOSConfirm({ nav }) {
   useLucide();
 
-  // Contacts de démo avec hasAccount mocked
-  const DEMO_CONTACTS = [
-    { name: 'Mamadou Kouassi', relation: 'Époux',  phone: '+22507111111', hasAccount: true },
-    { name: 'Awa Koné',        relation: 'Sœur',   phone: '+22507222222', hasAccount: false },
-  ];
   const DEMO_LAT = 5.354, DEMO_LNG = -3.987;
+  const DEMO_CONTACTS = [
+    { name: 'Mamadou Kouassi', relation: 'Époux', phone: '+22507111111', hasAccount: true },
+    { name: 'Awa Koné',        relation: 'Sœur',  phone: '+22507222222', hasAccount: false },
+  ];
 
-  const waUrl = (phone, name) => {
+  const waUrl = phone => {
     const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
     const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     const msg = `🚨 ALERTE URGENCE - Sauv'Moi\nAïcha a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${DEMO_LAT},${DEMO_LNG}\nHeure : ${now}`;
@@ -197,7 +196,6 @@ function SOSConfirm({ nav }) {
 
       {/* ── Header fixe ── */}
       <div style={{ flexShrink: 0, background: 'white', borderBottom: '1px solid var(--sm-line)' }}>
-        {/* Barre statut alerte */}
         <div style={{ padding: '12px 20px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-red)', display: 'flex', alignItems: 'center', gap: 7 }}>
             <span className="sm-blink" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)' }} />
@@ -207,8 +205,6 @@ function SOSConfirm({ nav }) {
             <Icon name="x" size={20} color="var(--sm-ink-400)" />
           </button>
         </div>
-
-        {/* Bouton SAMU sticky */}
         <div style={{ padding: '0 16px 14px' }}>
           <a href="tel:185" style={{ textDecoration: 'none', display: 'block' }}>
             <button style={{
@@ -217,49 +213,34 @@ function SOSConfirm({ nav }) {
               fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
-              transition: 'transform 0.1s ease',
-            }}
-            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-            >
+            }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
-              Appeler SAMU 185
+              📞 Appeler le SAMU — 185
             </button>
           </a>
         </div>
       </div>
 
       {/* ── Corps scrollable ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 24px' }}>
 
-        {/* Checkmark succès */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
-          <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(39,174,96,0.3)', marginBottom: 14 }}>
-            <Icon name="check" size={34} color="white" strokeWidth={2.5} />
+        {/* Carte succès */}
+        <div style={{ background: '#EAFAF1', borderRadius: 'var(--sm-radius)', padding: '16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="check" size={26} color="white" strokeWidth={2.5} />
           </div>
-          <h2 className="sm-serif" style={{ fontSize: 22, textAlign: 'center' }}>Les secours sont alertés</h2>
-          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginTop: 6, textAlign: 'center' }}>Votre position a été partagée</p>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1E8449', fontFamily: 'var(--font-ui)' }}>✅ Alerte déclenchée</div>
+            <div style={{ fontSize: 13, color: '#27AE60', marginTop: 2 }}>Votre position a été enregistrée</div>
+          </div>
         </div>
 
-        {/* Étapes */}
-        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '16px', marginBottom: 16 }}>
-          {[
-            { label: 'Alerte créée',       done: true },
-            { label: 'Position partagée',  done: true },
-            { label: 'Contacts notifiés',  done: false },
-          ].map((step, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: i < 2 ? '1px solid var(--sm-line)' : 'none' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: step.done ? '#27AE60' : 'var(--sm-line)' }}>
-                {step.done
-                  ? <Icon name="check" size={13} color="white" strokeWidth={2.5} />
-                  : <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-ink-400)' }} />
-                }
-              </div>
-              <span style={{ fontSize: 14, fontWeight: step.done ? 500 : 400, color: step.done ? 'var(--sm-ink)' : 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>
-                {step.label}
-              </span>
-            </div>
-          ))}
+        {/* Placeholder carte (canvas — Leaflet non dispo sans index.html) */}
+        <div style={{ height: 220, borderRadius: 'var(--sm-radius)', background: '#E8F4F8', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--sm-shadow)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <Icon name="map-pin" size={36} color="var(--sm-blue)" strokeWidth={1.5} />
+            <div style={{ fontSize: 13, color: 'var(--sm-blue)', marginTop: 8, fontFamily: 'var(--font-ui)' }}>Carte OpenStreetMap (live)</div>
+          </div>
         </div>
 
         {/* Contacts */}
@@ -269,9 +250,7 @@ function SOSConfirm({ nav }) {
             <div key={c.phone} style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: c.hasAccount ? 0 : 12 }}>
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>
-                    {c.name.charAt(0)}
-                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>{c.name.charAt(0)}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{c.name}</div>
@@ -285,15 +264,13 @@ function SOSConfirm({ nav }) {
                 )}
               </div>
               {!c.hasAccount && (
-                <a href={waUrl(c.phone, c.name)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                <a href={waUrl(c.phone)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                   <button style={{
-                    width: '100%', padding: '11px 14px',
-                    borderRadius: 'var(--sm-radius)',
+                    width: '100%', padding: '11px 14px', borderRadius: 'var(--sm-radius)',
                     background: '#25D366', color: 'white', border: 'none',
                     fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-ui)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
-                    transition: 'transform 0.1s ease',
                   }}>
                     <Icon name="message-circle" size={18} color="white" strokeWidth={2} />
                     Alerter via WhatsApp
@@ -304,36 +281,37 @@ function SOSConfirm({ nav }) {
           ))}
         </div>
 
-        {/* SAMU ETA */}
-        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="ambulance" size={24} color="var(--sm-red)" strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>SAMU 185</div>
-            <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#27AE60', display: 'inline-block' }} />
-              En route · ETA 4 min
-            </div>
-          </div>
-          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>4</span>
+        {/* Numéros d'urgence */}
+        <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>Intervention immédiate</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          {[
+            { label: 'Appeler le SAMU',       number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
+            { label: 'Appeler les Pompiers',  number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
+          ].map(item => (
+            <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none' }}>
+              <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 46, height: 46, borderRadius: 14, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={item.icon} size={22} color={item.color} strokeWidth={1.9} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 {item.label}</div>
+                  <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Numéro d'urgence · {item.number}</div>
+                </div>
+                <Icon name="phone" size={18} color={item.color} />
+              </div>
+            </a>
+          ))}
         </div>
 
-        {/* Bouton annuler */}
         <button
           onClick={() => nav.reset('home')}
           style={{
-            width: '100%', padding: '14px',
-            borderRadius: 'var(--sm-radius)',
-            border: '2px solid var(--sm-red)',
-            background: 'white', color: 'var(--sm-red)',
+            width: '100%', padding: '14px', borderRadius: 'var(--sm-radius)',
+            border: '2px solid var(--sm-red)', background: 'white', color: 'var(--sm-red)',
             fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-ui)',
             cursor: 'pointer', letterSpacing: '0.03em',
-            transition: 'transform 0.1s ease',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Icon name="x-circle" size={18} color="var(--sm-red)" />
           Annuler l'alerte

@@ -57,14 +57,5 @@
     // Notifications in-app
     notifications: () => req('/api/notifications'),
     markNotifRead: (id) => req('/api/notifications/' + id + '/read', { method: 'POST' }),
-
-    // WebSocket SOS temps réel → renvoie le socket
-    sosSocket: (alertId, onEvent) => {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const host = BASE ? BASE.replace(/^https?:\/\//, '') : location.host;
-      const ws = new WebSocket(`${proto}://${host}/ws/sos/${alertId}`);
-      ws.onmessage = (e) => { try { onEvent(JSON.parse(e.data)); } catch {} };
-      return ws;
-    },
   };
 })();

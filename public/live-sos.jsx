@@ -1,74 +1,60 @@
-// live-sos.jsx — Module SOS vivant (GPS, WhatsApp, hasAccount, WebSocket)
+// live-sos.jsx — Module SOS vivant (GPS réel, Leaflet, WhatsApp, hasAccount)
 // Surcharge SOSCountdown et SOSConfirm de screen-sos.jsx
+
+// ── URL WhatsApp géolocalisé ──────────────────────────────────────────────────
+function buildWaUrl(phone, userName, lat, lng) {
+  const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
+  const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const msg = `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${lat},${lng}\nHeure : ${now}`;
+  return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+}
 
 // ── 4a · Compte à rebours + état idle ─────────────────────────────────────────
 function SOSCountdown({ nav }) {
   useLucide();
-  const SM = window.useSM();
-  const [phase, setPhase] = useState('idle'); // 'idle' | 'counting'
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'counting' | 'fired'
   const [count, setCount] = useState(5);
   const gpsRef = useRef({ lat: 5.354, lng: -3.987, label: 'Abidjan' });
-  const firedRef = useRef(false);
 
-  // Acquisition GPS dès que le compte à rebours démarre
-  useEffect(() => {
-    if (phase !== 'counting') return;
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        p => { gpsRef.current = { lat: p.coords.latitude, lng: p.coords.longitude, label: 'Position GPS' }; },
-        () => {},
-        { timeout: 4000, enableHighAccuracy: true }
-      );
-    }
-  }, [phase]);
+  const handleStart = () => {
+    setPhase('counting');
+    setCount(5);
+    // GPS démarre ici, résultat disponible pendant les 5s
+    navigator.geolocation?.getCurrentPosition(
+      p => { gpsRef.current = { lat: p.coords.latitude, lng: p.coords.longitude, label: 'Position GPS' }; },
+      () => {},
+      { timeout: 4500, enableHighAccuracy: true }
+    );
+  };
 
-  // Décompte + vibration
+  const handleCancel = () => { setPhase('idle'); setCount(5); };
+
   useEffect(() => {
     if (phase !== 'counting') return;
     if (count <= 0) {
-      if (!firedRef.current) {
-        firedRef.current = true;
-        window.API.sosTrigger(gpsRef.current)
-          .then(a => {
-            SM.sos = {
-              alertId: a.alertId,
-              contacts: a.contacts || [],
-              samu: a.samu,
-              relatives: a.relatives,
-              rescuers: a.rescuers,
-              rescuersAccepted: 0,
-              eta: a.samu?.etaMin,
-              status: a.status,
-              lat: gpsRef.current.lat,
-              lng: gpsRef.current.lng,
-              ws: null,
-            };
-            SM.emit();
-          })
-          .catch(e => console.warn('[SOS] trigger échoué:', e.message))
-          .finally(() => setTimeout(() => nav.replace('sos_confirm'), 300));
-      }
+      setPhase('fired');
+      window.API.sosTrigger(gpsRef.current)
+        .then(a => {
+          window.SM.sos = { alertId: a.alertId, contacts: a.contacts || [], lat: a.lat, lng: a.lng };
+          window.SM.emit();
+          setTimeout(() => nav.replace('sos_confirm'), 200);
+        })
+        .catch(e => {
+          console.warn('[SOS] trigger échoué:', e.message);
+          setPhase('idle');
+        });
       return;
     }
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(200);
+    navigator.vibrate?.(200);
     const t = setTimeout(() => setCount(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, count]);
-
-  const handleStart = () => { firedRef.current = false; setPhase('counting'); setCount(5); };
-  const handleCancel = () => { setPhase('idle'); setCount(5); };
 
   // ── État idle ─────────────────────────────────────────────────────────────
   if (phase === 'idle') {
     return (
       <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-        <div style={{
-          padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12,
-          borderBottom: '1px solid var(--sm-line)',
-          background: 'linear-gradient(180deg, #f8f9fa, white)',
-          flexShrink: 0,
-        }}>
+        <div style={{ padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--sm-line)', background: 'linear-gradient(180deg, #f8f9fa, white)', flexShrink: 0 }}>
           <button onClick={() => goBack(nav)} style={{ background: 'none', border: 'none', padding: '4px', margin: '-4px', cursor: 'pointer' }}>
             <Icon name="arrow-left" size={22} color="var(--sm-ink)" />
           </button>
@@ -76,8 +62,7 @@ function SOSCountdown({ nav }) {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px 32px' }}>
-
-          {/* Grand bouton SOS */}
+          {/* Grand bouton SOS pulsant */}
           <div style={{ position: 'relative', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: 200, height: 200, borderRadius: '50%', background: 'rgba(231,76,60,0.1)', animation: 'sos-ring 2.2s ease-out infinite' }} />
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: 164, height: 164, borderRadius: '50%', background: 'rgba(231,76,60,0.16)', animation: 'sos-ring 2.2s ease-out infinite', animationDelay: '0.7s' }} />
@@ -90,18 +75,17 @@ function SOSCountdown({ nav }) {
                 border: 'none', cursor: 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 8px 32px rgba(192,57,43,0.45)',
-                color: 'white',
                 transition: 'transform 0.1s ease',
               }}
               onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
               onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
             >
               <Icon name="siren" size={42} color="white" strokeWidth={2} />
-              <span style={{ fontSize: 20, fontWeight: 700, marginTop: 6, fontFamily: 'var(--font-ui)', letterSpacing: '0.06em' }}>SOS</span>
+              <span style={{ fontSize: 20, fontWeight: 700, marginTop: 6, fontFamily: 'var(--font-ui)', letterSpacing: '0.06em', color: 'white' }}>SOS</span>
             </button>
           </div>
 
-          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', marginBottom: 40, fontFamily: 'var(--font-ui)' }}>
+          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', marginBottom: 40 }}>
             Appuyez en cas d'urgence
           </p>
 
@@ -131,14 +115,14 @@ function SOSCountdown({ nav }) {
     );
   }
 
-  // ── Compte à rebours ──────────────────────────────────────────────────────
+  // ── Compte à rebours (phase 'counting' ou 'fired') ────────────────────────
   const R = 90, C = 2 * Math.PI * R;
   const dashoffset = C * (count / 5);
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
-      <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center', fontFamily: 'var(--font-ui)' }}>
-        Alerte SOS en cours d'envoi…
+      <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center' }}>
+        {phase === 'fired' ? 'Alerte envoyée…' : 'Alerte SOS en cours d\'envoi…'}
       </p>
       <div style={{ position: 'relative', width: 220, height: 220, marginBottom: 48 }}>
         <svg width={220} height={220} style={{ transform: 'rotate(-90deg)' }}>
@@ -150,71 +134,67 @@ function SOSCountdown({ nav }) {
           <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 6 }}>secondes</span>
         </div>
       </div>
-      <button
-        onClick={handleCancel}
-        style={{
-          width: '100%', maxWidth: 340, padding: '16px',
-          borderRadius: 'var(--sm-radius)', border: '2px solid var(--sm-red)',
-          background: 'white', color: 'var(--sm-red)',
-          fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
-          cursor: 'pointer', letterSpacing: '0.04em',
-          boxShadow: '0 2px 8px rgba(192,57,43,0.12)',
-          transition: 'transform 0.1s ease',
-        }}
-        onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
-        onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-      >
-        ANNULER
-      </button>
+      {phase === 'counting' && (
+        <button
+          onClick={handleCancel}
+          style={{
+            width: '100%', maxWidth: 340, padding: '16px',
+            borderRadius: 'var(--sm-radius)', border: '2px solid var(--sm-red)',
+            background: 'white', color: 'var(--sm-red)',
+            fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
+            cursor: 'pointer', letterSpacing: '0.04em',
+            boxShadow: '0 2px 8px rgba(192,57,43,0.12)',
+          }}
+        >
+          ANNULER
+        </button>
+      )}
     </div>
   );
 }
 
-// ── 4b · Confirmation live (WebSocket + WhatsApp + hasAccount) ─────────────────
+// ── 4b · Confirmation avec carte Leaflet réelle ────────────────────────────────
 function SOSConfirm({ nav }) {
   useLucide();
-  const SM = window.useSM();
-
-  // Connexion WebSocket pour les mises à jour temps réel
-  useEffect(() => {
-    if (!SM.sos?.alertId || SM.sos?.ws) return;
-    const ws = window.API.sosSocket(SM.sos.alertId, ev => {
-      const s = SM.sos;
-      if (ev.type === 'samu')    { s.samu = { ...s.samu, status: ev.status, etaMin: ev.etaMin }; s.eta = ev.etaMin; }
-      if (ev.type === 'eta')     { s.eta = ev.etaMin; }
-      if (ev.type === 'rescuer') { s.rescuersAccepted = ev.accepted; }
-      if (ev.type === 'relative') {
-        s.relatives = (s.relatives || []).map(r => r.name === ev.name ? { ...r, status: ev.status, etaMin: ev.etaMin } : r);
-      }
-      if (ev.type === 'arrived') { s.status = 'arrived'; }
-      if (ev.type === 'cancelled') { nav.reset('home'); }
-      SM.emit();
-    });
-    SM.sos.ws = ws;
-    return () => { try { ws.close(); } catch {} SM.sos.ws = null; };
-  }, [SM.sos?.alertId]);
-
-  const sos     = SM.sos || {};
-  const eta     = sos.eta ?? 4;
-  const accepted = sos.rescuersAccepted || 0;
-  const total   = sos.rescuers?.length || 5;
+  const sos = window.SM?.sos || {};
+  const lat = sos.lat ?? 5.354;
+  const lng = sos.lng ?? -3.987;
   const contacts = sos.contacts || [];
-  const lat     = sos.lat ?? 5.354;
-  const lng     = sos.lng ?? -3.987;
-  const userName = SM.user?.prenom || SM.user?.name?.split(' ')[0] || 'Utilisateur';
+  const user = window.SM?.user;
+  const prenom = (user?.prenom || user?.name?.split(' ')[0] || 'Vous').trim();
 
-  const waUrl = phone => {
-    const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
-    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const msg = `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${lat},${lng}\nHeure : ${now}`;
-    return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
-  };
+  const mapDivRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+
+  // Carte Leaflet — montée une seule fois
+  useEffect(() => {
+    const L = window.L;
+    if (!L || !mapDivRef.current || mapInstanceRef.current) return;
+
+    const map = L.map(mapDivRef.current, { zoomControl: false, attributionControl: false })
+      .setView([lat, lng], 15);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;border-radius:50%;background:#C0392B;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+    L.marker([lat, lng], { icon })
+      .addTo(map)
+      .bindPopup(`📍 Position de ${prenom}`)
+      .openPopup();
+
+    mapInstanceRef.current = map;
+    return () => { mapInstanceRef.current?.remove(); mapInstanceRef.current = null; };
+  }, []);
 
   const handleCancel = () => {
-    if (sos.ws) { try { sos.ws.close(); } catch {} SM.sos.ws = null; }
     if (sos.alertId) window.API.sosCancel(sos.alertId).catch(() => {});
-    SM.sos = { alertId: null, contacts: [], samu: null, relatives: [], rescuers: [], rescuersAccepted: 0, eta: null, status: null, ws: null };
-    SM.emit();
+    window.SM.sos = { alertId: null, contacts: [], lat: null, lng: null };
+    window.SM.emit();
     nav.reset('home');
   };
 
@@ -226,13 +206,12 @@ function SOSConfirm({ nav }) {
         <div style={{ padding: '12px 20px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-red)', display: 'flex', alignItems: 'center', gap: 7 }}>
             <span className="sm-blink" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)' }} />
-            {sos.status === 'arrived' ? 'Secours sur place' : sos.status === 'cancelled' ? 'Alerte annulée' : 'Alerte active'}
+            Alerte active
           </span>
           <button onClick={() => nav.reset('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
             <Icon name="x" size={20} color="var(--sm-ink-400)" />
           </button>
         </div>
-
         {/* Bouton SAMU sticky */}
         <div style={{ padding: '0 16px 14px' }}>
           <a href="tel:185" style={{ textDecoration: 'none', display: 'block' }}>
@@ -244,43 +223,29 @@ function SOSConfirm({ nav }) {
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
             }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
-              Appeler SAMU 185
+              📞 Appeler le SAMU — 185
             </button>
           </a>
         </div>
       </div>
 
       {/* ── Corps scrollable ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 24px' }}>
 
-        {/* Checkmark */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 28 }}>
-          <div style={{ width: 68, height: 68, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(39,174,96,0.3)', marginBottom: 14 }}>
-            <Icon name="check" size={34} color="white" strokeWidth={2.5} />
+        {/* Carte succès */}
+        <div style={{ background: '#EAFAF1', borderRadius: 'var(--sm-radius)', padding: '16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="check" size={26} color="white" strokeWidth={2.5} />
           </div>
-          <h2 className="sm-serif" style={{ fontSize: 22, textAlign: 'center' }}>Les secours sont alertés</h2>
-          <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginTop: 6, textAlign: 'center' }}>Votre position a été partagée</p>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1E8449', fontFamily: 'var(--font-ui)' }}>✅ Alerte déclenchée</div>
+            <div style={{ fontSize: 13, color: '#27AE60', marginTop: 2 }}>Votre position a été enregistrée</div>
+          </div>
         </div>
 
-        {/* Étapes */}
-        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '16px', marginBottom: 16 }}>
-          {[
-            { label: 'Alerte créée',       done: true },
-            { label: 'Position partagée',  done: !!lat },
-            { label: 'Contacts notifiés',  done: sos.samu?.status === 'received' },
-          ].map((step, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: i < 2 ? '1px solid var(--sm-line)' : 'none' }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: step.done ? '#27AE60' : 'var(--sm-line)' }}>
-                {step.done
-                  ? <Icon name="check" size={13} color="white" strokeWidth={2.5} />
-                  : <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-ink-400)' }} />
-                }
-              </div>
-              <span style={{ fontSize: 14, fontWeight: step.done ? 500 : 400, color: step.done ? 'var(--sm-ink)' : 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>
-                {step.label}
-              </span>
-            </div>
-          ))}
+        {/* Carte Leaflet */}
+        <div style={{ borderRadius: 'var(--sm-radius)', overflow: 'hidden', marginBottom: 16, boxShadow: 'var(--sm-shadow)' }}>
+          <div ref={mapDivRef} style={{ width: '100%', height: 220 }} />
         </div>
 
         {/* Contacts d'urgence */}
@@ -292,9 +257,7 @@ function SOSConfirm({ nav }) {
                 <div key={c.phone} style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: c.hasAccount ? 0 : 12 }}>
                     <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>
-                        {c.name.charAt(0)}
-                      </span>
+                      <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>{c.name.charAt(0)}</span>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{c.name}</div>
@@ -308,7 +271,7 @@ function SOSConfirm({ nav }) {
                     )}
                   </div>
                   {!c.hasAccount && (
-                    <a href={waUrl(c.phone)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                    <a href={buildWaUrl(c.phone, prenom, lat, lng)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                       <button style={{
                         width: '100%', padding: '11px 14px', borderRadius: 'var(--sm-radius)',
                         background: '#25D366', color: 'white', border: 'none',
@@ -327,36 +290,36 @@ function SOSConfirm({ nav }) {
           </>
         )}
 
-        {/* SAMU ETA (live) */}
-        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="ambulance" size={24} color="var(--sm-red)" strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>SAMU 185</div>
-            <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#27AE60', display: 'inline-block' }} />
-              {sos.samu?.status === 'received' ? 'En route' : 'Notification en cours…'} · ETA {eta} min
+        {/* Numéros d'urgence */}
+        <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>Intervention immédiate</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+          <a href="tel:185" style={{ textDecoration: 'none' }}>
+            <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="ambulance" size={22} color="var(--sm-red)" strokeWidth={1.9} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 Appeler le SAMU</div>
+                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Numéro d'urgence · 185</div>
+              </div>
+              <Icon name="phone" size={18} color="var(--sm-red)" />
             </div>
-          </div>
-          <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>{eta}</span>
+          </a>
+          <a href="tel:180" style={{ textDecoration: 'none' }}>
+            <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, background: '#FEF5EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon name="flame" size={22} color="#E67E22" strokeWidth={1.9} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 Appeler les Pompiers</div>
+                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Numéro d'urgence · 180</div>
+              </div>
+              <Icon name="phone" size={18} color="#E67E22" />
+            </div>
+          </a>
         </div>
 
-        {/* Secouristes (live) */}
-        <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-blue-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="users" size={22} color="var(--sm-blue)" strokeWidth={2} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{total} secouristes alertés</div>
-            <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>
-              {accepted > 0 ? `${accepted} ont accepté · le plus proche à 200 m` : 'En attente de réponse…'}
-            </div>
-          </div>
-          {accepted > 0 && <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--sm-blue)', fontFamily: 'var(--font-ui)' }}>{accepted}</span>}
-        </div>
-
-        {/* Bouton annuler alerte */}
+        {/* Bouton annuler */}
         <button
           onClick={handleCancel}
           style={{
@@ -365,10 +328,7 @@ function SOSConfirm({ nav }) {
             fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-ui)',
             cursor: 'pointer', letterSpacing: '0.03em',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'transform 0.1s ease',
           }}
-          onTouchStart={e => e.currentTarget.style.transform = 'scale(0.97)'}
-          onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Icon name="x-circle" size={18} color="var(--sm-red)" />
           Annuler l'alerte
