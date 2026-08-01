@@ -275,8 +275,35 @@ function NumBadge({ n, color = 'var(--sm-ink)', textColor = 'white' }) {
   );
 }
 
+// ── Bouton flottant d'accès rapide au Chat IA ──────────────────────────────
+// Réutilisable sur les écrans principaux (voir CLAUDE.md pour la liste).
+function FloatingChatButton({ nav }) {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <button
+      onClick={() => nav.go('chat')}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      onTouchCancel={() => setPressed(false)}
+      aria-label="Ouvrir le chat IA"
+      style={{
+        position: 'fixed', bottom: 90, right: 20, zIndex: 60,
+        width: 52, height: 52, borderRadius: '50%', border: 'none',
+        background: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 4px 16px rgba(21,101,192,0.4)',
+        cursor: 'pointer',
+        transform: pressed ? 'scale(0.95)' : 'scale(1)',
+        transition: 'transform 0.12s ease',
+      }}
+    >
+      <Icon name="sparkles" size={22} color="white" strokeWidth={2} />
+    </button>
+  );
+}
+
 Object.assign(window, {
-  Icon, useLucide, StatusBar, HomeIndicator,
+  Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY,
 });

@@ -269,6 +269,8 @@ function HomeMobile({ nav, lang }) {
         </div>
       </div>
 
+      <FloatingChatButton nav={nav} />
+
       {/* ── Barre de navigation bleue foncée ───────────────────────────── */}
       <HomeTabBar active="home" nav={nav} />
 

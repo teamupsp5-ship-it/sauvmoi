@@ -195,6 +195,8 @@ function TrainingMobile({ nav }) {
         </div>
       )}
 
+      <FloatingChatButton nav={nav} />
+
       <HomeTabBar active="training" nav={nav} />
     </div>
   );

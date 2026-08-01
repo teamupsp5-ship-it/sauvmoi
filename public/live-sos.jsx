@@ -111,6 +111,7 @@ function SOSCountdown({ nav }) {
             ))}
           </div>
         </div>
+        <FloatingChatButton nav={nav} />
         <HomeTabBar active="sos" nav={nav} />
       </div>
     );

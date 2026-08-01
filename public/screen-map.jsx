@@ -422,6 +422,8 @@ function MapScreen({ nav }) {
         </div>
       </div>
 
+      <FloatingChatButton nav={nav} />
+
       {/* ── Barre de navigation ──────────────────────────────────────────── */}
       <HomeTabBar active="map" nav={nav} />
     </div>
