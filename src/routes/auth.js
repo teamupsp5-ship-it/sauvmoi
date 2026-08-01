@@ -223,10 +223,27 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // ─── Profil : mise à jour (infos perso, photo, carnet médical, contacts) ───
 router.put('/me', requireAuth, async (req, res) => {
-  const { name, phone, birthdate, gender, photo, medicalRecord } = req.body || {};
+  const body = req.body || {};
+  const { name, phone, birthdate, gender, photo, medicalRecord } = body;
   // extractMedicalFields lit medicalRecord.* (contrat réel du frontend) mais
   // retombe aussi sur medical.* ou des champs à plat si jamais envoyés ainsi.
-  const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(req.body || {});
+  const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(body);
+
+  // Contacts d'urgence : accepte emergencyContacts (tableau) ou
+  // emergencyContact (objet unique), à plat OU nichés sous medicalRecord —
+  // même contrat que /auth/register — pour que PUT /me se comporte de façon
+  // cohérente quelle que soit la forme envoyée par l'appelant. `null` veut
+  // dire "aucun contact fourni dans cette requête" (on ne touche pas aux
+  // contacts existants) ; un tableau (même vide) veut dire "remplace tout".
+  const rawContacts = Array.isArray(body.emergencyContacts) ? body.emergencyContacts
+    : Array.isArray(medicalRecord?.emergencyContacts) ? medicalRecord.emergencyContacts
+    : body.emergencyContact?.name ? [body.emergencyContact]
+    : medicalRecord?.emergencyContact?.name ? [medicalRecord.emergencyContact]
+    : null;
+
+  if (rawContacts !== null && rawContacts.length > 5) {
+    return res.status(400).json({ error: 'Maximum 5 contacts d\'urgence' });
+  }
 
   const patch = { updated_at: new Date().toISOString() };
   if (name !== undefined) patch.name = name;
@@ -262,22 +279,29 @@ router.put('/me', requireAuth, async (req, res) => {
       });
     }
 
-    // Contacts d'urgence : remplacement complet (l'écran ProfileContacts
-    // envoie toujours la liste entière), plafonné à 5 côté serveur.
-    if (medicalRecord && Array.isArray(medicalRecord.emergencyContacts)) {
-      const clean = medicalRecord.emergencyContacts
-        .filter((c) => c.name && c.name.trim())
-        .slice(0, 5);
+    // Contacts d'urgence : remplacement complet (delete puis insert), déjà
+    // validé <= 5 plus haut.
+    if (rawContacts !== null) {
+      const clean = rawContacts.filter((c) => c && c.name && c.name.trim());
 
       const { error: delErr } = await supabase.from('emergency_contacts').delete().eq('user_id', req.user.id);
       if (delErr) throw delErr;
 
       if (clean.length) {
-        const { error: insErr } = await supabase.from('emergency_contacts').insert(
+        // .select() permet de vérifier que l'insert a bien écrit le nombre
+        // de lignes attendu — même garde-fou anti-échec-silencieux que pour
+        // le profil (une insertion filtrée par RLS réussirait autrement
+        // sans erreur, en insérant 0 ligne).
+        const { data: insertedContacts, error: insErr } = await supabase.from('emergency_contacts').insert(
           clean.map((c) => ({ user_id: req.user.id, name: c.name.trim(), phone: c.phone || '', relation: c.relation || '' }))
-        );
+        ).select();
         if (insErr) throw insErr;
+        if (!insertedContacts || insertedContacts.length !== clean.length) {
+          throw new Error(`Contacts d'urgence partiellement enregistrés (${insertedContacts?.length ?? 0}/${clean.length})`);
+        }
       }
+
+      console.log('[auth] PUT /me — contacts remplacés pour', req.user.id, ':', clean.length);
     }
 
     const { profile, contacts } = await fetchProfileAndContacts(req.user.id);
