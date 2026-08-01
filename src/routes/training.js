@@ -24,10 +24,15 @@ router.get('/training/modules', requireAuth, async (req, res) => {
       const isDone = completed.has(m.id);
       const prev = TRAINING_MODULES.find(x => x.order === m.order - 1);
       const isUnlocked = m.order === 1 || (prev && completed.has(prev.id));
+      const rawScore = progress.scores?.[m.id];
+      // Clamp défensif également en lecture : auto-corrige l'affichage pour
+      // tout score déjà stocké hors [0, 100] par un test antérieur au fix
+      // ci-dessus, sans attendre que l'utilisateur repasse le module.
+      const score = rawScore == null ? null : Math.min(100, Math.max(0, rawScore));
       return {
         ...m,
         status: isDone ? 'completed' : (isUnlocked ? 'unlocked' : 'locked'),
-        score: progress.scores?.[m.id] ?? null,
+        score,
       };
     });
 
@@ -39,14 +44,19 @@ router.get('/training/modules', requireAuth, async (req, res) => {
 
 router.post('/training/:moduleId/complete', requireAuth, async (req, res) => {
   const { moduleId } = req.params;
-  const { score = 0, total = 1 } = req.body || {};
+  const { score: rawScore = 0, total: rawTotal = 1 } = req.body || {};
+  // Coercition + clamp défensifs : quels que soient les types/valeurs reçus
+  // (chaînes, score déjà exprimé en pourcentage avec total absent, etc.), le
+  // pourcentage stocké/retourné reste toujours dans [0, 100].
+  const score = Number(rawScore) || 0;
+  const total = Number(rawTotal) || 0;
 
   const mod = TRAINING_MODULES.find(m => m.id === moduleId);
   if (!mod) return res.status(404).json({ error: 'module inconnu' });
 
   try {
     const progress = await getProgress(req.user.id);
-    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    const percentage = total > 0 ? Math.min(100, Math.max(0, Math.round((score / total) * 100))) : 0;
     const scores = { ...(progress.scores || {}), [moduleId]: percentage };
 
     const passed = percentage >= 60;

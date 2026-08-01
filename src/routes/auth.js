@@ -11,6 +11,23 @@ function splitList(text) {
   return (text || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+// Accepte les champs médicaux qu'ils soient envoyés à plat (contrat actuel
+// de /auth/register : bloodType, height, ... au premier niveau) ou nichés
+// sous `medicalRecord` (contrat actuel de PUT /me) ou `medical` — au cas où
+// un appelant utilise l'une ou l'autre convention, les deux endpoints les
+// retrouvent de la même façon au lieu de silencieusement les ignorer.
+function extractMedicalFields(body) {
+  const nested = (body && (body.medicalRecord || body.medical)) || null;
+  const src = nested || body || {};
+  return {
+    bloodType: src.bloodType,
+    height: src.height,
+    weight: src.weight,
+    conditions: src.conditions,
+    allergies: src.allergies,
+  };
+}
+
 function toUserPayload(authUser, profile, contacts) {
   const p = profile || {};
   return {
@@ -65,9 +82,9 @@ router.post('/auth/register', async (req, res) => {
   const {
     name, email, phone, password,
     birthdate, gender,
-    bloodType, height, weight, conditions, allergies,
     emergencyContact, emergencyContacts,
   } = req.body || {};
+  const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(req.body || {});
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'nom, email et mot de passe requis' });
@@ -119,6 +136,16 @@ router.post('/auth/register', async (req, res) => {
       .maybeSingle();
     if (profileErr) throw profileErr;
     if (!updatedProfile) throw new Error('Le profil n\'a pas pu être enregistré (aucune ligne retournée par Supabase)');
+
+    // Diagnostic : compare ce qui a été envoyé à ce que Supabase a réellement
+    // stocké/retourné pour les champs médicaux — utile si ce bug (champs
+    // médicaux vides après inscription) devait se reproduire malgré la
+    // correction ci-dessus.
+    console.log('[auth] register — médical envoyé:', { bloodType, height, weight, conditions, allergies });
+    console.log('[auth] register — médical stocké:', {
+      blood_type: updatedProfile.blood_type, height: updatedProfile.height, weight: updatedProfile.weight,
+      allergies: updatedProfile.allergies, conditions: updatedProfile.conditions,
+    });
 
     // Le frontend actuel envoie un seul contact (emergencyContact) ; on
     // accepte aussi un tableau (emergencyContacts) pour rester compatible
@@ -193,6 +220,9 @@ router.get('/me', requireAuth, async (req, res) => {
 // ─── Profil : mise à jour (infos perso, photo, carnet médical, contacts) ───
 router.put('/me', requireAuth, async (req, res) => {
   const { name, phone, birthdate, gender, photo, medicalRecord } = req.body || {};
+  // extractMedicalFields lit medicalRecord.* (contrat réel du frontend) mais
+  // retombe aussi sur medical.* ou des champs à plat si jamais envoyés ainsi.
+  const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(req.body || {});
 
   const patch = { updated_at: new Date().toISOString() };
   if (name !== undefined) patch.name = name;
@@ -200,22 +230,32 @@ router.put('/me', requireAuth, async (req, res) => {
   if (birthdate !== undefined) patch.birthdate = birthdate || null;
   if (gender !== undefined) patch.gender = gender;
   if (photo !== undefined) patch.photo = photo;
-  if (medicalRecord) {
-    if (medicalRecord.bloodType !== undefined) patch.blood_type = medicalRecord.bloodType;
-    if (medicalRecord.height !== undefined) patch.height = medicalRecord.height;
-    if (medicalRecord.weight !== undefined) patch.weight = medicalRecord.weight;
-    if (medicalRecord.allergies !== undefined) {
-      patch.allergies = Array.isArray(medicalRecord.allergies) ? medicalRecord.allergies.join(', ') : medicalRecord.allergies;
-    }
-    if (medicalRecord.conditions !== undefined) {
-      patch.conditions = Array.isArray(medicalRecord.conditions) ? medicalRecord.conditions.join(', ') : medicalRecord.conditions;
-    }
-  }
+  if (bloodType !== undefined) patch.blood_type = bloodType;
+  if (height !== undefined) patch.height = height !== null && height !== '' ? Number(height) : null;
+  if (weight !== undefined) patch.weight = weight !== null && weight !== '' ? Number(weight) : null;
+  if (allergies !== undefined) patch.allergies = Array.isArray(allergies) ? allergies.join(', ') : allergies;
+  if (conditions !== undefined) patch.conditions = Array.isArray(conditions) ? conditions.join(', ') : conditions;
 
   try {
     if (Object.keys(patch).length > 1) {
-      const { error } = await supabase.from('profiles').update(patch).eq('id', req.user.id);
+      // Même garde-fou que POST /auth/register : .update() seul réussit
+      // silencieusement (error === null) même s'il ne matche aucune ligne.
+      // .select() + vérification transforme ce cas en erreur explicite au
+      // lieu de laisser le profil inchangé sans le signaler.
+      const { data: updatedProfile, error } = await supabase
+        .from('profiles')
+        .update(patch)
+        .eq('id', req.user.id)
+        .select()
+        .maybeSingle();
       if (error) throw error;
+      if (!updatedProfile) throw new Error('Profil introuvable pour cet utilisateur — mise à jour non appliquée');
+
+      console.log('[auth] PUT /me — médical envoyé:', { bloodType, height, weight, conditions, allergies });
+      console.log('[auth] PUT /me — médical stocké:', {
+        blood_type: updatedProfile.blood_type, height: updatedProfile.height, weight: updatedProfile.weight,
+        allergies: updatedProfile.allergies, conditions: updatedProfile.conditions,
+      });
     }
 
     // Contacts d'urgence : remplacement complet (l'écran ProfileContacts
@@ -239,6 +279,7 @@ router.put('/me', requireAuth, async (req, res) => {
     const { profile, contacts } = await fetchProfileAndContacts(req.user.id);
     res.json(toUserPayload(req.user, profile, contacts));
   } catch (e) {
+    console.error('[auth] PUT /me échoué pour', req.user.id, ':', e.message);
     res.status(500).json({ error: e.message });
   }
 });
