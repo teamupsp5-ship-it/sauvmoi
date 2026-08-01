@@ -2,18 +2,25 @@
 // La version live (live-chat.jsx) surcharge ChatListening et ChatResponse.
 
 // ── Bulle utilisateur ──────────────────────────────────────────────────────
-function ChatUserBubble({ text }) {
+function ChatUserBubble({ text, image }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{
         maxWidth: '78%',
-        padding: '10px 14px',
+        padding: image ? 6 : '10px 14px',
         borderRadius: '18px 18px 4px 18px',
         background: 'var(--sm-blue)',
         color: 'white',
         fontSize: 15,
         lineHeight: 1.5,
       }}>
+        {image && (
+          <img
+            src={image}
+            alt="Photo envoyée"
+            style={{ display: 'block', maxWidth: '100%', borderRadius: 14, marginBottom: text ? 6 : 0 }}
+          />
+        )}
         {text}
       </div>
     </div>

@@ -5,13 +5,27 @@
   const BASE = window.SAUVMOI_API
     || 'https://sauvmoi.onrender.com';
 
+  // Distingue une vraie panne réseau (fetch() n'aboutit pas — hors-ligne) d'une
+  // réponse serveur en erreur (le serveur a répondu, ce n'est pas du "hors-ligne").
   async function req(path, { method = 'GET', body } = {}) {
-    const res = await fetch(BASE + path, {
-      method,
-      headers: body ? { 'content-type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
+    let res;
+    try {
+      res = await fetch(BASE + path, {
+        method,
+        headers: body ? { 'content-type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (networkErr) {
+      const err = new Error(`Réseau injoignable : ${method} ${path}`);
+      err.isNetworkError = true;
+      throw err;
+    }
+    if (!res.ok) {
+      const err = new Error(`${method} ${path} → ${res.status}`);
+      err.isNetworkError = false;
+      err.status = res.status;
+      throw err;
+    }
     return res.json();
   }
 

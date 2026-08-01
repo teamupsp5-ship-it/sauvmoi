@@ -77,11 +77,11 @@ function ChatListening({ nav, lang }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  async function send(text) {
+  async function send(text, imageUrl) {
     const msg = (text !== undefined ? text : input).trim();
     if (!msg || loading) return;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: msg }]);
+    setMessages(prev => [...prev, { role: 'user', text: msg, image: imageUrl }]);
     setLoading(true);
 
     let result;
@@ -89,9 +89,21 @@ function ChatListening({ nav, lang }) {
       result = await window.API.chat(msg, lang || 'FR', convId);
       if (result.conversationId) setConvId(result.conversationId);
       setOffline(false);
-    } catch {
-      result = _localFallback(msg);
-      setOffline(true);
+    } catch (err) {
+      if (err && err.isNetworkError) {
+        // Vraie panne réseau (hors-ligne) : protocoles PSC1 embarqués côté client.
+        result = _localFallback(msg);
+        setOffline(true);
+      } else {
+        // Le serveur a répondu mais en erreur — ce n'est pas du hors-ligne,
+        // ne pas prétendre le contraire avec le fallback local.
+        result = {
+          reply: 'Une erreur est survenue côté serveur. Réessayez dans un instant.\nEn cas d\'urgence vitale, appelez directement le 185 (SAMU).',
+          suggestedActions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+          source: 'error',
+        };
+        setOffline(false);
+      }
     }
 
     setMessages(prev => [...prev, {
@@ -126,10 +138,15 @@ function ChatListening({ nav, lang }) {
   }
 
   function handleImage(e) {
-    if (e.target.files && e.target.files[0]) {
-      send('J\'envoie une photo de la situation.');
-      e.target.value = '';
-    }
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    // Pas d'analyse d'image côté app — la photo s'affiche dans la bulle pour
+    // contexte visuel, mais c'est le message texte qui part vers l'IA. Le system
+    // prompt lui demande de ne jamais prétendre diagnostiquer la photo et de
+    // plutôt demander une description écrite.
+    const previewUrl = URL.createObjectURL(file);
+    send('Voici une photo de la situation.', previewUrl);
   }
 
   return (
@@ -185,7 +202,7 @@ function ChatListening({ nav, lang }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {messages.map((m, i) =>
           m.role === 'user'
-            ? <ChatUserBubble key={i} text={m.text} />
+            ? <ChatUserBubble key={i} text={m.text} image={m.image} />
             : <ChatAIBubble key={i} text={m.text} actions={m.actions} nav={nav} />
         )}
         {loading && <ChatAIBubble loading />}

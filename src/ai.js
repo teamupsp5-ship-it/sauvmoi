@@ -1,9 +1,10 @@
-// Cœur IA médical de Sauv'Moi.
+// Cœur IA santé de Sauv'Moi.
 //
 // Deux modes, transparents pour le front :
-//  1) Clé ANTHROPIC_API_KEY présente → appelle Claude, BRIDÉ par les protocoles validés
-//     (l'IA ne peut pas inventer de gestes dangereux : elle s'appuie sur PROTOCOLS).
-//  2) Pas de clé → fallback déterministe basé sur les protocoles (idéal démo hors-ligne).
+//  1) Clé ANTHROPIC_API_KEY présente → vrai appel à Claude (premiers secours + santé
+//     générale), guidé par les protocoles validés pour les urgences.
+//  2) Pas de clé, ou appel Claude en échec → fallback déterministe basé sur les
+//     protocoles PSC1 (idéal démo hors-ligne). L'échec est toujours loggé, jamais silencieux.
 //
 // Réponse normalisée renvoyée au front :
 //   { reply, suggestedActions:[{type:'call',label,number}], protocolRef, source }
@@ -12,14 +13,32 @@ import { PROTOCOLS, matchProtocol, SAMU, POMPIERS } from './data/protocols.js';
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
 
-const SYSTEM_PROMPT = `Tu es l'assistant de premiers secours de "Sauv'Moi", une application ivoirienne.
-Règles ABSOLUES :
-- Tu t'appuies UNIQUEMENT sur les protocoles validés fournis ci-dessous. N'invente jamais de geste médical.
-- Pour toute situation potentiellement vitale, recommande TOUJOURS d'appeler le SAMU 185 (ou les pompiers 180).
-- Réponses TRÈS courtes, calmes, à l'impératif, étape par étape. La personne est peut-être en panique.
-- Tu n'es pas médecin et tu le rappelles brièvement si pertinent.
+const SYSTEM_PROMPT = `Tu es l'assistant de santé et de premiers secours de "Sauv'Moi", une application ivoirienne dont la tagline est « Restez calme, tout ira bien ».
+
+TON :
+- Sur la forme : chaleureux, rassurant, empathique.
+- En situation d'urgence : instructions claires, COURTES, numérotées, à l'impératif — la personne est peut-être en panique.
 - Réponds dans la langue de l'utilisateur (français par défaut).
-Numéros d'urgence Côte d'Ivoire : SAMU 185, Pompiers 180, Police 170.`;
+
+PÉRIMÈTRE :
+- Urgences de premiers secours : appuie-toi PRIORITAIREMENT sur les protocoles validés fournis ci-dessous quand la situation en relève. N'invente jamais de geste qui les contredit.
+- Questions de santé générale (symptômes, prévention, hygiène de vie) : tu peux répondre avec tes connaissances médicales générales, dans le respect des limites ci-dessous.
+
+MÉDICAMENTS :
+- Tu peux citer des catégories génériques (ex. « un antalgique comme le paracétamol »).
+- Tu ne dois JAMAIS donner de dosage, de posologie, ni de fréquence de prise précise. Renvoie systématiquement vers un pharmacien ou un médecin pour ces informations.
+
+LIMITES :
+- Jamais de diagnostic affirmatif (« vous avez... »). Formule toujours en possibilités (« cela peut évoquer... », « cela ressemble à... »).
+- En cas de doute sérieux ou de symptôme grave, recommande toujours une consultation médicale ou le SAMU 185.
+- Tu n'es pas médecin. Sur les sujets sensibles (santé, symptômes, médicaments), termine ta réponse par : « Ceci ne remplace pas un avis médical professionnel. »
+
+IMAGES :
+- Si l'utilisateur mentionne avoir envoyé une photo, ne prétends JAMAIS faire un diagnostic visuel fiable. Reconnais la réception de la photo et demande-lui de décrire par écrit ce qu'il voit (couleur, taille, saignement, gonflement...) pour pouvoir le conseiller.
+
+CONTEXTE LOCAL (Côte d'Ivoire) :
+- Numéros d'urgence : SAMU 185, Pompiers 180, Police 170. Mentionne-les activement quand c'est pertinent.
+- Pour trouver un centre de santé proche, suggère à l'utilisateur d'utiliser le module « Localisation » de l'application.`;
 
 function protocolsAsContext() {
   return Object.values(PROTOCOLS)
@@ -77,14 +96,20 @@ async function claudeReply(messages, lang) {
 
 export async function generateReply(messages, lang = 'FR') {
   const lastUser = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      return await claudeReply(messages, lang);
-    } catch (e) {
-      console.warn('[ai] Claude indisponible, fallback protocoles:', e.message);
-    }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.log('[ai] Utilisation fallback PSC1 (raison: ANTHROPIC_API_KEY absente)');
+    return fallbackReply(lastUser, lang);
   }
-  return fallbackReply(lastUser, lang);
+
+  try {
+    const result = await claudeReply(messages, lang);
+    console.log('[ai] Utilisation Claude API');
+    return result;
+  } catch (e) {
+    console.error('[ai] Utilisation fallback PSC1 (raison: appel Claude API échoué —', e.message, ')');
+    return fallbackReply(lastUser, lang);
+  }
 }
 
 // Analyse "caméra" (scriptée pour la démo — branchez un modèle de vision plus tard)
