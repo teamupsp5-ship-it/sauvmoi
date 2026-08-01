@@ -5,19 +5,24 @@ const { useState, useEffect, useRef, useMemo } = React;
 
 // ── Lucide icon helper ────────────────────────────────────────────────────
 function Icon({ name, size, color, strokeWidth = 1.75, style, className = '' }) {
+  // lucide.createIcons() replaces the inner <i data-lucide> with a real <svg> node
+  // directly in the DOM, outside React's reconciliation. If Icon rendered that <i>
+  // as its own root, React would try to removeChild() a node lucide already swapped
+  // out (crash: "the node to be removed is not a child of this node") the moment a
+  // sibling reorder forces this Icon to unmount — e.g. StepsPhase's last-step button,
+  // whose children flip from [text, Icon] to [Icon, text]. Wrapping in a stable <span>
+  // keeps that swap confined to a subtree React never has to remove directly.
   const ref = useRef(null);
+  const safeName = (typeof name === 'string' && name) ? name : 'circle';
   useEffect(() => {
     if (window.lucide && ref.current) {
-      // createIcons replaces <i data-lucide="..."> with the SVG
       window.lucide.createIcons({ icons: window.lucide.icons, nameAttr: 'data-lucide', attrs: {} });
     }
   });
   const sz = size ? { width: size, height: size } : null;
   return (
-    <i
+    <span
       ref={ref}
-      data-lucide={name}
-      data-stroke-width={strokeWidth}
       className={className}
       style={{
         display: 'inline-flex',
@@ -27,7 +32,9 @@ function Icon({ name, size, color, strokeWidth = 1.75, style, className = '' }) 
         ...(sz || {}),
         ...style,
       }}
-    />
+    >
+      <i data-lucide={safeName} data-stroke-width={strokeWidth} style={sz ? { width: '100%', height: '100%' } : undefined} />
+    </span>
   );
 }
 
