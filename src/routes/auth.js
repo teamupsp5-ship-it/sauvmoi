@@ -66,7 +66,7 @@ router.post('/auth/register', async (req, res) => {
     name, email, phone, password,
     birthdate, gender,
     bloodType, height, weight, conditions, allergies,
-    emergencyContact,
+    emergencyContact, emergencyContacts,
   } = req.body || {};
 
   if (!name || !email || !password) {
@@ -86,28 +86,56 @@ router.post('/auth/register', async (req, res) => {
   const authUser = created.user;
 
   try {
-    // Le trigger SQL handle_new_user a déjà créé une ligne vide dans profiles.
-    const { error: profileErr } = await supabase.from('profiles').update({
-      name: name.trim(),
-      phone: phone || '',
-      birthdate: birthdate || null,
-      gender: gender || '',
-      blood_type: bloodType || '',
-      height: height ? Number(height) : null,
-      weight: weight ? Number(weight) : null,
-      conditions: conditions || '',
-      allergies: allergies || '',
-      updated_at: new Date().toISOString(),
-    }).eq('id', authUser.id);
+    // Le trigger SQL handle_new_user a déjà créé une ligne (name, phone) dans
+    // profiles au moment où admin.createUser() a résolu — l'insertion et le
+    // trigger font partie de la même transaction Postgres côté GoTrue, donc
+    // c'est garanti synchrone à ce stade.
+    //
+    // On complète cette ligne via upsert plutôt qu'un update conditionnel :
+    // un .update().eq('id', ...) qui ne matche aucune ligne (trigger en
+    // retard, RLS mal configurée, etc.) réussit SILENCIEUSEMENT côté
+    // PostgREST — error === null mais 0 ligne affectée — ce qui correspond
+    // exactement au bug observé (compte créé, champs jamais enregistrés,
+    // aucune erreur remontée). L'upsert avec onConflict sur la clé primaire
+    // s'applique que la ligne existe déjà (cas normal, effet = update) ou
+    // pas encore (filet de sécurité, effet = insert) — et .select() permet
+    // de vérifier qu'une ligne a bien été écrite avant de continuer.
+    const { data: updatedProfile, error: profileErr } = await supabase
+      .from('profiles')
+      .upsert({
+        id: authUser.id,
+        name: name.trim(),
+        phone: phone || '',
+        birthdate: birthdate || null,
+        gender: gender || '',
+        blood_type: bloodType || '',
+        height: height ? Number(height) : null,
+        weight: weight ? Number(weight) : null,
+        conditions: conditions || '',
+        allergies: allergies || '',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
     if (profileErr) throw profileErr;
+    if (!updatedProfile) throw new Error('Le profil n\'a pas pu être enregistré (aucune ligne retournée par Supabase)');
 
-    if (emergencyContact?.name) {
-      const { error: contactErr } = await supabase.from('emergency_contacts').insert({
-        user_id: authUser.id,
-        name: emergencyContact.name,
-        phone: emergencyContact.phone || '',
-        relation: 'Proche',
-      });
+    // Le frontend actuel envoie un seul contact (emergencyContact) ; on
+    // accepte aussi un tableau (emergencyContacts) pour rester compatible
+    // si l'inscription permet un jour plusieurs contacts d'emblée.
+    const contactsToInsert = Array.isArray(emergencyContacts)
+      ? emergencyContacts.filter((c) => c && c.name)
+      : (emergencyContact?.name ? [emergencyContact] : []);
+
+    if (contactsToInsert.length) {
+      const { error: contactErr } = await supabase.from('emergency_contacts').insert(
+        contactsToInsert.slice(0, 5).map((c) => ({
+          user_id: authUser.id,
+          name: c.name,
+          phone: c.phone || '',
+          relation: c.relation || 'Proche',
+        }))
+      );
       if (contactErr) throw contactErr;
     }
 
@@ -119,6 +147,7 @@ router.post('/auth/register', async (req, res) => {
     const { profile, contacts } = await fetchProfileAndContacts(authUser.id);
     res.json({ token: signInData.session.access_token, user: toUserPayload(authUser, profile, contacts) });
   } catch (e) {
+    console.error('[auth] finalisation inscription échouée pour', authUser.id, ':', e.message);
     res.status(500).json({ error: e.message || "Erreur lors de la finalisation de l'inscription" });
   }
 });
