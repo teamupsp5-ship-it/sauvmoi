@@ -1,57 +1,73 @@
 import { Router } from 'express';
-import { get, save } from '../store.js';
+import { supabase } from '../supabase.js';
+import { requireAuth } from './auth.js';
 import { TRAINING_MODULES } from '../data/training-modules.js';
 
 const router = Router();
-const USER_ID = 'u_demo';
 
-function getProgress() {
-  const db = get();
-  if (!db.users[USER_ID]) db.users[USER_ID] = { id: USER_ID };
-  if (!db.users[USER_ID].trainingProgress) {
-    db.users[USER_ID].trainingProgress = { completedModules: [], scores: {} };
-  }
-  return db.users[USER_ID].trainingProgress;
+async function getProgress(userId) {
+  const { data, error } = await supabase
+    .from('training_progress')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || { completed_modules: [], scores: {} };
 }
 
-router.get('/training/modules', (_req, res) => {
-  const progress = getProgress();
-  const completed = new Set(progress.completedModules || []);
+router.get('/training/modules', requireAuth, async (req, res) => {
+  try {
+    const progress = await getProgress(req.user.id);
+    const completed = new Set(progress.completed_modules || []);
 
-  const modules = TRAINING_MODULES.map(m => {
-    const isDone = completed.has(m.id);
-    const prev = TRAINING_MODULES.find(x => x.order === m.order - 1);
-    const isUnlocked = m.order === 1 || (prev && completed.has(prev.id));
-    return {
-      ...m,
-      status: isDone ? 'completed' : (isUnlocked ? 'unlocked' : 'locked'),
-      score: progress.scores?.[m.id] ?? null,
-    };
-  });
+    const modules = TRAINING_MODULES.map(m => {
+      const isDone = completed.has(m.id);
+      const prev = TRAINING_MODULES.find(x => x.order === m.order - 1);
+      const isUnlocked = m.order === 1 || (prev && completed.has(prev.id));
+      return {
+        ...m,
+        status: isDone ? 'completed' : (isUnlocked ? 'unlocked' : 'locked'),
+        score: progress.scores?.[m.id] ?? null,
+      };
+    });
 
-  res.json(modules);
+    res.json(modules);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-router.post('/training/:moduleId/complete', (req, res) => {
+router.post('/training/:moduleId/complete', requireAuth, async (req, res) => {
   const { moduleId } = req.params;
   const { score = 0, total = 1 } = req.body || {};
 
   const mod = TRAINING_MODULES.find(m => m.id === moduleId);
   if (!mod) return res.status(404).json({ error: 'module inconnu' });
 
-  const progress = getProgress();
-  const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-  progress.scores[moduleId] = percentage;
+  try {
+    const progress = await getProgress(req.user.id);
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    const scores = { ...(progress.scores || {}), [moduleId]: percentage };
 
-  const passed = percentage >= 60;
-  if (passed && !progress.completedModules.includes(moduleId)) {
-    progress.completedModules.push(moduleId);
+    const passed = percentage >= 60;
+    const completedModules = progress.completed_modules || [];
+    const nextCompletedModules = passed && !completedModules.includes(moduleId)
+      ? [...completedModules, moduleId]
+      : completedModules;
+
+    const { error: upsertErr } = await supabase.from('training_progress').upsert({
+      user_id: req.user.id,
+      completed_modules: nextCompletedModules,
+      scores,
+      updated_at: new Date().toISOString(),
+    });
+    if (upsertErr) throw upsertErr;
+
+    const nextMod = TRAINING_MODULES.find(m => m.order === mod.order + 1);
+    res.json({ passed, percentage, nextModuleId: nextMod?.id ?? null });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  save();
-
-  const nextMod = TRAINING_MODULES.find(m => m.order === mod.order + 1);
-  res.json({ passed, percentage, nextModuleId: nextMod?.id ?? null });
 });
 
 export default router;

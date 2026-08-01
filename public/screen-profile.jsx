@@ -219,7 +219,15 @@ function ProfileScreen({ nav }) {
     setPwLoading(true); setPwMsg('');
     try {
       const base = window.API?.base || '';
-      const res  = await fetch(base + '/api/auth/change-password', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ oldPassword: pwForm.old, newPassword: pwForm.next }) });
+      const token = window.SM?.token;
+      const res  = await fetch(base + '/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          ...(token ? { authorization: 'Bearer ' + token } : {}),
+        },
+        body: JSON.stringify({ oldPassword: pwForm.old, newPassword: pwForm.next }),
+      });
       const data = await res.json();
       setPwMsg(res.ok ? 'Mot de passe modifié ✓' : (data.error || 'Erreur'));
       if (res.ok) { setPwForm({ old: '', next: '', confirm: '' }); setTimeout(() => setShowPw(false), 1200); }

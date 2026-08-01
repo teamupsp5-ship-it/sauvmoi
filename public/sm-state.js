@@ -50,8 +50,12 @@ window.SM.demoUtterances = {
   EN: ['My father fell and is not responding', 'Someone is bleeding a lot', 'A baby got burned with hot water'],
 };
 
-// Charge les données initiales depuis l'API
+// Charge les données initiales depuis l'API.
+// /api/me exige désormais une authentification (Supabase) : appeler
+// bootstrap() sans session (avant connexion) ne doit pas déclencher le
+// bandeau "hors-ligne" à cause d'un 401 attendu — on saute simplement /me.
 window.SM.bootstrap = async function bootstrap() {
+  if (!window.SM.token) return;
   try {
     const [home, emergencies, user] = await Promise.all([
       window.API.home(), window.API.emergencies(), window.API.me(),
@@ -59,6 +63,7 @@ window.SM.bootstrap = async function bootstrap() {
     window.SM.home = home;
     window.SM.emergencies = emergencies;
     window.SM.user = user;
+    window.SM.offline = false;
     window.SM.emit();
   } catch (e) {
     console.warn('[SM] bootstrap échoué (backend lancé ?):', e.message);

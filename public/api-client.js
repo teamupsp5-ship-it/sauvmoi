@@ -9,10 +9,14 @@
   // réponse serveur en erreur (le serveur a répondu, ce n'est pas du "hors-ligne").
   async function req(path, { method = 'GET', body } = {}) {
     let res;
+    const headers = {};
+    if (body) headers['content-type'] = 'application/json';
+    const token = window.SM && window.SM.token;
+    if (token) headers['authorization'] = 'Bearer ' + token;
     try {
       res = await fetch(BASE + path, {
         method,
-        headers: body ? { 'content-type': 'application/json' } : undefined,
+        headers: Object.keys(headers).length ? headers : undefined,
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch (networkErr) {

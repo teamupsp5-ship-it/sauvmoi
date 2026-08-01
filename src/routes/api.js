@@ -7,6 +7,8 @@ import {
 import { PROTOCOLS } from '../data/protocols.js';
 import { HEALTH_CENTERS } from '../data/health-centers.js';
 import { analyzeImage } from '../ai.js';
+import { supabase } from '../supabase.js';
+import { requireAuth } from './auth.js';
 import QRCode from 'qrcode';
 
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -40,21 +42,9 @@ router.post('/auth/verify', (req, res) => {
   res.json({ token: `demo.${user.id}`, user });
 });
 
-router.get('/me', (req, res) => res.json(DEMO_USER));
-
-router.put('/me', (req, res) => {
-  const { name, phone, birthdate, gender, photo, medicalRecord } = req.body || {};
-  if (name !== undefined) DEMO_USER.name = name;
-  if (phone !== undefined) DEMO_USER.phone = phone;
-  if (birthdate !== undefined) DEMO_USER.birthdate = birthdate;
-  if (gender !== undefined) DEMO_USER.gender = gender;
-  if (photo !== undefined) DEMO_USER.photo = photo;
-  if (medicalRecord) DEMO_USER.medicalRecord = { ...DEMO_USER.medicalRecord, ...medicalRecord };
-  const db = get();
-  if (db.users['u_demo']) Object.assign(db.users['u_demo'], DEMO_USER);
-  save();
-  res.json(DEMO_USER);
-});
+// GET /me et PUT /me ont été déplacés dans routes/auth.js (requireAuth +
+// table Supabase profiles) — l'ancien /me ici ignorait complètement
+// l'utilisateur connecté et ne mutait que le DEMO_USER partagé.
 
 // ─── ACCUEIL ────────────────────────────────────────────────────────────────
 router.get('/home', (req, res) => {
@@ -152,22 +142,30 @@ router.put('/medical-record', (req, res) => {
   res.json(DEMO_USER.medicalRecord);
 });
 
-router.get('/medical-record/qr', async (req, res) => {
-  const now = Date.now();
-  const SIX_MONTHS = 6 * 30 * 24 * 60 * 60 * 1000;
-  const dob = DEMO_USER.birthdate ? new Date(DEMO_USER.birthdate) : null;
-  const age = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : null;
-  const payload = {
-    id: DEMO_USER.id,
-    nom: DEMO_USER.name,
-    age,
-    bloodType: DEMO_USER.medicalRecord.bloodType,
-    allergies: DEMO_USER.medicalRecord.allergies,
-    contacts: DEMO_USER.medicalRecord.emergencyContacts,
-    generatedAt: now,
-    expiresAt: now + SIX_MONTHS,
-  };
+router.get('/medical-record/qr', requireAuth, async (req, res) => {
   try {
+    const [{ data: profile, error: profileErr }, { data: contactsRows, error: contactsErr }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', req.user.id).maybeSingle(),
+      supabase.from('emergency_contacts').select('*').eq('user_id', req.user.id),
+    ]);
+    if (profileErr) throw profileErr;
+    if (contactsErr) throw contactsErr;
+
+    const now = Date.now();
+    const SIX_MONTHS = 6 * 30 * 24 * 60 * 60 * 1000;
+    const dob = profile?.birthdate ? new Date(profile.birthdate) : null;
+    const age = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : null;
+    const allergies = (profile?.allergies || '').split(',').map((a) => a.trim()).filter(Boolean);
+    const payload = {
+      id: req.user.id,
+      nom: profile?.name || '',
+      age,
+      bloodType: profile?.blood_type || '',
+      allergies,
+      contacts: (contactsRows || []).map((c) => ({ name: c.name, phone: c.phone, relation: c.relation })),
+      generatedAt: now,
+      expiresAt: now + SIX_MONTHS,
+    };
     const qrDataUrl = await QRCode.toDataURL(JSON.stringify(payload), { width: 300, margin: 2 });
     res.json({ payload, qrDataUrl });
   } catch (e) {
@@ -189,20 +187,29 @@ router.get('/health-centers', (req, res) => {
 });
 
 // ─── NOTIFICATIONS IN-APP ────────────────────────────────────────────────────
-router.get('/notifications', (req, res) => {
-  const db = get();
-  const notifs = Object.values(db.notifications || {})
-    .filter(n => n.userId === 'u_demo')
-    .sort((a, b) => b.createdAt - a.createdAt);
-  res.json(notifs);
+// Alimentées par routes/sos.js (insert dans la table Supabase `notifications`
+// quand un contact d'urgence a lui-même un compte Sauv'Moi).
+router.get('/notifications', requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', req.user.id)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json((data || []).map((n) => ({
+    id: n.id, userId: n.user_id, type: n.type, fromUser: n.from_user,
+    message: n.message, lat: n.lat, lng: n.lng,
+    createdAt: n.created_at, read: n.is_read,
+  })));
 });
 
-router.post('/notifications/:id/read', (req, res) => {
-  const db = get();
-  const n = (db.notifications || {})[req.params.id];
-  if (!n) return res.status(404).json({ error: 'notification inconnue' });
-  n.read = true;
-  save();
+router.post('/notifications/:id/read', requireAuth, async (req, res) => {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('id', req.params.id)
+    .eq('user_id', req.user.id);
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
