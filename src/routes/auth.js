@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase } from '../supabase.js';
+import { supabase, createAuthClient } from '../supabase.js';
 
 const router = Router();
 
@@ -166,7 +166,9 @@ router.post('/auth/register', async (req, res) => {
       if (contactErr) throw contactErr;
     }
 
-    const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+    // Client jetable dédié : ne jamais faire ce signIn sur le client
+    // service_role partagé (voir avertissement dans supabase.js).
+    const { data: signInData, error: signInErr } = await createAuthClient().auth.signInWithPassword({
       email: email.trim(), password,
     });
     if (signInErr) throw signInErr;
@@ -184,7 +186,9 @@ router.post('/auth/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email et mot de passe requis' });
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  // Client jetable dédié : ne jamais faire ce signIn sur le client
+  // service_role partagé (voir avertissement dans supabase.js).
+  const { data, error } = await createAuthClient().auth.signInWithPassword({ email: email.trim(), password });
   if (error) return res.status(401).json({ error: 'Identifiants incorrects' });
 
   try {
