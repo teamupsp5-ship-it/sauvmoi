@@ -348,6 +348,15 @@ function TrainingModuleScreen({ nav }) {
     if (!mod) nav.reset('training');
   }, []);
 
+  // "Module suivant" appelle nav.go('training_module') alors qu'on est déjà sur
+  // cet écran — même screenId, donc React ne démonte/remonte pas le composant
+  // et phase/result restent bloqués sur l'ancien module. On les réinitialise
+  // explicitement dès que le module affiché change.
+  useEffect(() => {
+    setPhase('steps');
+    setResult(null);
+  }, [mod?.id]);
+
   if (!mod) return null;
 
   const diff = DIFF_MODULE[mod.difficulty] || DIFF_MODULE['Facile'];
