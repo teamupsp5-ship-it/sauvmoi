@@ -11,6 +11,14 @@ function splitList(text) {
   return (text || '').split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+// session.expires_at (Supabase) est en secondes depuis l'epoch ; le reste de
+// l'app (localStorage, Date.now()) travaille en millisecondes.
+function sessionExpiresAtMs(session) {
+  if (session?.expires_at) return session.expires_at * 1000;
+  if (session?.expires_in) return Date.now() + session.expires_in * 1000;
+  return Date.now() + 3600 * 1000; // repli : 1h
+}
+
 // Accepte les champs médicaux qu'ils soient envoyés à plat (contrat actuel
 // de /auth/register : bloodType, height, ... au premier niveau) ou nichés
 // sous `medicalRecord` (contrat actuel de PUT /me) ou `medical` — au cas où
@@ -174,7 +182,12 @@ router.post('/auth/register', async (req, res) => {
     if (signInErr) throw signInErr;
 
     const { profile, contacts } = await fetchProfileAndContacts(authUser.id);
-    res.json({ token: signInData.session.access_token, user: toUserPayload(authUser, profile, contacts) });
+    res.json({
+      token: signInData.session.access_token,
+      refreshToken: signInData.session.refresh_token,
+      expiresAt: sessionExpiresAtMs(signInData.session),
+      user: toUserPayload(authUser, profile, contacts),
+    });
   } catch (e) {
     console.error('[auth] finalisation inscription échouée pour', authUser.id, ':', e.message);
     res.status(500).json({ error: e.message || "Erreur lors de la finalisation de l'inscription" });
@@ -193,10 +206,35 @@ router.post('/auth/login', async (req, res) => {
 
   try {
     const { profile, contacts } = await fetchProfileAndContacts(data.user.id);
-    res.json({ token: data.session.access_token, user: toUserPayload(data.user, profile, contacts) });
+    res.json({
+      token: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresAt: sessionExpiresAtMs(data.session),
+      user: toUserPayload(data.user, profile, contacts),
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ─── Rafraîchissement de session ────────────────────────────────────────────
+router.post('/auth/refresh', async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken) return res.status(400).json({ error: 'refreshToken requis' });
+
+  // Client jetable dédié : même raison que pour signInWithPassword — ne
+  // jamais faire d'opération de gestion de session sur le client
+  // service_role partagé (voir avertissement dans supabase.js).
+  const { data, error } = await createAuthClient().auth.refreshSession({ refresh_token: refreshToken });
+  if (error || !data?.session) {
+    return res.status(401).json({ error: 'Session expirée, reconnexion nécessaire' });
+  }
+
+  res.json({
+    token: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    expiresAt: sessionExpiresAtMs(data.session),
+  });
 });
 
 // ─── Changement de mot de passe ─────────────────────────────────────────────

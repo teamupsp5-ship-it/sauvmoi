@@ -47,9 +47,28 @@ function LiveApp() {
   const t = window.TWEAK_DEFAULTS;
   const SM = window.useSM();
   const initialScreen = 'splash';
+  const navRef = React.useRef(null);
 
   React.useEffect(() => { applyTweaks(t); window.SM.bootstrap(); }, []);
   React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
+  // Refresh implicite (voir api-client.js req()) qui échoue en cours de
+  // session — ex: refresh_token lui-même expiré/révoqué — met SM.sessionExpired
+  // à true et vide déjà le localStorage. Ici on redirige proprement vers la
+  // connexion dès que ça arrive, quel que soit l'écran affiché à ce moment.
+  //
+  // Pas de tableau de dépendances : useSM() renvoie toujours window.SM (même
+  // référence, muté en place), donc [SM] ne changerait jamais aux yeux de
+  // React et cet effet ne se redéclencherait qu'au montage. On le laisse
+  // s'exécuter à chaque rendu — SM.sessionExpired étant repassé à false
+  // immédiatement après lecture, le check reste sans effet la plupart du
+  // temps (même pattern que useLucide() ailleurs dans l'app).
+  React.useEffect(() => {
+    if (SM.sessionExpired && navRef.current) {
+      window.SM.sessionExpired = false;
+      navRef.current.reset('auth');
+    }
+  });
 
   return (
     <div className="sm-live" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
@@ -58,7 +77,12 @@ function LiveApp() {
           Backend injoignable — mode hors-ligne actif.
         </div>
       )}
-      <PhoneFrame initial={initialScreen} screens={PHONE_SCREENS} lang={t.lang} />
+      <PhoneFrame
+        initial={initialScreen}
+        screens={PHONE_SCREENS}
+        lang={t.lang}
+        onNavReady={(nav) => { navRef.current = nav; }}
+      />
     </div>
   );
 }

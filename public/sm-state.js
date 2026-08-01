@@ -67,7 +67,13 @@ window.SM.bootstrap = async function bootstrap() {
     window.SM.emit();
   } catch (e) {
     console.warn('[SM] bootstrap échoué (backend lancé ?):', e.message);
-    window.SM.offline = true;
+    // Si le token a été effacé entre-temps, c'est qu'un refresh automatique
+    // a échoué (voir api-client.js clearSession()) — une session invalide,
+    // pas une panne réseau. Ne pas afficher le bandeau hors-ligne dans ce
+    // cas, l'utilisateur est de toute façon redirigé vers la connexion.
+    if (window.SM.token) {
+      window.SM.offline = true;
+    }
     window.SM.emit();
   }
 };

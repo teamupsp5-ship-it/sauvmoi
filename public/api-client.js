@@ -5,9 +5,86 @@
   const BASE = window.SAUVMOI_API
     || 'https://sauvmoi.onrender.com';
 
+  // Le JWT Supabase (window.SM.token) expire après ~1h. sm_refresh_token et
+  // sm_expires_at (ms epoch) sont écrits ici et dans screen-auth.jsx
+  // (connexion/inscription) — toujours les trois ensemble.
+  const EXPIRY_MARGIN_MS = 2 * 60 * 1000; // rafraîchit si < 2 min restantes
+
+  function getExpiresAt() {
+    const v = localStorage.getItem('sm_expires_at');
+    return v ? Number(v) : null;
+  }
+
+  function isExpiringSoon() {
+    const expiresAt = getExpiresAt();
+    if (!expiresAt) return false; // pas de session active à rafraîchir
+    return Date.now() >= expiresAt - EXPIRY_MARGIN_MS;
+  }
+
+  function persistSession(session) {
+    if (session.token) {
+      window.SM.token = session.token;
+      localStorage.setItem('sm_token', session.token);
+    }
+    if (session.refreshToken) localStorage.setItem('sm_refresh_token', session.refreshToken);
+    if (session.expiresAt) localStorage.setItem('sm_expires_at', String(session.expiresAt));
+  }
+
+  // Efface la session côté client. Ne navigue pas elle-même (ce module n'a
+  // pas accès à `nav`) — signale via SM.sessionExpired, que app-live.jsx
+  // observe pour rediriger vers l'écran de connexion.
+  function clearSession() {
+    window.SM.token = null;
+    window.SM.user = null;
+    localStorage.removeItem('sm_token');
+    localStorage.removeItem('sm_refresh_token');
+    localStorage.removeItem('sm_expires_at');
+    localStorage.removeItem('sm_user');
+    window.SM.sessionExpired = true;
+    window.SM.emit();
+  }
+
+  // Dédoublonne les refresh concurrents : si plusieurs appels API partent en
+  // même temps avec un token expirant, un seul appel réseau de refresh part.
+  let refreshPromise = null;
+
+  async function refreshSession() {
+    if (refreshPromise) return refreshPromise;
+    const refreshToken = localStorage.getItem('sm_refresh_token');
+    if (!refreshToken) return false;
+
+    refreshPromise = (async () => {
+      try {
+        const res = await fetch(BASE + '/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (!res.ok) throw new Error('refresh → ' + res.status);
+        const data = await res.json();
+        persistSession(data);
+        return true;
+      } catch (e) {
+        console.warn('[API] refresh de session échoué, déconnexion:', e.message);
+        clearSession();
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+    return refreshPromise;
+  }
+
   // Distingue une vraie panne réseau (fetch() n'aboutit pas — hors-ligne) d'une
   // réponse serveur en erreur (le serveur a répondu, ce n'est pas du "hors-ligne").
   async function req(path, { method = 'GET', body } = {}) {
+    // Rafraîchit la session avant l'appel si le token est expiré ou proche
+    // de l'être — jamais pour les routes d'auth elles-mêmes (login/register/
+    // refresh n'ont pas de session à rafraîchir, et ça éviterait une boucle).
+    if (!path.startsWith('/api/auth/') && isExpiringSoon()) {
+      await refreshSession();
+    }
+
     let res;
     const headers = {};
     if (body) headers['content-type'] = 'application/json';
@@ -35,6 +112,9 @@
 
   window.API = {
     base: BASE,
+    refreshSession,
+    isExpiringSoon,
+    clearSession,
 
     // Accueil / contenu
     home: () => req('/api/home'),

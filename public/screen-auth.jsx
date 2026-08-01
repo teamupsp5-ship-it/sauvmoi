@@ -62,6 +62,8 @@ function applySession(data, nav) {
     window.SM.token = data.token;
     localStorage.setItem('sm_token', data.token);
   }
+  if (data.refreshToken) localStorage.setItem('sm_refresh_token', data.refreshToken);
+  if (data.expiresAt) localStorage.setItem('sm_expires_at', String(data.expiresAt));
   if (data.user) {
     window.SM.user = data.user;
     localStorage.setItem('sm_user', JSON.stringify(data.user));

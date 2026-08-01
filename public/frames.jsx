@@ -61,7 +61,7 @@ function HomeIndicator() { return null; }
 // ── Phone Frame ─────────────────────────────────────────────────────────
 // Holds the current sub-screen for one device; renders the screen via
 // the `screens` map.
-function PhoneFrame({ initial = 'home', screens, lang = 'FR' }) {
+function PhoneFrame({ initial = 'home', screens, lang = 'FR', onNavReady }) {
   const [stack, setStack] = useState([initial]);
   const screenId = stack[stack.length - 1];
 
@@ -74,6 +74,11 @@ function PhoneFrame({ initial = 'home', screens, lang = 'FR' }) {
     current: screenId,
     canBack: () => stack.length > 1,
   }), [screenId, stack.length]);
+
+  // Optionnel : laisse un parent (app-live.jsx) récupérer `nav` pour piloter
+  // la navigation depuis l'extérieur (ex: déconnexion forcée sur session
+  // Supabase expirée). Ne rien passer = comportement inchangé (canvas.html).
+  useEffect(() => { if (onNavReady) onNavReady(nav); }, [nav, onNavReady]);
 
   const ScreenComp = screens[screenId] || screens[initial];
   return (

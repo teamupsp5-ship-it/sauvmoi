@@ -33,7 +33,14 @@ function SplashScreen({ nav }) {
     const t0 = setTimeout(() => setPhase(1), 1500);
     const t1 = setTimeout(() => setPhase(2), 2800);
     const t2 = setTimeout(() => setPhase(3), 4500);
-    const t3 = setTimeout(() => {
+    const t3 = setTimeout(async () => {
+      // Session restaurée depuis localStorage (app-live.jsx) mais token
+      // expiré ou proche de l'être : tente un refresh silencieux avant de
+      // décider — sinon l'utilisateur atterrit sur 'home' avec un token
+      // mort, et la toute première requête API échoue.
+      if (window.SM.token && window.API && window.API.isExpiringSoon && window.API.isExpiringSoon()) {
+        await window.API.refreshSession();
+      }
       const target = (window.SM.token && window.SM.user) ? 'home' : 'auth';
       nav.reset(target);
     }, 6500);
