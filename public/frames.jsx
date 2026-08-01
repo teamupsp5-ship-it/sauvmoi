@@ -297,7 +297,7 @@ function FloatingChatButton({ nav }) {
         transition: 'transform 0.12s ease',
       }}
     >
-      <Icon name="sparkles" size={22} color="white" strokeWidth={2} />
+      <Icon name="briefcase-medical" size={22} color="white" strokeWidth={2} />
     </button>
   );
 }
