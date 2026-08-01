@@ -3,7 +3,7 @@
 
 (function () {
   const BASE = window.SAUVMOI_API
-    || 'https://sauvmoi-production.up.railway.app';
+    || 'https://sauvmoi.onrender.com';
 
   async function req(path, { method = 'GET', body } = {}) {
     const res = await fetch(BASE + path, {
