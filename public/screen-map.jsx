@@ -372,23 +372,41 @@ function MapScreen({ nav }) {
 
                 {/* Boutons d'action */}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <a
-                    href={'tel:' + c.phone.replace(/[\s ]/g, '')}
-                    onClick={e => e.stopPropagation()}
-                    style={{ textDecoration: 'none', flex: 1 }}
-                  >
-                    <button style={{
-                      width: '100%', padding: '9px 12px', borderRadius: 10,
-                      background: 'var(--sm-blue-soft)', color: 'var(--sm-blue)',
-                      border: 'none', fontSize: 13, fontWeight: 600,
-                      fontFamily: 'var(--font-ui)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      cursor: 'pointer',
-                    }}>
-                      <Icon name="phone" size={15} color="var(--sm-blue)" />
-                      Appeler
+                  {c.phone ? (
+                    <a
+                      href={'tel:' + c.phone.replace(/[\s ]/g, '')}
+                      onClick={e => e.stopPropagation()}
+                      style={{ textDecoration: 'none', flex: 1 }}
+                    >
+                      <button style={{
+                        width: '100%', padding: '9px 12px', borderRadius: 10,
+                        background: 'var(--sm-blue-soft)', color: 'var(--sm-blue)',
+                        border: 'none', fontSize: 13, fontWeight: 600,
+                        fontFamily: 'var(--font-ui)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        cursor: 'pointer',
+                      }}>
+                        <Icon name="phone" size={15} color="var(--sm-blue)" />
+                        Appeler
+                      </button>
+                    </a>
+                  ) : (
+                    <button
+                      disabled
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        flex: 1, padding: '9px 12px', borderRadius: 10,
+                        background: '#F1F2F4', color: 'var(--sm-ink-400)',
+                        border: 'none', fontSize: 13, fontWeight: 600,
+                        fontFamily: 'var(--font-ui)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      <Icon name="phone-off" size={15} color="var(--sm-ink-400)" />
+                      Numéro non disponible
                     </button>
-                  </a>
+                  )}
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`}
                     target="_blank"
