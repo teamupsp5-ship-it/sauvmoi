@@ -20,7 +20,7 @@ function EmergencyMobile({ nav, lang }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? EMERGENCY_LIST : EMERGENCY_LIST.slice(0, 5);
   return (
-    <>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <StatusBar />
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 16px 0' }}>
@@ -109,7 +109,7 @@ function EmergencyMobile({ nav, lang }) {
 
       <TabBar active="emergency" onNav={(id) => nav.reset(id)} onSOS={() => nav.go('sos')} />
       <HomeIndicator />
-    </>
+    </div>
   );
 }
 

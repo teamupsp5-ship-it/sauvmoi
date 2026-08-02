@@ -60,6 +60,23 @@ body {
   background: #FFFFFF;
 }
 
+/* Empêche la sélection de texte façon "app native" (appui long, double-tap)
+   partout, sauf sur les champs de saisie (toujours éditables/sélectionnables)
+   et sur les réponses de l'IA dans le chat (.sm-chat-selectable — voir
+   screen-chat.jsx), où l'utilisateur peut vouloir copier un protocole. */
+body, #root {
+  user-select: none;
+  -webkit-user-select: none;
+}
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.sm-chat-selectable, .sm-chat-selectable * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Scope-friendly resets only within our frames */
 .sm-frame, .sm-frame *, .sm-frame *::before, .sm-frame *::after {
   box-sizing: border-box;
@@ -71,6 +88,14 @@ body {
   font-feature-settings: "ss01", "kern";
   line-height: 1.45;
   font-size: 16px;
+}
+/* -webkit-overflow-scrolling only affects the element it's set on (it does
+   not cascade to descendants' own scroll containers), so it's applied via
+   the universal descendant selector — inert on non-scrolling elements, this
+   single rule covers every screen's scrollable body (incl. ProfileScreen's
+   long list) without needing to touch each one individually. */
+.sm-frame, .sm-frame * {
+  -webkit-overflow-scrolling: touch;
 }
 .sm-frame button {
   font-family: inherit;
@@ -423,13 +448,30 @@ body {
    (.sm-phone) sans toucher canvas.html qui en a besoin pour la maquette.  */
 .sm-live .sm-phone {
   width: 100vw;
-  height: 100dvh;         /* dvh = viewport dynamique, correct sous Android */
+  height: 100vh;           /* repli pour les navigateurs sans support de dvh (Safari < 15.4) */
+  height: 100dvh;          /* dvh = viewport dynamique, tient compte de la barre d'outils iOS/Android */
   border-radius: 0;
   box-shadow: none;
   position: relative;     /* ancre les enfants position:absolute */
 }
 .sm-live .sm-phone .sm-screen {
   border-radius: 0;
+}
+/* Chaque écran (screen-*.jsx) rend un unique enfant direct de .sm-screen en
+   position:absolute; inset:0 — inset:0 remplit le padding-box du parent
+   positionné SANS tenir compte du padding qu'on mettrait sur .sm-screen
+   lui-même (le padding d'un ancêtre positionné n'a aucun effet sur un
+   descendant absolu qui couvre tout via inset:0). On applique donc le
+   safe-area directement sur cet enfant, qui lui redistribue l'espace à ses
+   propres enfants en flux normal (en-tête, contenu, tabbar) — ça évite de
+   modifier chacun des ~25 fichiers d'écran individuellement, et ne modifie
+   rien tant qu'un écran ne fixe pas lui-même padding-top/bottom en inline
+   (l'inline gagnerait alors sur cette règle, sans casser quoi que ce soit).
+   Sans fallback : env() sur un navigateur sans safe-area vaut 0px. */
+.sm-live .sm-screen > * {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
 }
 .sm-live .sm-notch {
   display: none;          /* encoche fictive inutile sur vrai écran */

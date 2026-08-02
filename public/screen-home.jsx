@@ -129,7 +129,7 @@ function HomeMobile({ nav, lang }) {
   };
 
   return (
-    <>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* ── En-tête dégradé ─────────────────────────────────────────── */}
       <div style={{
         background: 'linear-gradient(180deg, #f8f9fa, white)',
@@ -334,7 +334,7 @@ function HomeMobile({ nav, lang }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -13,6 +13,14 @@ const TYPE_ICON  = { hopital: 'building-2', clinique: 'stethoscope', maternite: 
 const TYPE_COLOR = { hopital: 'var(--sm-red)', clinique: 'var(--sm-blue)', maternite: '#D81B60', dispensaire: '#E67E22', public: '#27AE60' };
 const TYPE_BG    = { hopital: 'var(--sm-red-soft)', clinique: 'var(--sm-blue-soft)', maternite: '#FCE4EC', dispensaire: '#FEF5EC', public: '#EAFAF1' };
 
+// iPadOS se présente comme "MacIntel" dans le user-agent depuis iOS 13 — le
+// distingue d'un vrai Mac via la présence d'écran tactile (navigator.maxTouchPoints).
+function isIOSDevice() {
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  return ua.includes('Macintosh') && navigator.maxTouchPoints > 1;
+}
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -238,19 +246,32 @@ function MapScreen({ nav }) {
               <div style={{ fontSize: 14, fontWeight: 600, color: '#92400E', fontFamily: 'var(--font-ui)', marginBottom: 4 }}>
                 {gpsError === 'denied' ? 'Accès GPS refusé' : 'GPS indisponible'}
               </div>
-              <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
-                Activez votre position pour voir les centres les plus proches
-              </div>
-              <button
-                onClick={retryGps}
-                style={{
-                  padding: '8px 16px', borderRadius: 8,
-                  background: '#D97706', color: 'white', border: 'none',
-                  fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
-                }}
-              >
-                Réessayer
-              </button>
+              {gpsError === 'denied' && isIOSDevice() ? (
+                <>
+                  {/* iOS ne permet pas de rouvrir la demande d'autorisation depuis le
+                      JS une fois refusée — "Réessayer" ne peut rien faire dans ce cas
+                      précis, on remplace donc par la marche à suivre manuelle. */}
+                  <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                    {'Pour activer la position sur iPhone :\n1. Ouvrez Réglages\n2. Safari → Position\n3. Sélectionnez « Autoriser »\n4. Revenez sur Sauv\'Moi et rechargez la page'}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
+                    Activez votre position pour voir les centres les plus proches
+                  </div>
+                  <button
+                    onClick={retryGps}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8,
+                      background: '#D97706', color: 'white', border: 'none',
+                      fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
+                    }}
+                  >
+                    Réessayer
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}

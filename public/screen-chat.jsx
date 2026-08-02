@@ -101,7 +101,7 @@ function ChatAIBubble({ text, actions, loading, nav, id, lang }) {
           lineHeight: 1.55,
           color: 'var(--sm-ink)',
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sm-chat-selectable" style={{ flex: 1, minWidth: 0 }}>
             {loading ? <ChatTypingDots /> : renderMarkdown(text)}
           </div>
           {!loading && text && (

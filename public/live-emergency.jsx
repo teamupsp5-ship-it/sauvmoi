@@ -25,7 +25,7 @@ function EmergencyGuide({ nav, lang }) {
   const ss = String(seconds % 60).padStart(2, '0');
 
   return (
-    <>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ background: 'var(--sm-red)', color: 'white', paddingBottom: 14 }}>
         <StatusBar light />
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 16px', gap: 12 }}>
@@ -82,7 +82,7 @@ function EmergencyGuide({ nav, lang }) {
         </div>
       </div>
       <HomeIndicator />
-    </>
+    </div>
   );
 }
 
