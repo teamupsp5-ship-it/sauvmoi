@@ -56,7 +56,7 @@ function StepsPhase({ mod, onStartQuiz }) {
           background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)',
           padding: '20px 18px',
         }}>
-          <p style={{ fontSize: 15, color: 'var(--sm-ink)', lineHeight: 1.75, fontFamily: 'var(--font-ui)', margin: 0 }}>
+          <p style={{ fontSize: 16, color: 'var(--sm-ink)', lineHeight: 1.75, fontFamily: 'var(--font-ui)', margin: 0 }}>
             {step.content}
           </p>
         </div>

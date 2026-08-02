@@ -88,14 +88,14 @@ body {
 .sm-frame h1, .sm-frame h2, .sm-frame h3, .sm-frame h4 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.15;
   color: var(--sm-ink);
 }
-.sm-frame p { margin: 0; }
+.sm-frame p { margin: 0; font-weight: 400; }
 
-.sm-serif { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; }
+.sm-serif { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
 .sm-mono { font-family: var(--font-mono); }
 .sm-eyebrow {
   font-size: 11px;

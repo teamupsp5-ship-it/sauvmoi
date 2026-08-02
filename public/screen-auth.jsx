@@ -330,13 +330,12 @@ function RegisterScreen({ nav }) {
               />
             </FieldWrap>
 
-            <FieldWrap label="Date de naissance">
-              <input
-                type="date"
-                value={form.birthdate} onChange={set('birthdate')}
-                style={AUTH_INP}
-              />
-            </FieldWrap>
+            <BirthdateField
+              value={form.birthdate}
+              onChange={v => pick('birthdate', v)}
+              inputStyle={AUTH_INP}
+              boxStyle={AUTH_BOX}
+            />
 
             {/* Sexe — sélection visuelle */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

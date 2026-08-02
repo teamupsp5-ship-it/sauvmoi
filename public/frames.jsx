@@ -282,6 +282,103 @@ function NumBadge({ n, color = 'var(--sm-ink)', textColor = 'white' }) {
 
 // ── Bouton flottant d'accès rapide au Chat IA ──────────────────────────────
 // Réutilisable sur les écrans principaux (voir CLAUDE.md pour la liste).
+// ── Date de naissance : bascule calendrier / texte JJ/MM/AAAA ─────────────
+// La valeur portée par le parent (`value`) reste toujours au format ISO
+// YYYY-MM-DD (ou '' si vide/invalide) — seul l'affichage change selon le mode.
+function isoToFRDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+function frDateToISO(str) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str || '');
+  if (!m) return null;
+  const day = parseInt(m[1], 10), month = parseInt(m[2], 10), year = parseInt(m[3], 10);
+  if (month < 1 || month > 12) return null;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  if (day < 1 || day > daysInMonth) return null;
+  if (year < 1900 || year > new Date().getFullYear()) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+function formatFRDateInput(raw) {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function BirthdateField({ value, onChange, label = 'Date de naissance', labelStyle, inputStyle, boxStyle, toggleColor = 'var(--sm-blue)' }) {
+  const [mode, setMode] = useState('calendar');
+  const [textValue, setTextValue] = useState(() => isoToFRDate(value));
+  const [error, setError] = useState('');
+
+  function toggleMode() {
+    setError('');
+    if (mode === 'calendar') {
+      setTextValue(isoToFRDate(value));
+      setMode('text');
+    } else {
+      setMode('calendar');
+    }
+  }
+
+  function handleTextChange(e) {
+    const formatted = formatFRDateInput(e.target.value);
+    setTextValue(formatted);
+    if (error) setError('');
+    const iso = frDateToISO(formatted);
+    if (iso) onChange(iso);
+  }
+
+  function handleTextBlur(e) {
+    const current = e.target.value;
+    if (!current) { onChange(''); setError(''); return; }
+    const iso = frDateToISO(current);
+    if (!iso) { setError('Date invalide (JJ/MM/AAAA)'); onChange(''); }
+    else { setError(''); }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        {label && (
+          <label style={labelStyle || { fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>
+            {label}
+          </label>
+        )}
+        <button
+          type="button"
+          onClick={toggleMode}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: toggleColor, fontFamily: 'inherit' }}
+        >
+          {mode === 'calendar' ? 'Saisir en texte' : 'Utiliser le calendrier'}
+        </button>
+      </div>
+      <div style={boxStyle}>
+        {mode === 'calendar' ? (
+          <input
+            type="date"
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            style={inputStyle}
+          />
+        ) : (
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="JJ/MM/AAAA"
+            maxLength={10}
+            value={textValue}
+            onChange={handleTextChange}
+            onBlur={handleTextBlur}
+            style={inputStyle}
+          />
+        )}
+      </div>
+      {error && <span style={{ fontSize: 12, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>{error}</span>}
+    </div>
+  );
+}
+
 function FloatingChatButton({ nav }) {
   const [pressed, setPressed] = useState(false);
   return (
@@ -310,5 +407,5 @@ function FloatingChatButton({ nav }) {
 Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
-  IconTile, NumBadge, T, COPY,
+  IconTile, NumBadge, T, COPY, BirthdateField,
 });

@@ -512,8 +512,12 @@ function ProfilePersonal({ nav }) {
                 ))}
               </div>
               <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
-                <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>Date de naissance</div>
-                <input type="date" value={form.birthdate} onChange={e => setF('birthdate')(e.target.value)} style={{ ...PINP }} />
+                <BirthdateField
+                  value={form.birthdate}
+                  onChange={v => setF('birthdate')(v)}
+                  labelStyle={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)' }}
+                  inputStyle={{ ...PINP }}
+                />
               </div>
               <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 8 }}>Sexe</div>
