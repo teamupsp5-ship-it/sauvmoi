@@ -19,7 +19,7 @@ router.post('/sos/trigger', requireAuth, async (req, res) => {
     ]);
     if (contactsErr) throw contactsErr;
 
-    const senderFirstName = (senderProfile?.name || req.user.email || 'Un proche').split(' ')[0];
+    const senderName = senderProfile?.name || req.user.email || 'Un proche';
 
     const contacts = [];
     for (const c of (contactRows || [])) {
@@ -35,8 +35,8 @@ router.post('/sos/trigger', requireAuth, async (req, res) => {
         const { error: notifErr } = await supabase.from('notifications').insert({
           user_id: matchedProfile.id,
           type: 'sos',
-          from_user: senderFirstName,
-          message: `🚨 ${senderFirstName} a déclenché une alerte SOS`,
+          from_user: senderName,
+          message: `🚨 ${senderName} a déclenché une alerte SOS`,
           lat, lng,
         });
         if (notifErr) console.warn('[sos] notification non enregistrée:', notifErr.message);
