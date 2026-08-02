@@ -3,6 +3,66 @@
 
 const { useState, useEffect, useRef, useMemo } = React;
 
+// ── Lecture à voix haute partagée (Speech Synthesis) ───────────────────────
+// Un seul flux audio possible à la fois côté navigateur : coordination via un
+// petit bus global façon window.SM, pour que démarrer une lecture coupe
+// automatiquement celle en cours (bulle précédente, mode vocal, etc.) et que
+// chaque bouton sache s'il est "actif" sans dupliquer d'état local.
+window.SM_SPEECH = {
+  activeId: null,
+  _subs: new Set(),
+  subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
+  emit() { this._subs.forEach((fn) => { try { fn(); } catch {} }); },
+};
+
+function stripMarkdownForSpeech(text) {
+  return (text || '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '')
+    .replace(/`/g, '')
+    .replace(/\n+/g, '. ')
+    .trim();
+}
+
+// id : identifiant de ce qui parle (index de message, 'voice-live', ...) —
+// permet à deux boutons différents de savoir s'ils sont celui en cours de
+// lecture. Un second appel avec le même id qui est déjà actif arrête la
+// lecture au lieu d'en relancer une (comportement "toggle").
+function speakText(id, text, lang, onEnd) {
+  const synth = window.speechSynthesis;
+  const wasActive = window.SM_SPEECH.activeId === id;
+  if (synth) synth.cancel();
+  window.SM_SPEECH.activeId = null;
+  window.SM_SPEECH.emit();
+  if (!synth || wasActive) { onEnd && onEnd(); return; }
+
+  const clean = stripMarkdownForSpeech(text);
+  if (!clean) { onEnd && onEnd(); return; }
+
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.lang = lang === 'EN' ? 'en-US' : 'fr-FR';
+  window.SM_SPEECH.activeId = id;
+  window.SM_SPEECH.emit();
+  const finish = () => {
+    if (window.SM_SPEECH.activeId === id) { window.SM_SPEECH.activeId = null; window.SM_SPEECH.emit(); }
+    onEnd && onEnd();
+  };
+  utter.onend = finish;
+  utter.onerror = finish;
+  synth.speak(utter);
+}
+function stopSpeech() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  window.SM_SPEECH.activeId = null;
+  window.SM_SPEECH.emit();
+}
+function useSpeechActive(id) {
+  const [, force] = useState(0);
+  useEffect(() => window.SM_SPEECH.subscribe(() => force((n) => n + 1)), []);
+  return window.SM_SPEECH.activeId === id;
+}
+
 // ── Lucide icon helper ────────────────────────────────────────────────────
 function Icon({ name, size, color, strokeWidth = 1.75, style, className = '' }) {
   // lucide.createIcons() replaces the inner <i data-lucide> with a real <svg> node
@@ -21,7 +81,15 @@ function Icon({ name, size, color, strokeWidth = 1.75, style, className = '' }) 
   });
   const sz = size ? { width: size, height: size } : null;
   return (
+    // key={safeName} on the OUTER span (not the <i>) forces a full remount of
+    // this stable subtree whenever the icon name changes, handing lucide a
+    // fresh un-converted <i data-lucide> each time — lucide only ever swaps
+    // an <i> for an <svg> once, so without this a dynamic name change (e.g.
+    // mic ↔ mic-off, pause ↔ play) silently keeps showing the first glyph.
+    // Safe against the removeChild crash described above because the parent
+    // only ever removes/adds the span itself, which lucide never touches.
     <span
+      key={safeName}
       ref={ref}
       className={className}
       style={{
@@ -408,4 +476,5 @@ Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY, BirthdateField,
+  speakText, stopSpeech, useSpeechActive, stripMarkdownForSpeech,
 });

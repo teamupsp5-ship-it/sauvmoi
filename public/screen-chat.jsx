@@ -1,6 +1,54 @@
 // Screen Chat IA — version canvas (données statiques pour les artboards)
 // La version live (live-chat.jsx) surcharge ChatListening et ChatResponse.
 
+// ── Rendu markdown léger (réponses IA) ─────────────────────────────────────
+// Couvre juste ce que Claude produit en pratique dans ce contexte : **gras**,
+// titres # ## ###, listes à puces -/*. Pas de lib externe pour rester sans
+// bundler ; un parseur ligne par ligne suffit largement à ce besoin borné.
+function parseInlineMarkdown(str, keyPrefix) {
+  const parts = String(str).split(/(\*\*[^*]+\*\*)/g).filter((s) => s !== '');
+  return parts.map((part, i) => (
+    part.startsWith('**') && part.endsWith('**') && part.length > 4
+      ? <strong key={keyPrefix + '-b' + i}>{part.slice(2, -2)}</strong>
+      : <React.Fragment key={keyPrefix + '-t' + i}>{part}</React.Fragment>
+  ));
+}
+function renderMarkdown(text) {
+  const lines = (text || '').split('\n');
+  const nodes = [];
+  let listBuffer = [];
+  const flushList = (key) => {
+    if (listBuffer.length) {
+      nodes.push(<ul key={'ul-' + key} style={{ margin: '4px 0', paddingLeft: 18 }}>{listBuffer}</ul>);
+      listBuffer = [];
+    }
+  };
+  lines.forEach((line, i) => {
+    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    const bullet = /^[-*]\s+(.*)$/.exec(line);
+    if (heading) {
+      flushList(i);
+      const level = heading[1].length;
+      const fontSize = level === 1 ? 17 : level === 2 ? 16 : 15;
+      nodes.push(
+        <div key={'h-' + i} style={{ fontWeight: 700, fontSize, margin: i === 0 ? '0 0 4px' : '10px 0 4px' }}>
+          {parseInlineMarkdown(heading[2], 'h' + i)}
+        </div>
+      );
+    } else if (bullet) {
+      listBuffer.push(<li key={'li-' + i} style={{ marginBottom: 2 }}>{parseInlineMarkdown(bullet[1], 'li' + i)}</li>);
+    } else if (line.trim() === '') {
+      flushList(i);
+      nodes.push(<div key={'sp-' + i} style={{ height: 6 }} />);
+    } else {
+      flushList(i);
+      nodes.push(<div key={'p-' + i}>{parseInlineMarkdown(line, 'p' + i)}</div>);
+    }
+  });
+  flushList('end');
+  return nodes;
+}
+
 // ── Bulle utilisateur ──────────────────────────────────────────────────────
 function ChatUserBubble({ text, image }) {
   return (
@@ -28,9 +76,10 @@ function ChatUserBubble({ text, image }) {
 }
 
 // ── Bulle IA ────────────────────────────────────────────────────────────────
-function ChatAIBubble({ text, actions, loading, nav }) {
+function ChatAIBubble({ text, actions, loading, nav, id, lang }) {
   useLucide();
-  const lines = loading ? [] : (text || '').split('\n');
+  const speechId = id != null ? id : text;
+  const isSpeaking = useSpeechActive(speechId);
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
       <div style={{
@@ -43,6 +92,7 @@ function ChatAIBubble({ text, actions, loading, nav }) {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 6,
           padding: '10px 14px',
           borderRadius: '4px 18px 18px 18px',
           background: 'white',
@@ -51,10 +101,23 @@ function ChatAIBubble({ text, actions, loading, nav }) {
           lineHeight: 1.55,
           color: 'var(--sm-ink)',
         }}>
-          {loading
-            ? <ChatTypingDots />
-            : lines.map((line, i) => <span key={i}>{line}{i < lines.length - 1 ? <br /> : null}</span>)
-          }
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {loading ? <ChatTypingDots /> : renderMarkdown(text)}
+          </div>
+          {!loading && text && (
+            <button
+              onClick={() => speakText(speechId, text, lang)}
+              title={isSpeaking ? 'Arrêter la lecture' : 'Lire à voix haute'}
+              style={{
+                width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                background: isSpeaking ? 'var(--sm-blue)' : 'var(--sm-paper-2)',
+                border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Icon name={isSpeaking ? 'volume-2' : 'volume-1'} size={13} color={isSpeaking ? 'white' : 'var(--sm-ink-500)'} />
+            </button>
+          )}
         </div>
 
         {!loading && actions && actions.length > 0 && (
