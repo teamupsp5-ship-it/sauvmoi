@@ -30,7 +30,7 @@ function VictimCardScreen({ nav }) {
           </div>
         </div>
         <div>
-          <div className="sm-serif" style={{ fontSize: 28, color: 'white', fontWeight: 700, lineHeight: 1.1 }}>
+          <div className="sm-serif" style={{ fontSize: 'clamp(22px, 7vw, 28px)', color: 'white', fontWeight: 700, lineHeight: 1.1 }}>
             {nom || 'Victime'}
           </div>
           {age != null && (

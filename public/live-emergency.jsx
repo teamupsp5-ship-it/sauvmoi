@@ -55,7 +55,7 @@ function EmergencyGuide({ nav, lang }) {
           <Icon name={cur.icon || 'heart-pulse'} size={56} />
         </div>
 
-        <h2 className="sm-serif" style={{ fontSize: 24, marginBottom: 10 }}>{cur.title}</h2>
+        <h2 className="sm-serif" style={{ fontSize: 'clamp(20px, 6vw, 24px)', marginBottom: 10 }}>{cur.title}</h2>
         <p style={{ fontSize: 15, color: 'var(--sm-ink-700)', lineHeight: 1.5, marginBottom: 18 }}>{cur.desc}</p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, background: 'var(--sm-soft-blue)', color: 'var(--sm-blue)', marginBottom: 18 }}>

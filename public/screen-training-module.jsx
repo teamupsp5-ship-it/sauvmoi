@@ -277,7 +277,7 @@ function ResultPhase({ mod, result, nav, onRetry }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         marginBottom: 26,
       }}>
-        <span style={{ fontSize: 46, fontWeight: 900, fontFamily: 'var(--font-ui)', color: scoreColor, lineHeight: 1 }}>
+        <span style={{ fontSize: 'clamp(36px, 11vw, 46px)', fontWeight: 900, fontFamily: 'var(--font-ui)', color: scoreColor, lineHeight: 1 }}>
           {percentage}%
         </span>
         <span style={{ fontSize: 13, fontFamily: 'var(--font-ui)', marginTop: 4, color: scoreColor }}>
@@ -285,7 +285,7 @@ function ResultPhase({ mod, result, nav, onRetry }) {
         </span>
       </div>
 
-      <h2 className="sm-serif" style={{ fontSize: 24, textAlign: 'center', marginBottom: 10, lineHeight: 1.2 }}>
+      <h2 className="sm-serif" style={{ fontSize: 'clamp(20px, 6vw, 24px)', textAlign: 'center', marginBottom: 10, lineHeight: 1.2 }}>
         {passed ? 'Module complété !' : 'Essayez encore'}
       </h2>
       <p style={{

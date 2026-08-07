@@ -237,7 +237,7 @@ input, textarea {
   border-radius: var(--r-pill);
   font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 15px;
+  font-size: clamp(14px, 3.8vw, 15px);
   padding: 12px 20px;
   min-height: 44px;
   transition: transform 50ms var(--ease), filter 150ms var(--ease), background 150ms var(--ease);
@@ -453,6 +453,14 @@ input, textarea {
   border-radius: 0;
   box-shadow: none;
   position: relative;     /* ancre les enfants position:absolute */
+  /* Sur mobile réel .sm-phone == le viewport, donc ça ne change rien —
+     mais dès que .sm-phone est plafonnée à 480px (règle plus bas), un
+     descendant position:fixed (FloatingChatButton, bottom sheets, bandeau
+     hors-ligne…) se positionnerait par défaut par rapport au VRAI viewport
+     desktop et sortirait visuellement de la fenêtre "téléphone". Un
+     transform (même neutre) fait de .sm-phone le containing block de ses
+     descendants fixed, qui restent alors correctement scopés à sa boîte. */
+  transform: translateZ(0);
 }
 .sm-live .sm-phone .sm-screen {
   border-radius: 0;
@@ -475,4 +483,17 @@ input, textarea {
 }
 .sm-live .sm-notch {
   display: none;          /* encoche fictive inutile sur vrai écran */
+}
+
+/* ── Responsive : fenêtre centrée type téléphone sur tablette/desktop ─────
+   En dessous de 481px (vrai téléphone), .sm-phone reste plein écran comme
+   avant. Au-delà, on la plafonne à une largeur de smartphone et on la centre
+   — le fond neutre visible de part et d'autre vient du body (#f0eee9, voir
+   index.html), .sm-live n'a pas besoin de fond propre. */
+@media (min-width: 481px) {
+  .sm-live .sm-phone {
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px var(--sm-line), 0 20px 60px rgba(10,22,40,0.18);
+  }
 }

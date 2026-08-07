@@ -128,7 +128,7 @@ function SplashScreen({ nav }) {
         {/* Titre */}
         {phase >= 2 && (
           <h1 style={{
-            margin: '18px 0 0', fontSize: 34, fontWeight: 700,
+            margin: '18px 0 0', fontSize: 'clamp(28px, 8.5vw, 34px)', fontWeight: 700,
             color: '#0A1628', textAlign: 'center',
             fontFamily: "'Poppins', 'Public Sans', sans-serif",
             letterSpacing: '-0.02em',

@@ -108,7 +108,7 @@ function AuthScreen({ nav }) {
             alt="Sauv'Moi"
             style={{ width: 80, height: 80, objectFit: 'contain', marginBottom: 16, borderRadius: 22, boxShadow: '0 8px 28px rgba(10,22,40,.15)' }}
           />
-          <h1 className="sm-serif" style={{ fontSize: 30, marginBottom: 6 }}>Sauv'Moi</h1>
+          <h1 className="sm-serif" style={{ fontSize: 'clamp(26px, 7.5vw, 30px)', marginBottom: 6 }}>Sauv'Moi</h1>
           <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.4 }}>
             Restez calme, tout ira bien
           </p>
