@@ -25,9 +25,6 @@ const PHONE_SCREENS = {
   register:         RegisterScreen,
   home:             HomeMobile,
   qr_scanner:       QrScannerScreen,
-  emergency:        EmergencyMobile,
-  emergency_cam:    EmergencyCamera,
-  emergency_guide:  EmergencyGuide,
   chat:             ChatListening,
   chat_response:    ChatResponse,
   sos:              SOSCountdown,
@@ -40,8 +37,7 @@ const DESKTOP_SCREENS = {
   home:     HomeDesktop,
   chat:     ChatDesktop,
   training: TrainingDesktop,
-  // Desktop fall-backs for nav targets that only exist on mobile
-  emergency: HomeDesktop,
+  // Desktop fall-back for a nav target that only exists on mobile
   sos: HomeDesktop,
 };
 
@@ -103,19 +99,7 @@ function App() {
           </DCArtboard>
         </DCSection>
 
-        <DCSection id="emergency" title="2 · Mode Urgence" subtitle="Voix d'abord · reconnaissance caméra IA">
-          <DCArtboard id="emerg-voice" label="2a · Écoute vocale" width={390} height={844}>
-            <PhoneFrame initial="emergency" screens={PHONE_SCREENS} lang={t.lang} />
-          </DCArtboard>
-          <DCArtboard id="emerg-cam" label="2b · Caméra IA" width={390} height={844}>
-            <PhoneFrame initial="emergency_cam" screens={PHONE_SCREENS} lang={t.lang} />
-          </DCArtboard>
-          <DCArtboard id="emerg-guide" label="2c · Guidage pas-à-pas" width={390} height={844}>
-            <PhoneFrame initial="emergency_guide" screens={PHONE_SCREENS} lang={t.lang} />
-          </DCArtboard>
-        </DCSection>
-
-        <DCSection id="chat" title="3 · Chat IA médical" subtitle="Orbe vocal mains-libres · la voix avant l'écran">
+        <DCSection id="chat" title="2 · Chat IA médical" subtitle="Orbe vocal mains-libres · la voix avant l'écran">
           <DCArtboard id="chat-listen" label="3a · Écoute" width={390} height={844}>
             <PhoneFrame initial="chat" screens={PHONE_SCREENS} lang={t.lang} />
           </DCArtboard>
@@ -127,7 +111,7 @@ function App() {
           </DCArtboard>
         </DCSection>
 
-        <DCSection id="sos" title="4 · SOS géolocalisé" subtitle="Compte à rebours annulable · faux positifs évités">
+        <DCSection id="sos" title="3 · SOS géolocalisé" subtitle="Compte à rebours annulable · faux positifs évités">
           <DCArtboard id="sos-count" label="4a · Compte à rebours" width={390} height={844}>
             <PhoneFrame initial="sos" screens={PHONE_SCREENS} lang={t.lang} />
           </DCArtboard>
@@ -136,7 +120,7 @@ function App() {
           </DCArtboard>
         </DCSection>
 
-        <DCSection id="training" title="5 · Formations & certifications" subtitle="Parcours gamifié style Duolingo · 5 min par jour">
+        <DCSection id="training" title="4 · Formations & certifications" subtitle="Parcours gamifié style Duolingo · 5 min par jour">
           <DCArtboard id="train-mobile" label="Mobile · parcours zigzag" width={390} height={844}>
             <PhoneFrame initial="training" screens={PHONE_SCREENS} lang={t.lang} />
           </DCArtboard>

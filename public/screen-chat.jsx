@@ -76,7 +76,7 @@ function ChatUserBubble({ text, image }) {
 }
 
 // ── Bulle IA ────────────────────────────────────────────────────────────────
-function ChatAIBubble({ text, actions, loading, nav, id, lang }) {
+function ChatAIBubble({ text, actions, loading, id, lang }) {
   useLucide();
   const speechId = id != null ? id : text;
   const isSpeaking = useSpeechActive(speechId);
@@ -134,17 +134,6 @@ function ChatAIBubble({ text, actions, loading, nav, id, lang }) {
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{a.label}</span>
                   <Icon name="arrow-right" size={13} color="var(--sm-red)" style={{ marginLeft: 'auto' }} />
                 </a>
-              ) : a.type === 'guide' && nav ? (
-                <button key={i} onClick={() => nav.go('emergency_guide')} style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '9px 14px', borderRadius: 12,
-                  background: 'var(--sm-soft-blue)',
-                  border: 'none', color: 'var(--sm-blue)',
-                  width: '100%', cursor: 'pointer',
-                }}>
-                  <Icon name="list-checks" size={16} color="var(--sm-blue)" />
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>{a.label}</span>
-                </button>
               ) : null
             )}
           </div>
@@ -220,13 +209,6 @@ function ChatScreen({ nav, lang }) {
             <span style={{ fontSize: 12, color: 'var(--sm-ink-500)' }}>En ligne</span>
           </div>
         </div>
-        <button
-          onClick={() => nav.go('emergency')}
-          style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--sm-soft-red)', border: 'none', color: 'var(--sm-red)', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flexShrink: 0 }}
-        >
-          <Icon name="shield-alert" size={13} color="var(--sm-red)" />
-          Urgence
-        </button>
       </div>
 
       {/* Zone messages */}
@@ -234,7 +216,7 @@ function ChatScreen({ nav, lang }) {
         {demoMessages.map((m, i) =>
           m.role === 'user'
             ? <ChatUserBubble key={i} text={m.text} />
-            : <ChatAIBubble key={i} text={m.text} actions={m.actions} nav={nav} />
+            : <ChatAIBubble key={i} text={m.text} actions={m.actions} />
         )}
       </div>
 

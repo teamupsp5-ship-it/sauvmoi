@@ -288,12 +288,16 @@ function ProfileScreen({ nav }) {
             </div>
           </div>
 
-          {/* Barre de progression / badge complet */}
+          {/* Barre de progression / badge complet — mutuellement exclusifs :
+              en dessous de 100%, libellé + pourcentage + barre ; à 100%,
+              seul le badge "Profil complet" (plus de libellé redondant). */}
           <div style={{ marginTop: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: completion < 100 ? 8 : 0 }}>
-              <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>Profil complété</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: completion < 100 ? 'space-between' : 'flex-end', marginBottom: completion < 100 ? 8 : 0 }}>
               {completion < 100 ? (
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#27500A', fontFamily: 'var(--font-ui)' }}>{completion}%</span>
+                <>
+                  <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>Profil complété</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#27500A', fontFamily: 'var(--font-ui)' }}>{completion}%</span>
+                </>
               ) : (
                 <div style={{ background: '#EAF3DE', borderRadius: 999, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Icon name="check" size={13} color="#27500A" strokeWidth={2.5} />

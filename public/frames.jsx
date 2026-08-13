@@ -10,6 +10,7 @@ const { useState, useEffect, useRef, useMemo } = React;
 // chaque bouton sache s'il est "actif" sans dupliquer d'état local.
 window.SM_SPEECH = {
   activeId: null,
+  activeUtterance: null, // garde une référence forte tant que ça parle — voir speakText
   _subs: new Set(),
   subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
   emit() { this._subs.forEach((fn) => { try { fn(); } catch {} }); },
@@ -34,6 +35,7 @@ function speakText(id, text, lang, onEnd) {
   const wasActive = window.SM_SPEECH.activeId === id;
   if (synth) synth.cancel();
   window.SM_SPEECH.activeId = null;
+  window.SM_SPEECH.activeUtterance = null;
   window.SM_SPEECH.emit();
   if (!synth || wasActive) { onEnd && onEnd(); return; }
 
@@ -43,9 +45,19 @@ function speakText(id, text, lang, onEnd) {
   const utter = new SpeechSynthesisUtterance(clean);
   utter.lang = lang === 'EN' ? 'en-US' : 'fr-FR';
   window.SM_SPEECH.activeId = id;
+  // Chrome a un bug documenté où une SpeechSynthesisUtterance sans référence
+  // forte ailleurs peut être garbage-collectée en cours de lecture, ce qui
+  // tue silencieusement onend — jamais rappelé, donc le mode vocal restait
+  // bloqué en "speaking" sans jamais relancer l'écoute. La garder sur
+  // SM_SPEECH tant qu'elle parle règle ça.
+  window.SM_SPEECH.activeUtterance = utter;
   window.SM_SPEECH.emit();
   const finish = () => {
-    if (window.SM_SPEECH.activeId === id) { window.SM_SPEECH.activeId = null; window.SM_SPEECH.emit(); }
+    if (window.SM_SPEECH.activeId === id) {
+      window.SM_SPEECH.activeId = null;
+      window.SM_SPEECH.activeUtterance = null;
+      window.SM_SPEECH.emit();
+    }
     onEnd && onEnd();
   };
   utter.onend = finish;
@@ -55,6 +67,7 @@ function speakText(id, text, lang, onEnd) {
 function stopSpeech() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   window.SM_SPEECH.activeId = null;
+  window.SM_SPEECH.activeUtterance = null;
   window.SM_SPEECH.emit();
 }
 function useSpeechActive(id) {
@@ -185,11 +198,10 @@ function DesktopFrame({ initial = 'home', screens, lang = 'FR' }) {
   );
 }
 
-// ── Phone tab bar (Accueil · Urgence · SOS · Chat · Profil) ────────────────
+// ── Phone tab bar (Accueil · SOS · Chat · Profil) ───────────────────────────
 function TabBar({ active, onNav, onSOS }) {
   const tabs = [
     { id: 'home',      label: 'Accueil',  icon: 'home' },
-    { id: 'emergency', label: 'Urgence',  icon: 'shield-alert' },
     { id: 'sos',       label: 'SOS',      icon: 'siren', special: true },
     { id: 'chat',      label: 'Chat IA',  icon: 'sparkles' },
     { id: 'profile',   label: 'Profil',   icon: 'user' },
@@ -245,7 +257,6 @@ const COPY = {
   hello_short: { FR: 'Bonjour', EN: 'Hello' },
   whats_happening: { FR: 'Que se passe-t-il ?', EN: 'What is happening?' },
   whats_examples: { FR: '« Quelqu\'un saigne », « il s\'étouffe »…', EN: '"Someone is bleeding", "they\'re choking"…' },
-  emergency_mode: { FR: 'Mode urgence', EN: 'Emergency mode' },
   ask_ai: { FR: 'Demander à l\'IA', EN: 'Ask the AI' },
   learn: { FR: 'Apprendre', EN: 'Learn' },
   my_qr: { FR: 'Mon QR', EN: 'My QR' },
@@ -459,15 +470,15 @@ function FloatingChatButton({ nav }) {
       style={{
         position: 'fixed', bottom: 90, right: 20, zIndex: 60,
         width: 52, height: 52, borderRadius: '50%', border: 'none',
-        background: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+        background: 'linear-gradient(135deg, var(--sm-red), var(--sm-red-press))',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 16px rgba(21,101,192,0.4)',
+        boxShadow: '0 4px 16px rgba(229,57,53,0.4)',
         cursor: 'pointer',
         transform: pressed ? 'scale(0.95)' : 'scale(1)',
         transition: 'transform 0.12s ease',
       }}
     >
-      <Icon name="briefcase-medical" size={22} color="white" strokeWidth={2} />
+      <Icon name="message-circle-heart" size={22} color="white" strokeWidth={2} />
     </button>
   );
 }

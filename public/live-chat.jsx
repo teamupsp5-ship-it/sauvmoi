@@ -175,6 +175,7 @@ function ChatListening({ nav, lang }) {
   const voiceFatalRef = useRef(false);
   const silenceTimerRef = useRef(null);
   const transcriptRef = useRef('');
+  const speechWatchdogRef = useRef(null);
 
   // Scroll automatique vers le dernier message
   useEffect(() => {
@@ -185,6 +186,7 @@ function ChatListening({ nav, lang }) {
   useEffect(() => () => {
     voiceModeRef.current = false;
     clearTimeout(silenceTimerRef.current);
+    clearTimeout(speechWatchdogRef.current);
     try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
     stopSpeech();
   }, []);
@@ -326,10 +328,25 @@ function ChatListening({ nav, lang }) {
     if (!voiceModeRef.current || voicePausedRef.current) return;
     if (!result) { startVoiceListening(); return; }
     setVoiceState('speaking');
-    speakText('voice-live', result.reply, lang, () => {
+
+    // onEnd doit être appelé exactement une fois — soit par la vraie fin de
+    // lecture (speakText), soit par le filet de sécurité ci-dessous si le
+    // navigateur ne rappelle jamais onend (bug Chrome documenté : une
+    // utterance sans référence forte peut être garbage-collectée en cours
+    // de lecture, ce qui bloquait silencieusement le cycle en "speaking").
+    let resumed = false;
+    const resumeListening = () => {
+      if (resumed) return;
+      resumed = true;
+      clearTimeout(speechWatchdogRef.current);
       if (!voiceModeRef.current || voicePausedRef.current) return;
       startVoiceListening();
-    });
+    };
+
+    const estimatedMs = Math.min(Math.max(result.reply.length * 70, 4000), 25000);
+    speechWatchdogRef.current = setTimeout(resumeListening, estimatedMs);
+
+    speakText('voice-live', result.reply, lang, resumeListening);
   }
 
   function enterVoiceMode() {
@@ -346,6 +363,7 @@ function ChatListening({ nav, lang }) {
     voiceModeRef.current = false;
     voiceFatalRef.current = false;
     clearTimeout(silenceTimerRef.current);
+    clearTimeout(speechWatchdogRef.current);
     try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
     stopSpeech();
     setVoiceMode(false);
@@ -354,6 +372,11 @@ function ChatListening({ nav, lang }) {
     setVoiceInterim('');
   }
 
+  // Un seul clic suffit à interrompre le cycle en cours, quel que soit
+  // l'état (écoute, réflexion, lecture) : coupe le micro, la voix, et le
+  // filet de sécurité de reprise — voicePausedRef passe à true avant tout
+  // le reste, donc même un onEnd qui arrive juste après ce clic ne relance
+  // pas l'écoute (voir les gardes dans handleVoiceUtterance/startVoiceListening).
   function toggleVoicePause() {
     if (voicePaused) {
       voicePausedRef.current = false;
@@ -363,6 +386,7 @@ function ChatListening({ nav, lang }) {
       voicePausedRef.current = true;
       setVoicePaused(true);
       clearTimeout(silenceTimerRef.current);
+      clearTimeout(speechWatchdogRef.current);
       try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
       stopSpeech();
       setVoiceState('paused');
@@ -429,13 +453,6 @@ function ChatListening({ nav, lang }) {
           <Icon name="headphones" size={17} color="var(--sm-blue)" />
         </button>
 
-        <button
-          onClick={() => nav.go('emergency')}
-          style={{ padding: '6px 10px', borderRadius: 8, background: 'var(--sm-soft-red)', border: 'none', color: 'var(--sm-red)', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flexShrink: 0 }}
-        >
-          <Icon name="shield-alert" size={13} color="var(--sm-red)" />
-          Urgence
-        </button>
       </div>
 
       {voiceMode ? (
@@ -456,7 +473,7 @@ function ChatListening({ nav, lang }) {
             {messages.map((m, i) =>
               m.role === 'user'
                 ? <ChatUserBubble key={i} text={m.text} image={m.image} />
-                : <ChatAIBubble key={i} id={i} lang={lang} text={m.text} actions={m.actions} nav={nav} />
+                : <ChatAIBubble key={i} id={i} lang={lang} text={m.text} actions={m.actions} />
             )}
             {loading && <ChatAIBubble loading />}
             <div ref={bottomRef} />

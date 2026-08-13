@@ -254,17 +254,20 @@ function HomeMobile({ nav, lang }) {
 
         {/* Conseil du jour */}
         <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>Conseil du jour</h3>
-        <div className="sm-card" style={{ padding: '18px 16px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+        <div className="sm-card" style={{
+          padding: '18px 16px', display: 'flex', gap: 14, alignItems: 'flex-start',
+          background: 'linear-gradient(135deg, #2E7D32, #27AE60)', border: 'none',
+        }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-            background: '#F1F2F4',
+            background: 'rgba(255,255,255,0.18)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name={tip.icon} size={22} color="#1a1a1a" strokeWidth={1.9} />
+            <Icon name={tip.icon} size={22} color="white" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h4 className="sm-serif" style={{ fontSize: 16, marginBottom: 6 }}>{tip.title}</h4>
-            <p style={{ fontSize: 13, color: 'var(--sm-ink-500)', lineHeight: 1.55 }}>{tip.text}</p>
+            <h4 className="sm-serif" style={{ fontSize: 16, marginBottom: 6, color: 'white' }}>{tip.title}</h4>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>{tip.text}</p>
           </div>
         </div>
       </div>
@@ -443,7 +446,6 @@ function BigQuick({ color, icon, title, sub, extra, onClick }) {
 function Sidebar({ active, onNav }) {
   const items = [
     { id: 'home',      label: 'Accueil',        icon: 'home' },
-    { id: 'emergency', label: 'Mode urgence',   icon: 'shield-alert' },
     { id: 'chat',      label: 'Chat IA',        icon: 'sparkles' },
     { id: 'training',  label: 'Formations',     icon: 'graduation-cap' },
     { id: 'records',   label: 'Carnet médical', icon: 'notebook-pen' },
@@ -543,8 +545,7 @@ function HomeDesktop({ nav, lang }) {
             </div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
-          <BigQuick color="var(--sm-red)"   icon="shield-alert"    title={T('emergency_mode', lang)} sub="parler ou filmer · IA classe"  onClick={() => nav.go('emergency')} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
           <BigQuick color="var(--sm-green)" icon="graduation-cap"  title="Formation en cours"        sub="PSC1 · module 6 / 10" extra="58 %" onClick={() => nav.go('training')} />
           <BigQuick color="var(--sm-ink)"   icon="notebook-pen"    title="Carnet médical"            sub="groupe O+ · allergies 2"         onClick={() => null} />
           <BigQuick color="var(--sm-blue)"  icon="map-pin"         title="Secouristes près"          sub="12 actifs · 200 m"               onClick={() => null} />

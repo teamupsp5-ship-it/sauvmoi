@@ -6,7 +6,6 @@ window.SM = {
 
   // rempli au démarrage par bootstrap()
   home: null,
-  emergencies: null,
   user: null,
 
   // conversation en cours (chat vocal)
@@ -44,12 +43,6 @@ window.useSM = function useSM() {
   return window.SM;
 };
 
-// Phrases d'exemple "entendues" par le micro selon la langue (démo vocale)
-window.SM.demoUtterances = {
-  FR: ['Mon père est tombé et ne répond plus', "Quelqu'un saigne beaucoup", "Un bébé s'est brûlé avec de l'eau chaude"],
-  EN: ['My father fell and is not responding', 'Someone is bleeding a lot', 'A baby got burned with hot water'],
-};
-
 // Charge les données initiales depuis l'API.
 // /api/me exige désormais une authentification (Supabase) : appeler
 // bootstrap() sans session (avant connexion) ne doit pas déclencher le
@@ -57,11 +50,10 @@ window.SM.demoUtterances = {
 window.SM.bootstrap = async function bootstrap() {
   if (!window.SM.token) return;
   try {
-    const [home, emergencies, user] = await Promise.all([
-      window.API.home(), window.API.emergencies(), window.API.me(),
+    const [home, user] = await Promise.all([
+      window.API.home(), window.API.me(),
     ]);
     window.SM.home = home;
-    window.SM.emergencies = emergencies;
     window.SM.user = user;
     window.SM.offline = false;
     window.SM.emit();
