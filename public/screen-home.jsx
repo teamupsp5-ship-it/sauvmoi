@@ -197,18 +197,19 @@ function HomeMobile({ nav, lang }) {
         <button
           onClick={() => nav.go('chat')}
           style={{
-            display: 'flex', width: '100%', alignItems: 'center', gap: 14,
-            padding: '24px 20px', borderRadius: 20, marginBottom: 14,
+            display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
+            padding: 18, borderRadius: 16, marginBottom: 14,
             minHeight: 120,
-            background: '#1565c0', border: 'none', cursor: 'pointer', textAlign: 'left',
-            boxShadow: '0 8px 28px rgba(21,101,192,0.35)',
+            background: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+            border: 'none', cursor: 'pointer', textAlign: 'left',
+            boxShadow: '0 4px 14px rgba(21,101,192,0.25)',
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="sm-serif" style={{ fontSize: 22, color: 'white', marginBottom: 10, lineHeight: 1.15 }}>
+            <h2 className="sm-serif" style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 10, lineHeight: 1.15 }}>
               Que se passe-t-il ?
             </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.82)', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
               Écrivez, parlez ou envoyez une photo
             </p>
           </div>
@@ -254,20 +255,26 @@ function HomeMobile({ nav, lang }) {
 
         {/* Conseil du jour */}
         <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>Conseil du jour</h3>
-        <div className="sm-card" style={{
-          padding: '18px 16px', display: 'flex', gap: 14, alignItems: 'flex-start',
-          background: 'linear-gradient(135deg, #2E7D32, #27AE60)', border: 'none',
+        <div style={{
+          display: 'flex', gap: 14, alignItems: 'flex-start',
+          padding: 18, borderRadius: 16, minHeight: 120,
+          background: 'linear-gradient(135deg, #27AE60, #1E8449)', border: 'none',
+          boxShadow: '0 4px 14px rgba(39,174,96,0.25)',
         }}>
           <div style={{
-            width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-            background: 'rgba(255,255,255,0.18)',
+            width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+            background: 'rgba(255,255,255,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Icon name={tip.icon} size={22} color="white" strokeWidth={1.9} />
+            <Icon name={tip.icon} size={20} color="white" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h4 className="sm-serif" style={{ fontSize: 16, marginBottom: 6, color: 'white' }}>{tip.title}</h4>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.55 }}>{tip.text}</p>
+            <h4 className="sm-serif" style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: 'white' }}>{tip.title}</h4>
+            {/* opacité 0.98 (pas 0.85 comme la carte chat) : le point le plus
+                sombre du dégradé vert (#1E8449) est plus clair que le bleu
+                du chat, donc du blanc à 0.85 tombe sous le seuil WCAG AA
+                4.5:1 pour un texte de cette taille — vérifié par calcul. */}
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.98)', lineHeight: 1.55 }}>{tip.text}</p>
           </div>
         </div>
       </div>
