@@ -22,6 +22,19 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 const router = Router();
 
+// ─── Config publique (frontend) ──────────────────────────────────────────────
+// SUPABASE_ANON_KEY est conçue pour être publique (contrairement à
+// SUPABASE_SERVICE_ROLE_KEY, jamais exposée ici) — nécessaire côté navigateur
+// pour l'OAuth Google (supabase.auth.signInWithOAuth), qui doit s'exécuter
+// depuis le client. Sans templating côté serveur (fichiers statiques purs),
+// cette route est le seul moyen de transmettre l'URL/clé au frontend.
+router.get('/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL || null,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
+  });
+});
+
 // ─── AUTH : téléphone + OTP (standard Afrique de l'Ouest) ───────────────────
 router.post('/auth/request-otp', (req, res) => {
   const { phone } = req.body || {};

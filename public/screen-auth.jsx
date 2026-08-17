@@ -81,6 +81,7 @@ function AuthScreen({ nav }) {
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [googleLoading, setGoogleLoading] = React.useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -94,6 +95,35 @@ function AuthScreen({ nav }) {
       setError('Erreur réseau — vérifiez que le serveur est lancé.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  // signInWithOAuth redirige immédiatement la page vers Google en cas de
+  // succès — il n'y a rien à faire après (pas de nav.reset ici) : le retour
+  // sur Sauv'Moi est géré par supabase-client.js (synchronisation auto au
+  // chargement) avant même que ce composant ne soit remonté.
+  async function handleGoogleLogin() {
+    setError('');
+    if (!window.getSupabaseClient) {
+      setError('Connexion Google indisponible pour le moment.');
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const client = await window.getSupabaseClient();
+      if (!client) {
+        setError('Connexion Google indisponible — réessayez plus tard ou utilisez votre e-mail.');
+        return;
+      }
+      const { error: oauthErr } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+      if (oauthErr) setError(oauthErr.message || 'Échec de la connexion Google');
+    } catch {
+      setError('Erreur réseau — vérifiez votre connexion.');
+    } finally {
+      setGoogleLoading(false);
     }
   }
 
@@ -138,10 +168,6 @@ function AuthScreen({ nav }) {
             />
           </FieldWrap>
 
-          {error && (
-            <p style={{ fontSize: 12, color: 'var(--sm-red)', margin: 0 }}>{error}</p>
-          )}
-
           <button
             type="submit"
             className="sm-btn sm-btn-primary"
@@ -151,6 +177,12 @@ function AuthScreen({ nav }) {
             {loading ? 'Connexion…' : 'Se connecter'}
           </button>
         </form>
+
+        {/* Erreur partagée email/mdp et Google — affichée une seule fois,
+            sous le formulaire, quelle que soit la méthode qui a échoué. */}
+        {error && (
+          <p style={{ fontSize: 12, color: 'var(--sm-red)', margin: '10px 0 0', textAlign: 'center' }}>{error}</p>
+        )}
 
         {/* ── Séparateur ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
@@ -163,16 +195,19 @@ function AuthScreen({ nav }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button
             type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               padding: '13px 20px', borderRadius: 999, width: '100%',
               background: 'white', border: '1.5px solid var(--sm-line)',
               fontSize: 15, fontWeight: 600, fontFamily: 'inherit', color: 'var(--sm-ink)',
-              cursor: 'pointer',
+              cursor: googleLoading ? 'default' : 'pointer',
+              opacity: googleLoading ? 0.7 : 1,
             }}
           >
             <GoogleIcon />
-            Continuer avec Google
+            {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
           </button>
 
           <button

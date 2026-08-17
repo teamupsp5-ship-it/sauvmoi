@@ -34,7 +34,8 @@ app.get('/api/health', (_req, res) => res.json({
   ok: true,
   ai: process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback',
   endpoints: [
-    'POST /api/auth/login', 'POST /api/auth/register', 'GET /api/me', 'PUT /api/me',
+    'GET /api/config',
+    'POST /api/auth/login', 'POST /api/auth/register', 'POST /api/auth/google-sync', 'GET /api/me', 'PUT /api/me',
     'GET /api/home', 'GET /api/emergencies', 'GET /api/protocols/:id',
     'POST /api/vision/analyze', 'POST /api/chat', 'GET /api/conversations',
     'POST /api/sos/trigger', 'GET /api/sos/:id/status', 'POST /api/sos/:id/cancel',

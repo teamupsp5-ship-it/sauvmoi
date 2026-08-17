@@ -237,6 +237,50 @@ router.post('/auth/refresh', async (req, res) => {
   });
 });
 
+// ─── Synchronisation après connexion Google (OAuth côté navigateur) ────────
+// Le flux OAuth (supabase.auth.signInWithOAuth côté client, voir
+// public/supabase-client.js) produit déjà une session Supabase valide dans le
+// navigateur — pas besoin d'en émettre une nouvelle ici, requireAuth se
+// contente de vérifier le token reçu. Le trigger SQL handle_new_user a déjà
+// créé la ligne profiles au premier login Google (comme pour tout nouvel
+// auth.users) ; cette route ne fait que backfiller name/photo depuis
+// user_metadata (fourni par Google : full_name/name, avatar_url/picture) si
+// ces champs sont encore vides, puis renvoie le payload utilisateur habituel.
+router.post('/auth/google-sync', requireAuth, async (req, res) => {
+  try {
+    const authUser = req.user;
+    const meta = authUser.user_metadata || {};
+    const { profile, contacts } = await fetchProfileAndContacts(authUser.id);
+
+    const patch = {};
+    if (!profile?.name && (meta.full_name || meta.name)) {
+      patch.name = meta.full_name || meta.name;
+    }
+    if (!profile?.photo && (meta.avatar_url || meta.picture)) {
+      patch.photo = meta.avatar_url || meta.picture;
+    }
+
+    let finalProfile = profile;
+    if (Object.keys(patch).length) {
+      // upsert plutôt qu'update : même garde-fou qu'à l'inscription (voir
+      // /auth/register) — un update() qui ne matche aucune ligne réussirait
+      // silencieusement côté PostgREST.
+      const { data: updated, error } = await supabase
+        .from('profiles')
+        .upsert({ id: authUser.id, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      finalProfile = updated || profile;
+    }
+
+    res.json({ user: toUserPayload(authUser, finalProfile, contacts) });
+  } catch (e) {
+    console.error('[auth] google-sync échoué pour', req.user?.id, ':', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── Changement de mot de passe ─────────────────────────────────────────────
 router.post('/auth/change-password', requireAuth, async (req, res) => {
   const { newPassword } = req.body || {};
