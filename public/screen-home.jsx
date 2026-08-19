@@ -255,7 +255,7 @@ function HomeMobile({ nav, lang }) {
 
         {/* Conseil du jour */}
         <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>Conseil du jour</h3>
-        <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} style={{ minHeight: 120, alignItems: 'center' }} />
+        <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} stacked style={{ minHeight: 120, alignItems: 'center' }} />
       </div>
 
       <FloatingChatButton nav={nav} />

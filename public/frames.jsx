@@ -466,7 +466,7 @@ const BANNER_VARIANTS = {
   info:    { bg: '#EBF5FB', accent: '#1565C0', text: '#0D3B73' },
 };
 
-function Banner({ variant = 'info', icon, title, text, children, style }) {
+function Banner({ variant = 'info', icon, title, text, stacked = false, children, style }) {
   const c = BANNER_VARIANTS[variant] || BANNER_VARIANTS.info;
   return (
     <div style={{
@@ -488,9 +488,23 @@ function Banner({ variant = 'info', icon, title, text, children, style }) {
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 1.5, color: c.text, fontFamily: 'var(--font-ui)' }}>
-        {title && <strong style={{ fontWeight: 700 }}>{title} </strong>}
-        {text}
-        {children}
+        {stacked ? (
+          // Titre + description sur deux lignes distinctes — pour un contenu
+          // assez long pour que l'enchaînement inline (titre gras suivi du
+          // texte dans la même phrase) rende les deux illisibles l'un dans
+          // l'autre (ex : Conseil du jour).
+          <>
+            {title && <div style={{ fontWeight: 700, marginBottom: 4 }}>{title}</div>}
+            {text && <div style={{ fontWeight: 400 }}>{text}</div>}
+            {children}
+          </>
+        ) : (
+          <>
+            {title && <strong style={{ fontWeight: 700 }}>{title} </strong>}
+            {text}
+            {children}
+          </>
+        )}
       </div>
     </div>
   );
