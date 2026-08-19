@@ -236,44 +236,35 @@ function MapScreen({ nav }) {
 
         {/* Bandeau erreur GPS */}
         {gpsError && (
-          <div style={{
-            margin: '12px 16px 0', padding: '14px 16px',
-            borderRadius: 'var(--sm-radius)', background: '#FFFBEB',
-            border: '1px solid #FCD34D', display: 'flex', alignItems: 'flex-start', gap: 12,
-          }}>
-            <Icon name="alert-circle" size={20} color="#D97706" strokeWidth={1.9} style={{ flexShrink: 0, marginTop: 1 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#92400E', fontFamily: 'var(--font-ui)', marginBottom: 4 }}>
-                {gpsError === 'denied' ? 'Accès GPS refusé' : 'GPS indisponible'}
-              </div>
-              {gpsError === 'denied' && isIOSDevice() ? (
-                <>
-                  {/* iOS ne permet pas de rouvrir la demande d'autorisation depuis le
-                      JS une fois refusée — "Réessayer" ne peut rien faire dans ce cas
-                      précis, on remplace donc par la marche à suivre manuelle. */}
-                  <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                    {'Pour activer la position sur iPhone :\n1. Ouvrez Réglages\n2. Safari → Position\n3. Sélectionnez « Autoriser »\n4. Revenez sur Sauv\'Moi et rechargez la page'}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 13, color: '#78350F', lineHeight: 1.5, marginBottom: 10 }}>
-                    Activez votre position pour voir les centres les plus proches
-                  </div>
-                  <button
-                    onClick={retryGps}
-                    style={{
-                      padding: '8px 16px', borderRadius: 8,
-                      background: '#D97706', color: 'white', border: 'none',
-                      fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
-                    }}
-                  >
-                    Réessayer
-                  </button>
-                </>
-              )}
+          <Banner variant="warning" icon="alert-circle" style={{ margin: '12px 16px 0' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>
+              {gpsError === 'denied' ? 'Accès GPS refusé' : 'GPS indisponible'}
             </div>
-          </div>
+            {gpsError === 'denied' && isIOSDevice() ? (
+              // iOS ne permet pas de rouvrir la demande d'autorisation depuis le
+              // JS une fois refusée — "Réessayer" ne peut rien faire dans ce cas
+              // précis, on remplace donc par la marche à suivre manuelle.
+              <div style={{ whiteSpace: 'pre-line' }}>
+                {'Pour activer la position sur iPhone :\n1. Ouvrez Réglages\n2. Safari → Position\n3. Sélectionnez « Autoriser »\n4. Revenez sur Sauv\'Moi et rechargez la page'}
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  Activez votre position pour voir les centres les plus proches
+                </div>
+                <button
+                  onClick={retryGps}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: '#E67E22', color: 'white', border: 'none',
+                    fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
+                  }}
+                >
+                  Réessayer
+                </button>
+              </>
+            )}
+          </Banner>
         )}
 
         {/* ── Carte Leaflet ─────────────────────────────────────────────── */}

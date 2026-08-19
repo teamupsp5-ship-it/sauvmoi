@@ -458,6 +458,44 @@ function BirthdateField({ value, onChange, label = 'Date de naissance', labelSty
   );
 }
 
+// ── Bandeau/bannière réutilisable (succès, avertissement, erreur, info) ────
+const BANNER_VARIANTS = {
+  success: { bg: '#EAF3DE', accent: '#27AE60', text: '#145A32' },
+  warning: { bg: '#FEF5E7', accent: '#E67E22', text: '#7E5109' },
+  danger:  { bg: '#FDEDEC', accent: '#C0392B', text: '#641E16' },
+  info:    { bg: '#EBF5FB', accent: '#1565C0', text: '#0D3B73' },
+};
+
+function Banner({ variant = 'info', icon, title, text, children, style }) {
+  const c = BANNER_VARIANTS[variant] || BANNER_VARIANTS.info;
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden',
+      display: 'flex', gap: 12, alignItems: 'flex-start',
+      background: c.bg, borderRadius: 14, padding: '16px 16px 16px 20px',
+      ...style,
+    }}>
+      {/* Barre d'accent collée au bord gauche — overflow:hidden sur le
+          conteneur la découpe proprement selon les coins arrondis. */}
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 5, background: c.accent }} />
+      {icon && (
+        <div style={{
+          width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+          background: c.accent + '26' /* ~15% opacité (0x26/0xFF) */,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Icon name={icon} size={17} color={c.accent} strokeWidth={2} />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 1.5, color: c.text, fontFamily: 'var(--font-ui)' }}>
+        {title && <strong style={{ fontWeight: 700 }}>{title} </strong>}
+        {text}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function FloatingChatButton({ nav }) {
   const [pressed, setPressed] = useState(false);
   return (
@@ -468,7 +506,15 @@ function FloatingChatButton({ nav }) {
       onTouchCancel={() => setPressed(false)}
       aria-label="Ouvrir le chat IA"
       style={{
-        position: 'fixed', bottom: 90, right: 20, zIndex: 60,
+        // Mesuré : HomeTabBar fait ~91.2px de haut hors safe-area (headless
+        // Chrome, safe-area nulle) — 92px arrondi laisse une petite marge.
+        // env(safe-area-inset-bottom) s'ajoute par-dessus pour les appareils
+        // avec barre d'accueil (HomeTabBar grandit d'autant via son propre
+        // padding-bottom incluant la safe-area — voir styles.css) ; sans ce
+        // calc(), le bouton restait figé à une distance fixe du bord de
+        // l'écran et finissait par chevaucher l'onglet Profil sur ces
+        // appareils, la tabbar étant devenue plus haute que lui.
+        position: 'fixed', bottom: 'calc(92px + env(safe-area-inset-bottom, 0px))', right: 20, zIndex: 60,
         width: 52, height: 52, borderRadius: '50%', border: 'none',
         background: 'linear-gradient(135deg, var(--sm-red), var(--sm-red-press))',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -486,6 +532,6 @@ function FloatingChatButton({ nav }) {
 Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
-  IconTile, NumBadge, T, COPY, BirthdateField,
+  IconTile, NumBadge, T, COPY, BirthdateField, Banner,
   speakText, stopSpeech, useSpeechActive, stripMarkdownForSpeech,
 });

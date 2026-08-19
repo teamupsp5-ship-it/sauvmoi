@@ -255,28 +255,7 @@ function HomeMobile({ nav, lang }) {
 
         {/* Conseil du jour */}
         <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>Conseil du jour</h3>
-        <div style={{
-          display: 'flex', gap: 14, alignItems: 'flex-start',
-          padding: 18, borderRadius: 16, minHeight: 120,
-          background: 'linear-gradient(135deg, #27AE60, #1E8449)', border: 'none',
-          boxShadow: '0 4px 14px rgba(39,174,96,0.25)',
-        }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-            background: 'rgba(255,255,255,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name={tip.icon} size={20} color="white" strokeWidth={1.9} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h4 className="sm-serif" style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, color: 'white' }}>{tip.title}</h4>
-            {/* opacité 0.98 (pas 0.85 comme la carte chat) : le point le plus
-                sombre du dégradé vert (#1E8449) est plus clair que le bleu
-                du chat, donc du blanc à 0.85 tombe sous le seuil WCAG AA
-                4.5:1 pour un texte de cette taille — vérifié par calcul. */}
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.98)', lineHeight: 1.55 }}>{tip.text}</p>
-          </div>
-        </div>
+        <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} style={{ minHeight: 120, alignItems: 'center' }} />
       </div>
 
       <FloatingChatButton nav={nav} />

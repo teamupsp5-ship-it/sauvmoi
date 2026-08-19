@@ -70,9 +70,12 @@ function LiveApp() {
   return (
     <div className="sm-live" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       {SM.offline && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100, background: '#7a1414', color: 'white', padding: '8px 14px', fontSize: 13, fontFamily: 'var(--font-ui, sans-serif)', textAlign: 'center' }}>
-          Backend injoignable — mode hors-ligne actif.
-        </div>
+        <Banner
+          variant="danger"
+          icon="wifi-off"
+          text="Backend injoignable — mode hors-ligne actif."
+          style={{ position: 'absolute', top: 8, left: 8, right: 8, zIndex: 100, borderRadius: 14 }}
+        />
       )}
       <PhoneFrame
         initial={initialScreen}

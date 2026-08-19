@@ -181,7 +181,7 @@ function AuthScreen({ nav }) {
         {/* Erreur partagée email/mdp et Google — affichée une seule fois,
             sous le formulaire, quelle que soit la méthode qui a échoué. */}
         {error && (
-          <p style={{ fontSize: 12, color: 'var(--sm-red)', margin: '10px 0 0', textAlign: 'center' }}>{error}</p>
+          <Banner variant="danger" icon="alert-circle" text={error} style={{ margin: '10px 0 0' }} />
         )}
 
         {/* ── Séparateur ── */}
@@ -430,7 +430,7 @@ function RegisterScreen({ nav }) {
               />
             </FieldWrap>
 
-            {error && <p style={{ fontSize: 12, color: 'var(--sm-red)', margin: 0 }}>{error}</p>}
+            {error && <Banner variant="danger" icon="alert-circle" text={error} />}
 
             <button type="submit" className="sm-btn sm-btn-primary" style={{ width: '100%', marginTop: 4 }}>
               Continuer →
@@ -542,7 +542,7 @@ function RegisterScreen({ nav }) {
               </div>
             </div>
 
-            {error && <p style={{ fontSize: 12, color: 'var(--sm-red)', margin: 0 }}>{error}</p>}
+            {error && <Banner variant="danger" icon="alert-circle" text={error} />}
 
             <button
               type="submit"

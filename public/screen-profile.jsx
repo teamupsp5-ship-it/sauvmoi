@@ -96,10 +96,12 @@ function SaveBar({ onCancel, onSave, saving }) {
 function ProfileToast({ msg }) {
   if (!msg) return null;
   return (
-    <div style={{ position: 'absolute', top: 70, left: 16, right: 16, zIndex: 300, background: '#2E6B4F', color: 'white', borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}>
-      <Icon name="check-circle-2" size={20} color="white" />
-      <span style={{ fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-ui)' }}>{msg}</span>
-    </div>
+    <Banner
+      variant="success"
+      icon="check-circle-2"
+      text={msg}
+      style={{ position: 'absolute', top: 70, left: 16, right: 16, zIndex: 300, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}
+    />
   );
 }
 

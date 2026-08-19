@@ -97,6 +97,26 @@ input, textarea {
 .sm-frame, .sm-frame * {
   -webkit-overflow-scrolling: touch;
 }
+/* Every screen's scrollable body follows the same pattern: a flex column
+   root (header + this div + tabbar), this div taking `flex: 1; overflow-y:
+   auto` to fill the space between them. Flexbox's default min-height:auto
+   on a flex item resolves to its CONTENT size, not 0 — so without an
+   explicit min-height:0, a tall body refuses to shrink to the space
+   actually available and just grows past it instead. The overflow then gets
+   silently absorbed by the screen root's `overflow: hidden` (needed so the
+   header/tabbar themselves don't scroll away) with nothing left to scroll:
+   content past the visible area is simply cut off, unreachable — this is
+   what broke "Se déconnecter" / "Changer le mot de passe" on Profile, and
+   the same pattern recurs on every screen with a scrollable body (~24 call
+   sites). Targeted by attribute rather than a structural selector (e.g.
+   `.sm-screen > * > *`) because nesting depth varies per screen (profile
+   sub-screens, chat, map, sos...) while every one of them sets overflow-y:
+   auto inline the same way — React always serializes it as this exact
+   kebab-case pair, so the match is reliable regardless of what other
+   properties surround it. */
+.sm-frame [style*="overflow-y: auto"] {
+  min-height: 0;
+}
 .sm-frame button {
   font-family: inherit;
   cursor: pointer;
