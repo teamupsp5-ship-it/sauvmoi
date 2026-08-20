@@ -1,6 +1,25 @@
 // live-chat.jsx — Chat IA connecté au backend + fallback PSC1 local.
 // Surcharge ChatListening et ChatResponse définis dans screen-chat.jsx.
 
+// Samsung Internet expose souvent webkitSpeechRecognition (donc la simple
+// détection par feature passe) mais son support du Web Speech API est
+// historiquement incohérent : la reconnaissance peut ne déclencher aucun
+// événement une fois démarrée. Détectée ici pour adapter le message
+// d'erreur (watchdogs plus bas) plutôt que de laisser un silence.
+function isSamsungInternet() {
+  return /SamsungBrowser/i.test(navigator.userAgent || '');
+}
+function speechUnsupportedMessage() {
+  return isSamsungInternet()
+    ? "Reconnaissance vocale indisponible sur Samsung Internet — utilisez Chrome pour cette fonctionnalité."
+    : 'Reconnaissance vocale non disponible sur ce navigateur.';
+}
+function speechSilentFailureMessage() {
+  return isSamsungInternet()
+    ? "Le micro ne répond pas sur Samsung Internet — essayez avec Chrome, ou utilisez le mode texte."
+    : 'Le micro ne répond pas — vérifiez les autorisations, ou utilisez le mode texte.';
+}
+
 // ── Protocoles PSC1 embarqués (fallback quand le backend est injoignable) ──
 const _PSC1 = [
   {
@@ -67,6 +86,7 @@ const VOICE_STATE_META = {
 function VoiceModeOverlay({ voiceState, voiceError, voiceInterim, voicePaused, lastAssistantText, lang, onTogglePause, onExit }) {
   useLucide();
   const meta = VOICE_STATE_META[voiceState] || VOICE_STATE_META.listening;
+  const speechUnavailable = useSpeechUnavailable('voice-live');
 
   return (
     <div style={{
@@ -82,6 +102,12 @@ function VoiceModeOverlay({ voiceState, voiceError, voiceInterim, voicePaused, l
         <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--sm-ink)' }}>
           {meta.emoji} {meta.label}
         </div>
+
+        {voiceState === 'speaking' && speechUnavailable && (
+          <div style={{ fontSize: 12, color: 'var(--sm-ink-400)', marginTop: 6 }}>
+            La lecture vocale n'est pas disponible sur cet appareil
+          </div>
+        )}
 
         {voiceState === 'listening' && voiceInterim && (
           <div style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginTop: 10, maxWidth: 280, lineHeight: 1.5, marginLeft: 'auto', marginRight: 'auto' }}>
@@ -176,6 +202,7 @@ function ChatListening({ nav, lang }) {
   const silenceTimerRef = useRef(null);
   const transcriptRef = useRef('');
   const speechWatchdogRef = useRef(null);
+  const recognitionWatchdogRef = useRef(null);
 
   // Scroll automatique vers le dernier message
   useEffect(() => {
@@ -187,6 +214,7 @@ function ChatListening({ nav, lang }) {
     voiceModeRef.current = false;
     clearTimeout(silenceTimerRef.current);
     clearTimeout(speechWatchdogRef.current);
+    clearTimeout(recognitionWatchdogRef.current);
     try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
     stopSpeech();
   }, []);
@@ -239,28 +267,50 @@ function ChatListening({ nav, lang }) {
   function startVoice() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      setInput('Reconnaissance vocale non disponible — tapez votre message.');
+      console.warn('[voice] SpeechRecognition non supportée par ce navigateur');
+      setInput(speechUnsupportedMessage());
       return;
     }
     const rec = new SR();
     rec.lang = lang === 'EN' ? 'en-US' : 'fr-FR';
     rec.interimResults = false;
-    rec.onstart = () => setListening(true);
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
+
+    let started = false;
+    // Silence complet après start() : certains navigateurs (Samsung Internet
+    // notamment) exposent l'API sans jamais déclencher onstart/onerror —
+    // sans ce filet, l'UI reste bloquée sur "en écoute" indéfiniment.
+    const watchdog = setTimeout(() => {
+      if (started) return;
+      console.warn('[voice] aucun événement après 3s (startVoice) — reconnaissance probablement indisponible');
+      setListening(false);
+      setInput(speechSilentFailureMessage());
+    }, 3000);
+
+    rec.onstart = () => { started = true; clearTimeout(watchdog); console.log('[voice] reconnaissance démarrée (saisie ponctuelle)'); setListening(true); };
+    rec.onend = () => { clearTimeout(watchdog); console.log('[voice] reconnaissance terminée (saisie ponctuelle)'); setListening(false); };
+    rec.onerror = (e) => { clearTimeout(watchdog); console.warn('[voice] erreur reconnaissance (saisie ponctuelle):', e.error); setListening(false); };
     rec.onresult = (e) => {
       const transcript = e.results[0][0].transcript;
+      console.log('[voice] résultat reçu (saisie ponctuelle):', transcript);
       setInput(transcript);
     };
-    try { rec.start(); } catch { setListening(false); }
+    try {
+      console.log('[voice] démarrage reconnaissance (saisie ponctuelle)…');
+      rec.start();
+    } catch (e) {
+      clearTimeout(watchdog);
+      console.warn('[voice] échec démarrage (saisie ponctuelle):', e);
+      setListening(false);
+    }
   }
 
   // ── Mode vocal continu : écoute → envoi → lecture → écoute… ───────────────
   function startVoiceListening() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
+      console.warn('[voice] SpeechRecognition non supportée par ce navigateur (mode vocal continu)');
       setVoiceState('error');
-      setVoiceError('Reconnaissance vocale non supportée par ce navigateur.');
+      setVoiceError(speechUnsupportedMessage());
       return;
     }
     voiceFatalRef.current = false;
@@ -278,14 +328,21 @@ function ChatListening({ nav, lang }) {
       silenceTimerRef.current = setTimeout(() => { try { rec.stop(); } catch {} }, delay || 1500);
     };
 
-    rec.onstart = () => { setVoiceState('listening'); resetSilenceTimer(); };
+    let started = false;
+    rec.onstart = () => {
+      started = true;
+      clearTimeout(recognitionWatchdogRef.current);
+      console.log('[voice] reconnaissance démarrée (mode continu)');
+      setVoiceState('listening');
+      resetSilenceTimer();
+    };
     rec.onresult = (e) => {
       let finalChunk = '', interimChunk = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) finalChunk += e.results[i][0].transcript;
         else interimChunk += e.results[i][0].transcript;
       }
-      if (finalChunk) transcriptRef.current += finalChunk;
+      if (finalChunk) { transcriptRef.current += finalChunk; console.log('[voice] segment final reçu (mode continu):', finalChunk); }
       setVoiceInterim((transcriptRef.current + interimChunk).trim());
       resetSilenceTimer();
     };
@@ -294,6 +351,8 @@ function ChatListening({ nav, lang }) {
     rec.onspeechend = () => resetSilenceTimer(400);
     rec.onerror = (e) => {
       clearTimeout(silenceTimerRef.current);
+      clearTimeout(recognitionWatchdogRef.current);
+      console.warn('[voice] erreur reconnaissance (mode continu):', e.error);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         voiceFatalRef.current = true;
         setVoiceState('error');
@@ -308,6 +367,8 @@ function ChatListening({ nav, lang }) {
     };
     rec.onend = () => {
       clearTimeout(silenceTimerRef.current);
+      clearTimeout(recognitionWatchdogRef.current);
+      console.log('[voice] reconnaissance terminée (mode continu)');
       if (!voiceModeRef.current || voicePausedRef.current || voiceFatalRef.current) return;
       const finalText = transcriptRef.current.trim();
       transcriptRef.current = '';
@@ -316,18 +377,37 @@ function ChatListening({ nav, lang }) {
       else startVoiceListening();
     };
 
-    try { rec.start(); } catch {
+    try {
+      console.log('[voice] démarrage reconnaissance (mode continu)…');
+      rec.start();
+      // Silence complet après start() : ni onstart ni onerror ne se
+      // déclenche — observé sur certains navigateurs (Samsung Internet en
+      // particulier) qui exposent l'API sans vraiment la faire fonctionner.
+      // Sans ce filet, l'overlay restait bloqué sur "Je vous écoute" alors
+      // que le micro n'écoutait en réalité jamais.
+      recognitionWatchdogRef.current = setTimeout(() => {
+        if (started) return;
+        console.warn('[voice] aucun événement après 3s (mode continu) — reconnaissance probablement indisponible');
+        voiceFatalRef.current = true;
+        try { rec.stop(); } catch {}
+        setVoiceState('error');
+        setVoiceError(speechSilentFailureMessage());
+      }, 3000);
+    } catch (e) {
+      console.warn('[voice] échec démarrage (mode continu):', e);
       setVoiceState('error');
       setVoiceError('Impossible de démarrer le micro.');
     }
   }
 
   async function handleVoiceUtterance(text) {
+    console.log('[voice] énoncé final (mode continu):', text);
     setVoiceState('thinking');
     const result = await send(text);
     if (!voiceModeRef.current || voicePausedRef.current) return;
     if (!result) { startVoiceListening(); return; }
     setVoiceState('speaking');
+    console.log('[speech] lecture de la réponse (mode continu)…');
 
     // onEnd doit être appelé exactement une fois — soit par la vraie fin de
     // lecture (speakText), soit par le filet de sécurité ci-dessous si le
@@ -350,6 +430,7 @@ function ChatListening({ nav, lang }) {
   }
 
   function enterVoiceMode() {
+    console.log('[voice] entrée en mode vocal continu');
     setVoiceError('');
     setVoiceInterim('');
     setVoicePaused(false);
@@ -360,10 +441,12 @@ function ChatListening({ nav, lang }) {
   }
 
   function exitVoiceMode() {
+    console.log('[voice] sortie du mode vocal continu');
     voiceModeRef.current = false;
     voiceFatalRef.current = false;
     clearTimeout(silenceTimerRef.current);
     clearTimeout(speechWatchdogRef.current);
+    clearTimeout(recognitionWatchdogRef.current);
     try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
     stopSpeech();
     setVoiceMode(false);
@@ -387,6 +470,7 @@ function ChatListening({ nav, lang }) {
       setVoicePaused(true);
       clearTimeout(silenceTimerRef.current);
       clearTimeout(speechWatchdogRef.current);
+      clearTimeout(recognitionWatchdogRef.current);
       try { voiceRecRef.current && voiceRecRef.current.stop(); } catch {}
       stopSpeech();
       setVoiceState('paused');

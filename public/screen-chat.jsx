@@ -80,6 +80,7 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
   useLucide();
   const speechId = id != null ? id : text;
   const isSpeaking = useSpeechActive(speechId);
+  const speechUnavailable = useSpeechUnavailable(speechId);
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
       <div style={{
@@ -119,6 +120,12 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
             </button>
           )}
         </div>
+
+        {!loading && speechUnavailable && (
+          <div style={{ fontSize: 11, color: 'var(--sm-ink-400)', marginTop: 4, marginLeft: 4 }}>
+            La lecture vocale n'est pas disponible sur cet appareil
+          </div>
+        )}
 
         {!loading && actions && actions.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>

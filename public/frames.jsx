@@ -11,36 +11,117 @@ const { useState, useEffect, useRef, useMemo } = React;
 window.SM_SPEECH = {
   activeId: null,
   activeUtterance: null, // garde une référence forte tant que ça parle — voir speakText
+  unavailableId: null, // id pour lequel ni onstart ni onerror ne s'est déclenché — voir speakText
+  generation: 0, // incrémenté à chaque appel — annule un speakText resté en attente des voix si une action plus récente a pris la main
   _subs: new Set(),
   subscribe(fn) { this._subs.add(fn); return () => this._subs.delete(fn); },
   emit() { this._subs.forEach((fn) => { try { fn(); } catch {} }); },
 };
 
+// Nettoyage markdown → texte brut pour la synthèse vocale. Couvre tout ce que
+// renderMarkdown/parseInlineMarkdown (screen-chat.jsx) affichent visuellement
+// (gras, titres, listes à puces) plus les constructions markdown que Claude
+// peut produire sans que l'app les rende visuellement à part (italique simple
+// */_ , listes numérotées, citations, liens, barré, code, lignes
+// horizontales) — sans ce complément, ces symboles étaient lus tels quels
+// à voix haute même s'ils ne s'affichaient jamais littéralement à l'écran.
 function stripMarkdownForSpeech(text) {
   return (text || '')
-    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // Blocs de code ``` ``` → dé-balise, garde le contenu
+    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```/g, ''))
+    // Lignes horizontales ---, ***, ___ (3+ caractères identiques seuls sur la ligne)
+    .replace(/^([-*_])\1{2,}\s*$/gm, '')
+    // Liens [texte](url) → texte seul (l'URL ne doit jamais être lue)
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    // Gras **texte** / __texte__ (avant l'italique simple, sinon ** serait
+    // déjà rompu en deux * isolés par le passage suivant)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    // Italique *texte* / _texte_
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/_([^_\n]+)_/g, '$1')
+    // Barré ~~texte~~
+    .replace(/~~([^~]+)~~/g, '$1')
+    // Titres # à ###### en début de ligne
     .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^[-*]\s+/gm, '')
-    .replace(/`/g, '')
+    // Listes à puces -, *, + en début de ligne (indentation éventuelle)
+    .replace(/^[ \t]*[-*+]\s+/gm, '')
+    // Listes numérotées "1. " / "1) " en début de ligne
+    .replace(/^[ \t]*\d+[.)]\s+/gm, '')
+    // Citations > en début de ligne
+    .replace(/^>\s?/gm, '')
+    // Code inline `texte` → texte seul
+    .replace(/`([^`]+)`/g, '$1')
     .replace(/\n+/g, '. ')
+    .replace(/[ \t]{2,}/g, ' ')
     .trim();
+}
+
+// speechSynthesis.getVoices() renvoie souvent un tableau vide au tout premier
+// appel sur Android — les voix se chargent de façon asynchrone et ne sont
+// listées qu'après l'événement 'voiceschanged'. Sans l'attendre, speak()
+// peut échouer silencieusement (aucune voix disponible pour l'utterance).
+// Timeout de sécurité : certains appareils ne déclenchent jamais cet
+// événement (le navigateur a déjà ses voix, ou au contraire n'en aura
+// jamais) — on ne bloque pas la lecture indéfiniment pour autant.
+function waitForVoices(timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    const synth = window.speechSynthesis;
+    if (!synth) { resolve([]); return; }
+    const existing = synth.getVoices();
+    if (existing && existing.length > 0) { resolve(existing); return; }
+    console.log('[speech] getVoices() vide au premier appel, attente de "voiceschanged"…');
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      synth.onvoiceschanged = null;
+      console.warn(`[speech] timeout (${timeoutMs}ms) en attente des voix — poursuite sans confirmation`);
+      resolve(synth.getVoices());
+    }, timeoutMs);
+    synth.onvoiceschanged = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      synth.onvoiceschanged = null;
+      console.log(`[speech] "voiceschanged" reçu — ${synth.getVoices().length} voix disponibles`);
+      resolve(synth.getVoices());
+    };
+  });
 }
 
 // id : identifiant de ce qui parle (index de message, 'voice-live', ...) —
 // permet à deux boutons différents de savoir s'ils sont celui en cours de
 // lecture. Un second appel avec le même id qui est déjà actif arrête la
 // lecture au lieu d'en relancer une (comportement "toggle").
-function speakText(id, text, lang, onEnd) {
+async function speakText(id, text, lang, onEnd) {
   const synth = window.speechSynthesis;
   const wasActive = window.SM_SPEECH.activeId === id;
   if (synth) synth.cancel();
   window.SM_SPEECH.activeId = null;
   window.SM_SPEECH.activeUtterance = null;
+  window.SM_SPEECH.unavailableId = null;
+  const myGeneration = ++window.SM_SPEECH.generation;
   window.SM_SPEECH.emit();
-  if (!synth || wasActive) { onEnd && onEnd(); return; }
+  if (!synth || wasActive) {
+    console.log(`[speech] ${!synth ? 'speechSynthesis indisponible' : 'toggle : lecture déjà active, arrêt'} (id=${id})`);
+    onEnd && onEnd();
+    return;
+  }
 
   const clean = stripMarkdownForSpeech(text);
   if (!clean) { onEnd && onEnd(); return; }
+
+  console.log(`[speech] démarrage synthèse (id=${id}, ${clean.length} caractères)`);
+  await waitForVoices();
+
+  // Une action plus récente (nouveau speakText, stopSpeech) a pris la main
+  // pendant l'attente des voix — ne pas démarrer une lecture obsolète.
+  if (window.SM_SPEECH.generation !== myGeneration) {
+    console.log(`[speech] lecture annulée (id=${id}) — obsolète après l'attente des voix`);
+    onEnd && onEnd();
+    return;
+  }
 
   const utter = new SpeechSynthesisUtterance(clean);
   utter.lang = lang === 'EN' ? 'en-US' : 'fr-FR';
@@ -52,7 +133,10 @@ function speakText(id, text, lang, onEnd) {
   // SM_SPEECH tant qu'elle parle règle ça.
   window.SM_SPEECH.activeUtterance = utter;
   window.SM_SPEECH.emit();
-  const finish = () => {
+
+  let started = false;
+  const finish = (reason) => {
+    console.log(`[speech] fin de synthèse (id=${id}, ${reason})`);
     if (window.SM_SPEECH.activeId === id) {
       window.SM_SPEECH.activeId = null;
       window.SM_SPEECH.activeUtterance = null;
@@ -60,20 +144,47 @@ function speakText(id, text, lang, onEnd) {
     }
     onEnd && onEnd();
   };
-  utter.onend = finish;
-  utter.onerror = finish;
+  utter.onstart = () => {
+    started = true;
+    if (window.SM_SPEECH.unavailableId === id) { window.SM_SPEECH.unavailableId = null; window.SM_SPEECH.emit(); }
+    console.log(`[speech] onstart (id=${id})`);
+  };
+  utter.onend = () => finish('onend');
+  utter.onerror = (e) => { console.warn(`[speech] onerror (id=${id})`, e.error); finish('onerror: ' + e.error); };
+  console.log(`[speech] speak() appelé (id=${id}, ${synth.getVoices().length} voix disponibles)`);
   synth.speak(utter);
+
+  // Silence complet : ni onstart ni onerror ne s'est déclenché — la synthèse
+  // vocale est probablement indisponible sur cet appareil (observé sur
+  // certains WebView/navigateurs). Le signaler plutôt que de rester
+  // silencieux sans que l'utilisateur comprenne pourquoi rien ne se passe.
+  setTimeout(() => {
+    if (!started && window.SM_SPEECH.activeId === id) {
+      console.warn(`[speech] aucun onstart/onerror après 3s (id=${id}) — synthèse vocale probablement indisponible sur cet appareil`);
+      window.SM_SPEECH.unavailableId = id;
+      window.SM_SPEECH.emit();
+    }
+  }, 3000);
 }
 function stopSpeech() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   window.SM_SPEECH.activeId = null;
   window.SM_SPEECH.activeUtterance = null;
+  window.SM_SPEECH.unavailableId = null;
+  window.SM_SPEECH.generation++;
   window.SM_SPEECH.emit();
 }
 function useSpeechActive(id) {
   const [, force] = useState(0);
   useEffect(() => window.SM_SPEECH.subscribe(() => force((n) => n + 1)), []);
   return window.SM_SPEECH.activeId === id;
+}
+// true si une lecture démarrée pour cet id n'a déclenché aucun événement
+// (onstart/onerror) dans les 3s — voir le watchdog dans speakText.
+function useSpeechUnavailable(id) {
+  const [, force] = useState(0);
+  useEffect(() => window.SM_SPEECH.subscribe(() => force((n) => n + 1)), []);
+  return window.SM_SPEECH.unavailableId === id;
 }
 
 // ── Lucide icon helper ────────────────────────────────────────────────────
@@ -547,5 +658,5 @@ Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY, BirthdateField, Banner,
-  speakText, stopSpeech, useSpeechActive, stripMarkdownForSpeech,
+  speakText, stopSpeech, useSpeechActive, useSpeechUnavailable, stripMarkdownForSpeech,
 });
