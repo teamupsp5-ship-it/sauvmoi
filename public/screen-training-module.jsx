@@ -105,6 +105,7 @@ function QuizPhase({ mod, onFinish }) {
   const [picked, setPicked] = useState(null);
   const [saving, setSaving] = useState(false);
   const correctRef = useRef(0);
+  const wrongAnswersRef = useRef([]);
 
   const q = mod.quiz[qIdx];
   const isLastQ = qIdx === mod.quiz.length - 1;
@@ -114,7 +115,15 @@ function QuizPhase({ mod, onFinish }) {
   const handlePick = (optIdx) => {
     if (picked !== null) return;
     setPicked(optIdx);
-    if (optIdx === q.correct) correctRef.current++;
+    if (optIdx === q.correct) {
+      correctRef.current++;
+    } else {
+      wrongAnswersRef.current.push({
+        question: q.question,
+        givenAnswer: q.options[optIdx],
+        correctAnswer: q.options[q.correct],
+      });
+    }
   };
 
   const handleNext = async () => {
@@ -125,13 +134,14 @@ function QuizPhase({ mod, onFinish }) {
     }
     const score = correctRef.current;
     const total = mod.quiz.length;
+    const wrongAnswers = wrongAnswersRef.current;
     setSaving(true);
     try {
       const res = await window.API.trainingComplete(mod.id, score, total);
-      onFinish({ score, total, ...res });
+      onFinish({ score, total, wrongAnswers, ...res });
     } catch {
       const pct = Math.round((score / total) * 100);
-      onFinish({ score, total, passed: pct >= 60, percentage: pct, nextModuleId: null });
+      onFinish({ score, total, wrongAnswers, passed: pct >= 60, percentage: pct, nextModuleId: null });
     } finally {
       setSaving(false);
     }
@@ -244,8 +254,8 @@ function QuizPhase({ mod, onFinish }) {
 
 // ── Phase 3 : Résultat ───────────────────────────────────────────────────
 
-function ResultPhase({ mod, result, nav, onRetry }) {
-  const { score, total, passed, percentage, nextModuleId } = result;
+function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
+  const { score, total, passed, percentage, nextModuleId, wrongAnswers } = result;
   const [nextMod, setNextMod] = useState(null);
 
   useEffect(() => {
@@ -312,6 +322,20 @@ function ResultPhase({ mod, result, nav, onRetry }) {
             Module suivant : {nextMod.title}
           </button>
         )}
+        {/* Validé mais pas parfait : "Module suivant" reste l'action principale
+            (ci-dessus si dispo), ce bouton secondaire permet de progresser
+            quand même sans attendre un futur module. */}
+        {passed && percentage < 100 && (
+          <button onClick={onRetryQuiz} style={{
+            padding: '14px 20px', borderRadius: 'var(--sm-radius)',
+            background: 'white', color: mod.color, border: `1.5px solid ${mod.color}`,
+            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-ui)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          }}>
+            <Icon name="rotate-ccw" size={18} color={mod.color} />
+            Revoir mes erreurs et refaire le quiz
+          </button>
+        )}
         {!passed && (
           <button onClick={onRetry} style={{
             padding: '15px 20px', borderRadius: 'var(--sm-radius)',
@@ -320,7 +344,7 @@ function ResultPhase({ mod, result, nav, onRetry }) {
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}>
             <Icon name="rotate-ccw" size={18} color="white" />
-            Recommencer
+            Recommencer le quiz
           </button>
         )}
         <button onClick={() => nav.reset('training')} style={{
@@ -332,6 +356,37 @@ function ResultPhase({ mod, result, nav, onRetry }) {
           Retour à la formation
         </button>
       </div>
+
+      {/* Questions à revoir — dès que le score n'est pas parfait, qu'on ait
+          validé ou non le module (60% suffit pour valider, mais laisse
+          souvent des erreurs à corriger). */}
+      {percentage < 100 && wrongAnswers && wrongAnswers.length > 0 && (
+        <div style={{ width: '100%', marginTop: 28 }}>
+          <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12, textAlign: 'left' }}>
+            Questions à revoir
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {wrongAnswers.map((w, i) => (
+              <div key={i} style={{
+                background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)',
+                padding: '14px 16px', textAlign: 'left',
+              }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--sm-ink)', margin: '0 0 10px', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>
+                  {w.question}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                  <Icon name="x-circle" size={16} color="#C0392B" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 13, color: '#C0392B', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.givenAnswer}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <Icon name="check-circle" size={16} color="#27AE60" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 13, color: '#1E8449', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.correctAnswer}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -364,6 +419,15 @@ function TrainingModuleScreen({ nav }) {
   const handleRetry = () => {
     setResult(null);
     setPhase('steps');
+  };
+
+  // Module déjà validé (≥ 60%) mais pas parfait : repartir directement sur
+  // le quiz plutôt que de repasser par les étapes — contrairement à
+  // handleRetry (échec), la personne maîtrise déjà la matière, seul le quiz
+  // l'intéresse pour corriger ses erreurs.
+  const handleRetryQuiz = () => {
+    setResult(null);
+    setPhase('quiz');
   };
 
   return (
@@ -410,7 +474,7 @@ function TrainingModuleScreen({ nav }) {
         />
       )}
       {phase === 'result' && result && (
-        <ResultPhase mod={mod} result={result} nav={nav} onRetry={handleRetry} />
+        <ResultPhase mod={mod} result={result} nav={nav} onRetry={handleRetry} onRetryQuiz={handleRetryQuiz} />
       )}
     </div>
   );

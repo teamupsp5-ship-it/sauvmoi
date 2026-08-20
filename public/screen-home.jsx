@@ -193,9 +193,12 @@ function HomeMobile({ nav, lang }) {
       {/* ── Corps scrollable ────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 12px', background: 'var(--sm-paper)' }}>
 
-        {/* Grande carte Chat IA — fond bleu */}
+        {/* Grande carte Chat IA — fond bleu. sm-card-breathe : respiration douce
+            du box-shadow (pas le micro, qui n'a pas d'animation ici) pour
+            attirer l'attention sans agressivité. */}
         <button
           onClick={() => nav.go('chat')}
+          className="sm-card-breathe"
           style={{
             display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
             padding: 18, borderRadius: 16, marginBottom: 14,

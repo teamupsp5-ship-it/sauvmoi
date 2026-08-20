@@ -301,6 +301,18 @@ input, textarea {
 @keyframes sm-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
 .sm-blink { animation: sm-blink 1s infinite; }
 
+/* Respiration douce de la carte "Que se passe-t-il ?" — varie uniquement le
+   box-shadow (jamais l'opacité de la carte elle-même) pour attirer l'oeil
+   sans jamais faire vaciller le texte par-dessus. Une animation CSS sur une
+   propriété donnée l'emporte sur la valeur inline de cette même propriété,
+   donc le box-shadow inline statique du bouton sert juste d'état de repos
+   (0%/100% ci-dessous le reproduit à l'identique, pas de saut au montage). */
+@keyframes sm-card-breathe {
+  0%, 100% { box-shadow: 0 4px 14px rgba(21,101,192,0.25); }
+  50%      { box-shadow: 0 6px 26px rgba(21,101,192,0.45); }
+}
+.sm-card-breathe { animation: sm-card-breathe 2.6s ease-in-out infinite; }
+
 @keyframes sm-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .sm-spin { animation: sm-spin 1.2s linear infinite; }
 
