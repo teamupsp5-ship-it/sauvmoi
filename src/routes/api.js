@@ -10,6 +10,41 @@ import { analyzeImage } from '../ai.js';
 import { supabase } from '../supabase.js';
 import { requireAuth } from './auth.js';
 import QRCode from 'qrcode';
+import sharp from 'sharp';
+import { buildMedicalCardSvg, buildUnavailableCardSvg } from '../medical-card.js';
+
+// URL publique du backend, encodée dans le QR médical (image PNG, voir plus
+// bas) — même convention que public/api-client.js (BASE hardcodée, override
+// possible pour le dev local).
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://sauvmoi.onrender.com';
+const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
+
+// Charge le profil + contacts Supabase pour un id donné et les met en forme
+// pour la carte médicale (PNG publique) et la fiche victime (JSON interne à
+// l'app) — partagé par les deux routes /public/medical-card/:file ci-dessous.
+async function loadMedicalCardData(id) {
+  const [{ data: profile, error: profileErr }, { data: contactsRows, error: contactsErr }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
+    supabase.from('emergency_contacts').select('*').eq('user_id', id),
+  ]);
+  if (profileErr) throw profileErr;
+  if (contactsErr) throw contactsErr;
+  if (!profile) return null;
+
+  const dob = profile.birthdate ? new Date(profile.birthdate) : null;
+  const age = dob ? Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)) : null;
+  const allergies = (profile.allergies || '').split(',').map((a) => a.trim()).filter(Boolean);
+  const conditions = (profile.conditions || '').split(',').map((c) => c.trim()).filter(Boolean);
+  return {
+    id,
+    nom: profile.name || '',
+    age,
+    bloodType: profile.blood_type || '',
+    allergies,
+    conditions,
+    contacts: (contactsRows || []).map((c) => ({ name: c.name, phone: c.phone, relation: c.relation })),
+  };
+}
 
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -157,33 +192,64 @@ router.put('/medical-record', (req, res) => {
 
 router.get('/medical-record/qr', requireAuth, async (req, res) => {
   try {
-    const [{ data: profile, error: profileErr }, { data: contactsRows, error: contactsErr }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', req.user.id).maybeSingle(),
-      supabase.from('emergency_contacts').select('*').eq('user_id', req.user.id),
-    ]);
-    if (profileErr) throw profileErr;
-    if (contactsErr) throw contactsErr;
-
+    const data = await loadMedicalCardData(req.user.id);
     const now = Date.now();
-    const SIX_MONTHS = 6 * 30 * 24 * 60 * 60 * 1000;
-    const dob = profile?.birthdate ? new Date(profile.birthdate) : null;
-    const age = dob ? Math.floor((now - dob) / (365.25 * 24 * 3600 * 1000)) : null;
-    const allergies = (profile?.allergies || '').split(',').map((a) => a.trim()).filter(Boolean);
-    const payload = {
-      id: req.user.id,
-      nom: profile?.name || '',
-      age,
-      bloodType: profile?.blood_type || '',
-      allergies,
-      contacts: (contactsRows || []).map((c) => ({ name: c.name, phone: c.phone, relation: c.relation })),
-      generatedAt: now,
-      expiresAt: now + SIX_MONTHS,
-    };
-    const qrDataUrl = await QRCode.toDataURL(JSON.stringify(payload), { width: 300, margin: 2 });
-    res.json({ payload, qrDataUrl });
+    const expiresAt = now + SIX_MONTHS_MS;
+    const payload = { ...(data || { id: req.user.id, nom: '', age: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: now, expiresAt };
+
+    // Le QR encode désormais une URL vers l'image PNG publique (chargement
+    // instantané, aucune app tierce requise pour lire du JSON brut — un
+    // scanner d'appareil photo standard ouvre directement l'image) plutôt
+    // que le JSON brut encodé auparavant. gen/exp voyagent en query string
+    // car cette route publique ne peut pas dépendre d'une session pour
+    // retrouver la date de génération du QR.
+    const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${req.user.id}.png?gen=${now}&exp=${expiresAt}`;
+    const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
+    res.json({ payload, qrDataUrl, url });
   } catch (e) {
     res.status(500).json({ error: 'Génération QR échouée', detail: e.message });
   }
+});
+
+// ─── Carte médicale publique (image PNG) ─────────────────────────────────────
+// Aucune authentification : c'est le contenu même du QR imprimé/affiché,
+// destiné à être lu par un appareil photo/scanner tiers, pas seulement par
+// l'app Sauv'Moi. Route à deux formats sur le même id :
+//   .png  → image rasterisée (usage principal, scan externe)
+//   .json → mêmes données en JSON (utilisé par screen-qr-scanner.jsx pour
+//           afficher la fiche riche EN INTERNE sans réanalyser une image)
+router.get('/public/medical-card/:file', async (req, res) => {
+  const m = /^([^.]+)\.(png|json)$/.exec(req.params.file);
+  if (!m) return res.status(400).json({ error: 'Format invalide' });
+  const [, id, format] = m;
+
+  const gen = req.query.gen ? Number(req.query.gen) : null;
+  const exp = req.query.exp ? Number(req.query.exp) : null;
+  const expired = exp != null && Date.now() > exp;
+
+  let data = null;
+  try {
+    if (!expired) data = await loadMedicalCardData(id);
+  } catch (e) {
+    return res.status(500).json({ error: 'Chargement de la fiche échoué', detail: e.message });
+  }
+
+  if (expired || !data) {
+    const message = expired ? 'Fiche expirée' : 'Fiche introuvable';
+    if (format === 'json') return res.status(404).json({ error: message });
+    const svg = buildUnavailableCardSvg(message);
+    const png = await sharp(Buffer.from(svg)).png().toBuffer();
+    res.type('image/png');
+    return res.send(png);
+  }
+
+  if (format === 'json') {
+    return res.json({ ...data, generatedAt: gen, expiresAt: exp });
+  }
+  const svg = buildMedicalCardSvg({ ...data, generatedAt: gen, expiresAt: exp });
+  const png = await sharp(Buffer.from(svg)).png().toBuffer();
+  res.type('image/png');
+  res.send(png);
 });
 
 // ─── CENTRES DE SANTÉ ────────────────────────────────────────────────────────

@@ -14,22 +14,54 @@ function QrScannerScreen({ nav }) {
   const isNative = !!(window.Capacitor?.isNativePlatform?.());
 
   // ── Traitement d'un résultat QR brut ──────────────────────────────────────
-  function handleRaw(raw) {
+  // Le QR Sauv'Moi encode désormais une URL vers l'image PNG publique
+  // (/api/public/medical-card/<id>.png?gen=…&exp=…) plutôt que du JSON brut
+  // — nécessaire pour qu'un appareil photo externe à l'app ouvre directement
+  // une image lisible. Scanné DEPUIS l'app, on ne veut pas ouvrir cette image
+  // dans un navigateur externe : on extrait l'id/gen/exp de l'URL, on
+  // recharge les données en JSON (.json, même route) et on continue vers
+  // VictimCardScreen en interne, pour garder l'affichage riche + boutons
+  // d'action existants. L'ancien format JSON brut reste supporté pour ne pas
+  // casser un QR déjà généré/imprimé avant cette migration.
+  async function handleRaw(raw) {
     setError(null);
-    let parsed;
-    try { parsed = JSON.parse(raw); }
-    catch { setError("Ce QR Code n'est pas un QR Sauv'Moi."); return; }
 
-    if (!parsed || !parsed.id) {
+    let legacyParsed = null;
+    try { legacyParsed = JSON.parse(raw); } catch {}
+    if (legacyParsed && legacyParsed.id) {
+      if (legacyParsed.expiresAt && Date.now() > legacyParsed.expiresAt) {
+        setError("Ce QR Code est expiré. Demandez à l'utilisateur de le régénérer depuis son profil.");
+        return;
+      }
+      window.SM_VICTIM = legacyParsed;
+      nav.go('victim_card');
+      return;
+    }
+
+    const m = /\/api\/public\/medical-card\/([^\/?]+)\.png(\?.*)?$/.exec(raw);
+    if (!m) {
       setError("Ce QR Code n'est pas un QR Sauv'Moi.");
       return;
     }
-    if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-      setError("Ce QR Code est expiré. Demandez à l'utilisateur de le régénérer depuis son profil.");
-      return;
+    const id = m[1];
+    const qs = m[2] || '';
+    const base = raw.slice(0, raw.indexOf('/api/public/medical-card/'));
+
+    // setScanning géré par l'appelant (autour du await handleRaw) — pas ici,
+    // pour éviter un flicker true/false/true/false entre la fin du scan et
+    // le fetch JSON qui suit.
+    try {
+      const res = await fetch(`${base}/api/public/medical-card/${id}.json${qs}`);
+      if (!res.ok) {
+        setError(res.status === 404 ? "Fiche introuvable ou expirée." : 'Impossible de charger la fiche.');
+        return;
+      }
+      const data = await res.json();
+      window.SM_VICTIM = data;
+      nav.go('victim_card');
+    } catch (e) {
+      setError('Impossible de charger la fiche. Vérifiez votre connexion.');
     }
-    window.SM_VICTIM = parsed;
-    nav.go('victim_card');
   }
 
   // ── Scanner natif via @capacitor-mlkit/barcode-scanning ──────────────────
@@ -56,7 +88,7 @@ function QrScannerScreen({ nav }) {
       const { barcodes } = await BS.scan({ formats: ['QR_CODE'] });
       setHint(null);
       if (barcodes && barcodes.length > 0) {
-        handleRaw(barcodes[0].rawValue);
+        await handleRaw(barcodes[0].rawValue);
       } else {
         setError('Aucun QR Code détecté. Réessayez.');
       }
@@ -76,7 +108,7 @@ function QrScannerScreen({ nav }) {
     setError(null);
 
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = canvasRef.current;
       if (!canvas) { setScanning(false); return; }
       canvas.width  = img.width;
@@ -91,12 +123,12 @@ function QrScannerScreen({ nav }) {
         return;
       }
       const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-      setScanning(false);
       if (code) {
-        handleRaw(code.data);
+        await handleRaw(code.data);
       } else {
         setError('Aucun QR Code trouvé dans cette image. Essayez avec une meilleure photo.');
       }
+      setScanning(false);
     };
     img.onerror = () => { setError('Impossible de lire l\'image.'); setScanning(false); };
     img.src = URL.createObjectURL(file);

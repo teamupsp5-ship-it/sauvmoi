@@ -43,6 +43,7 @@ app.get('/api/health', (_req, res) => res.json({
     'GET /api/training/path', 'GET /api/training/courses',
     'POST /api/payments/initiate', 'POST /api/payments/:id/confirm',
     'GET /api/medical-record', 'GET /api/medical-record/qr',
+    'GET /api/public/medical-card/:id.png', 'GET /api/public/medical-card/:id.json',
   ],
 }));
 
