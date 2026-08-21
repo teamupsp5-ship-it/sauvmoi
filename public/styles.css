@@ -117,6 +117,28 @@ input, textarea {
 .sm-frame [style*="overflow-y: auto"] {
   min-height: 0;
 }
+/* Second, DISTINCT half of the scroll fix — the first (above) lets the
+   scrollable container itself shrink to its allotted space; this one stops
+   its own CHILDREN from shrinking to match it. Some screens (ProfileScreen's
+   main body, QuizPhase, ResultPhase...) make the overflow-y:auto container
+   itself `display:flex; flex-direction:column` purely to get a `gap`
+   between its card children — but flex items default to flex-shrink:1, so
+   when the column is constrained below its children's combined natural
+   height, the children silently COMPRESS to fit instead of overflowing.
+   Confirmed by measurement on ProfileScreen: the sections card measured
+   389px unconstrained vs 264.83px once genuinely space-constrained — a
+   ~32% squeeze, with zero scrollable overflow ever registering, because
+   scrollHeight ends up equal to clientHeight (nothing overflowed — the
+   content itself shrank instead). Screens whose scrollable body is a plain
+   block div (no `display:flex` on it) never hit this — their children just
+   stack and overflow normally, which is why Formation/Localisation already
+   worked while Profile didn't despite sharing the min-height:0 fix above.
+   flex-shrink:0 on the direct children restores natural sizing, so excess
+   content genuinely overflows and overflow-y:auto finally has something to
+   scroll to. */
+.sm-frame [style*="overflow-y: auto"][style*="display: flex"] > * {
+  flex-shrink: 0;
+}
 .sm-frame button {
   font-family: inherit;
   cursor: pointer;
