@@ -150,17 +150,19 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
   );
 }
 
-// ── Indicateur de frappe ───────────────────────────────────────────────────
+// ── Indicateur "réflexion" — 3 points, aucun texte ─────────────────────────
 function ChatTypingDots() {
-  const [frame, setFrame] = React.useState(0);
-  React.useEffect(() => {
-    const id = setInterval(() => setFrame(f => (f + 1) % 3), 500);
-    return () => clearInterval(id);
-  }, []);
-  const dots = ['·', '· ·', '· · ·'][frame];
   return (
-    <span style={{ color: 'var(--sm-ink-400)', fontStyle: 'italic', letterSpacing: 2 }}>
-      En train d'écrire {dots}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 20 }}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="sm-typing-dot"
+          style={{ fontSize: 22, lineHeight: '10px', color: 'var(--sm-ink-400)', animationDelay: (i * 0.2) + 's' }}
+        >
+          ·
+        </span>
+      ))}
     </span>
   );
 }

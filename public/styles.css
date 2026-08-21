@@ -313,6 +313,15 @@ input, textarea {
 }
 .sm-card-breathe { animation: sm-card-breathe 2.6s ease-in-out infinite; }
 
+/* Indicateur "réflexion" du chat IA — 3 points dont l'opacité culmine l'un
+   après l'autre (délais décalés sur la même animation) plutôt qu'un
+   clignotement synchronisé, pour un effet de vague/réflexion. */
+@keyframes sm-typing-dot {
+  0%, 80%, 100% { opacity: 0.25; }
+  40%           { opacity: 1; }
+}
+.sm-typing-dot { display: inline-block; animation: sm-typing-dot 1.4s ease-in-out infinite; }
+
 @keyframes sm-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 .sm-spin { animation: sm-spin 1.2s linear infinite; }
 
