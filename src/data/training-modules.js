@@ -4,12 +4,34 @@ export const TRAINING_MODULES = [
     icon: 'user-check', color: '#1565C0', difficulty: 'Facile',
     description: 'Protéger une personne inconsciente qui respire',
     steps: [
-      { title: 'Vérifier la réaction', content: 'Secouez doucement les épaules et parlez fort. Si pas de réponse, passez à l\'étape suivante.' },
-      { title: 'Vérifier la respiration', content: 'Basculez légèrement la tête en arrière, regardez/écoutez/sentez pendant 10 secondes max.' },
-      { title: 'Positionner le bras proche', content: 'Placez le bras le plus proche de vous à angle droit du corps, coude plié, paume vers le haut.' },
-      { title: 'Saisir le bras éloigné', content: 'Attrapez le bras opposé, placez le dos de sa main contre son oreille côté secouriste.' },
-      { title: 'Tourner sur le côté', content: 'Saisissez la jambe éloignée sous le genou, tirez pour faire pivoter le corps sur le côté.' },
-      { title: 'Stabiliser et surveiller', content: 'Inclinez la tête vers le bas, jambe du dessus pliée. Alertez le 185. Surveillez la respiration jusqu\'aux secours.' },
+      { title: 'Vérifier la réaction', substeps: [
+        'Secouez doucement les épaules',
+        'Parlez fort à la personne',
+        'Si pas de réponse, passez à l\'étape suivante',
+      ] },
+      { title: 'Vérifier la respiration', substeps: [
+        'Basculez légèrement la tête en arrière',
+        'Regardez/écoutez/sentez pendant 10 secondes max',
+      ] },
+      { title: 'Positionner le bras proche', substeps: [
+        'Placez le bras le plus proche de vous à angle droit du corps',
+        'Coude plié',
+        'Paume vers le haut',
+      ] },
+      { title: 'Saisir le bras éloigné', substeps: [
+        'Attrapez le bras opposé',
+        'Placez le dos de sa main contre son oreille côté secouriste',
+      ] },
+      { title: 'Tourner sur le côté', substeps: [
+        'Saisissez la jambe éloignée sous le genou',
+        'Tirez pour faire pivoter le corps sur le côté',
+      ] },
+      { title: 'Stabiliser et surveiller', substeps: [
+        'Inclinez la tête vers le bas',
+        'Jambe du dessus pliée',
+        'Alertez le 185',
+        'Surveillez la respiration jusqu\'aux secours',
+      ] },
     ],
     quiz: [
       { question: 'Pourquoi met-on une personne en PLS ?', options: ['Pour la réveiller plus vite', 'Pour éviter l\'obstruction des voies respiratoires par la langue ou les vomissements', 'Pour la réchauffer'], correct: 1 },
@@ -24,11 +46,28 @@ export const TRAINING_MODULES = [
     icon: 'wind', color: '#C0392B', difficulty: 'Facile',
     description: 'Dégager des voies respiratoires obstruées',
     steps: [
-      { title: 'Identifier l\'urgence', content: 'Demandez "Tu t\'étouffes ?" Si la personne ne peut ni parler ni respirer ni tousser, agissez immédiatement.' },
-      { title: '5 tapes dans le dos', content: 'Penchez la victime en avant, donnez 5 tapes fermes entre les omoplates avec le plat de la main.' },
-      { title: 'Méthode de Heimlich', content: 'Si inefficace : placez-vous derrière, poing fermé sous le sternum, l\'autre main par-dessus, tirez vers vous et le haut, 5 fois.' },
-      { title: 'Alternez', content: 'Alternez 5 tapes dans le dos et 5 compressions abdominales jusqu\'à expulsion du corps étranger.' },
-      { title: 'Si inconscience', content: 'Si la personne perd connaissance : allongez-la, débutez la RCP, appelez le 185.' },
+      { title: 'Identifier l\'urgence', substeps: [
+        'Demandez "Tu t\'étouffes ?"',
+        'Si la personne ne peut ni parler ni respirer ni tousser, agissez immédiatement',
+      ] },
+      { title: '5 tapes dans le dos', substeps: [
+        'Penchez la victime en avant',
+        'Donnez 5 tapes fermes entre les omoplates avec le plat de la main',
+      ] },
+      { title: 'Méthode de Heimlich', substeps: [
+        'Si inefficace : placez-vous derrière',
+        'Poing fermé sous le sternum',
+        'L\'autre main par-dessus',
+        'Tirez vers vous et le haut, 5 fois',
+      ] },
+      { title: 'Alternez', substeps: [
+        'Alternez 5 tapes dans le dos et 5 compressions abdominales jusqu\'à expulsion du corps étranger',
+      ] },
+      { title: 'Si inconscience', substeps: [
+        'Si la personne perd connaissance : allongez-la',
+        'Débutez la RCP',
+        'Appelez le 185',
+      ] },
     ],
     quiz: [
       { question: 'Combien de tapes dans le dos au début ?', options: ['1', '5', '10'], correct: 1 },
@@ -45,13 +84,29 @@ export const TRAINING_MODULES = [
     icon: 'droplet', color: '#C0392B', difficulty: 'Moyen',
     description: 'Arrêter un saignement abondant',
     steps: [
-      { title: 'Protégez-vous', content: 'Si possible, mettez des gants ou un sac plastique sur vos mains avant tout contact.' },
-      { title: 'Compression directe', content: 'Appuyez fermement sur la plaie avec un linge propre ou la main protégée.' },
-      { title: 'Maintenez la pression', content: 'Ne relâchez jamais. Ajoutez du tissu par-dessus si besoin, sans retirer le premier.' },
-      { title: 'Allongez et surélevez', content: 'Allongez la victime, surélevez le membre blessé au-dessus du niveau du cœur si pas de fracture.' },
-      { title: 'Alertez le 185', content: 'Appelez les secours immédiatement pour toute hémorragie abondante.' },
-      { title: 'Garrot en dernier recours', content: 'Si saignement incontrôlable d\'un membre et secours non disponibles rapidement, un garrot peut être posé par une personne formée.' },
-      { title: 'Surveillez', content: 'Surveillez l\'état de conscience et la respiration jusqu\'à l\'arrivée des secours.' },
+      { title: 'Protégez-vous', substeps: [
+        'Si possible, mettez des gants ou un sac plastique sur vos mains avant tout contact',
+      ] },
+      { title: 'Compression directe', substeps: [
+        'Appuyez fermement sur la plaie avec un linge propre ou la main protégée',
+      ] },
+      { title: 'Maintenez la pression', substeps: [
+        'Ne relâchez jamais',
+        'Ajoutez du tissu par-dessus si besoin, sans retirer le premier',
+      ] },
+      { title: 'Allongez et surélevez', substeps: [
+        'Allongez la victime',
+        'Surélevez le membre blessé au-dessus du niveau du cœur si pas de fracture',
+      ] },
+      { title: 'Alertez le 185', substeps: [
+        'Appelez les secours immédiatement pour toute hémorragie abondante',
+      ] },
+      { title: 'Garrot en dernier recours', substeps: [
+        'Si saignement incontrôlable d\'un membre et secours non disponibles rapidement, un garrot peut être posé par une personne formée',
+      ] },
+      { title: 'Surveillez', substeps: [
+        'Surveillez l\'état de conscience et la respiration jusqu\'à l\'arrivée des secours',
+      ] },
     ],
     quiz: [
       { question: 'Comment arrêter un saignement abondant ?', options: ['Compression directe sur la plaie', 'Laisser saigner pour nettoyer'], correct: 0 },
@@ -71,12 +126,25 @@ export const TRAINING_MODULES = [
     icon: 'flame', color: '#E67E22', difficulty: 'Moyen',
     description: 'Premiers gestes face à une brûlure',
     steps: [
-      { title: 'Éloignez du danger', content: 'Écartez immédiatement la victime de la source de chaleur (feu, électricité, produit chimique).' },
-      { title: 'Refroidissez', content: 'Passez la zone brûlée sous l\'eau froide (15-20°C, pas glacée) pendant 15 à 20 minutes.' },
-      { title: 'Retirez bijoux et vêtements', content: 'Retirez bagues, bracelets et vêtements non collés à la peau avant que ça gonfle.' },
-      { title: 'Ne percez jamais', content: 'Ne percez jamais les cloques, n\'appliquez ni crème, ni pommade, ni glace directe.' },
-      { title: 'Protégez', content: 'Couvrez avec un linge propre et humide, non pelucheux.' },
-      { title: 'Alertez si nécessaire', content: 'Appelez le 185 si brûlure étendue, profonde, sur le visage/mains/organes génitaux, ou chez un enfant.' },
+      { title: 'Éloignez du danger', substeps: [
+        'Écartez immédiatement la victime de la source de chaleur (feu, électricité, produit chimique)',
+      ] },
+      { title: 'Refroidissez', substeps: [
+        'Passez la zone brûlée sous l\'eau froide (15-20°C, pas glacée) pendant 15 à 20 minutes',
+      ] },
+      { title: 'Retirez bijoux et vêtements', substeps: [
+        'Retirez bagues, bracelets et vêtements non collés à la peau avant que ça gonfle',
+      ] },
+      { title: 'Ne percez jamais', substeps: [
+        'Ne percez jamais les cloques',
+        'N\'appliquez ni crème, ni pommade, ni glace directe',
+      ] },
+      { title: 'Protégez', substeps: [
+        'Couvrez avec un linge propre et humide, non pelucheux',
+      ] },
+      { title: 'Alertez si nécessaire', substeps: [
+        'Appelez le 185 si brûlure étendue, profonde, sur le visage/mains/organes génitaux, ou chez un enfant',
+      ] },
     ],
     quiz: [
       { question: 'Combien de temps refroidir une brûlure ?', options: ['2-3 minutes', '15-20 minutes', '1 heure'], correct: 1 },
@@ -98,12 +166,29 @@ export const TRAINING_MODULES = [
     icon: 'bone', color: '#7F8C8D', difficulty: 'Moyen',
     description: 'Immobiliser un membre blessé',
     steps: [
-      { title: 'Ne bougez pas le membre', content: 'Ne tentez jamais de remettre un os en place ou de redresser le membre.' },
-      { title: 'Évaluez', content: 'Recherchez déformation visible, douleur intense, impossibilité de bouger, gonflement rapide.' },
-      { title: 'Immobilisez', content: 'Stabilisez le membre dans la position trouvée, sans forcer, en évitant tout mouvement inutile.' },
-      { title: 'Glacez si entorse simple', content: 'Appliquez du froid enveloppé dans un tissu (jamais directement sur la peau).' },
-      { title: 'Ne donnez rien à manger/boire', content: 'En cas de doute sur une fracture nécessitant chirurgie, ne donnez rien par la bouche.' },
-      { title: 'Alertez si nécessaire', content: 'Appelez le 185 si déformation visible, fracture ouverte, ou douleur insupportable.' },
+      { title: 'Ne bougez pas le membre', substeps: [
+        'Ne tentez jamais de remettre un os en place ou de redresser le membre',
+      ] },
+      { title: 'Évaluez', substeps: [
+        'Recherchez déformation visible',
+        'Douleur intense',
+        'Impossibilité de bouger',
+        'Gonflement rapide',
+      ] },
+      { title: 'Immobilisez', substeps: [
+        'Stabilisez le membre dans la position trouvée',
+        'Sans forcer',
+        'En évitant tout mouvement inutile',
+      ] },
+      { title: 'Glacez si entorse simple', substeps: [
+        'Appliquez du froid enveloppé dans un tissu (jamais directement sur la peau)',
+      ] },
+      { title: 'Ne donnez rien à manger/boire', substeps: [
+        'En cas de doute sur une fracture nécessitant chirurgie, ne donnez rien par la bouche',
+      ] },
+      { title: 'Alertez si nécessaire', substeps: [
+        'Appelez le 185 si déformation visible, fracture ouverte, ou douleur insupportable',
+      ] },
     ],
     quiz: [
       { question: 'Faut-il remettre un os en place ?', options: ['Oui immédiatement', 'Jamais, attendre les secours'], correct: 1 },
@@ -128,13 +213,37 @@ export const TRAINING_MODULES = [
     icon: 'heart-pulse', color: '#C0392B', difficulty: 'Difficile',
     description: 'Réagir face à un arrêt cardiaque',
     steps: [
-      { title: 'Vérifiez la conscience', content: 'Secouez les épaules, demandez fort "Tout va bien ?". Pas de réponse = inconscient.' },
-      { title: 'Vérifiez la respiration', content: 'Basculez la tête, regardez/écoutez/sentez 10 secondes max. Absence ou gasps = urgence vitale.' },
-      { title: 'Alertez le 185', content: 'Appelez ou faites appeler immédiatement. Demandez un défibrillateur (DAE) si disponible.' },
-      { title: 'Débutez les compressions', content: 'Talon de la main au centre du thorax, mains superposées, bras tendus. 30 compressions à 100-120/min, profondeur 5-6cm.' },
-      { title: 'Alternez si formé', content: 'Si formé aux insufflations : 30 compressions puis 2 insufflations. Sinon : compressions seules en continu, sans pause.' },
-      { title: 'Utilisez le DAE dès disponible', content: 'Allumez-le, suivez les instructions vocales, ne touchez pas la victime pendant l\'analyse/le choc.' },
-      { title: 'Continuez', content: 'Poursuivez jusqu\'à reprise de la respiration, arrivée des secours, ou épuisement (relayez si possible).' },
+      { title: 'Vérifiez la conscience', substeps: [
+        'Secouez les épaules',
+        'Demandez fort "Tout va bien ?"',
+        'Pas de réponse = inconscient',
+      ] },
+      { title: 'Vérifiez la respiration', substeps: [
+        'Basculez la tête',
+        'Regardez/écoutez/sentez 10 secondes max',
+        'Absence ou gasps = urgence vitale',
+      ] },
+      { title: 'Alertez le 185', substeps: [
+        'Appelez ou faites appeler immédiatement',
+        'Demandez un défibrillateur (DAE) si disponible',
+      ] },
+      { title: 'Débutez les compressions', substeps: [
+        'Talon de la main au centre du thorax',
+        'Mains superposées, bras tendus',
+        '30 compressions à 100-120/min, profondeur 5-6cm',
+      ] },
+      { title: 'Alternez si formé', substeps: [
+        'Si formé aux insufflations : 30 compressions puis 2 insufflations',
+        'Sinon : compressions seules en continu, sans pause',
+      ] },
+      { title: 'Utilisez le DAE dès disponible', substeps: [
+        'Allumez-le',
+        'Suivez les instructions vocales',
+        'Ne touchez pas la victime pendant l\'analyse/le choc',
+      ] },
+      { title: 'Continuez', substeps: [
+        'Poursuivez jusqu\'à reprise de la respiration, arrivée des secours, ou épuisement (relayez si possible)',
+      ] },
     ],
     quiz: [
       { question: 'Combien de compressions avant les insufflations ?', options: ['10', '30', '50'], correct: 1 },
@@ -161,13 +270,31 @@ export const TRAINING_MODULES = [
     icon: 'brain', color: '#8E44AD', difficulty: 'Difficile',
     description: 'Identifier rapidement un accident vasculaire cérébral (méthode FAST)',
     steps: [
-      { title: 'F - Face (Visage)', content: 'Demandez à la personne de sourire. Un côté du visage tombe-t-il ou semble-t-il asymétrique ?' },
-      { title: 'A - Arm (Bras)', content: 'Demandez de lever les deux bras simultanément. Un bras retombe-t-il ou reste-t-il faible ?' },
-      { title: 'S - Speech (Parole)', content: 'Demandez de répéter une phrase simple. La parole est-elle confuse, déformée, ou les mots manquent ?' },
-      { title: 'T - Time (Temps)', content: 'Si un seul de ces signes est présent, c\'est une urgence : chaque minute compte pour le cerveau.' },
-      { title: 'Alertez immédiatement', content: 'Appelez le 185 sans attendre, même si les signes s\'améliorent ou disparaissent.' },
-      { title: 'Installez confortablement', content: 'Aidez à s\'asseoir ou s\'allonger. Si troubles de conscience, position latérale de sécurité.' },
-      { title: 'Notez l\'heure', content: 'Notez précisément l\'heure d\'apparition des premiers symptômes - information cruciale pour le traitement.' },
+      { title: 'F - Face (Visage)', substeps: [
+        'Demandez à la personne de sourire',
+        'Un côté du visage tombe-t-il ou semble-t-il asymétrique ?',
+      ] },
+      { title: 'A - Arm (Bras)', substeps: [
+        'Demandez de lever les deux bras simultanément',
+        'Un bras retombe-t-il ou reste-t-il faible ?',
+      ] },
+      { title: 'S - Speech (Parole)', substeps: [
+        'Demandez de répéter une phrase simple',
+        'La parole est-elle confuse, déformée, ou les mots manquent ?',
+      ] },
+      { title: 'T - Time (Temps)', substeps: [
+        'Si un seul de ces signes est présent, c\'est une urgence : chaque minute compte pour le cerveau',
+      ] },
+      { title: 'Alertez immédiatement', substeps: [
+        'Appelez le 185 sans attendre, même si les signes s\'améliorent ou disparaissent',
+      ] },
+      { title: 'Installez confortablement', substeps: [
+        'Aidez à s\'asseoir ou s\'allonger',
+        'Si troubles de conscience, position latérale de sécurité',
+      ] },
+      { title: 'Notez l\'heure', substeps: [
+        'Notez précisément l\'heure d\'apparition des premiers symptômes - information cruciale pour le traitement',
+      ] },
     ],
     quiz: [
       { question: 'Quels sont les 3 signes de la méthode FAST ?', options: ['Visage, bras, parole', 'Fièvre, toux, fatigue'], correct: 0 },
@@ -197,12 +324,31 @@ export const TRAINING_MODULES = [
     icon: 'heart-crack', color: '#C0392B', difficulty: 'Difficile',
     description: 'Réagir face à une douleur thoracique évocatrice',
     steps: [
-      { title: 'Reconnaître les signes', content: 'Douleur thoracique intense et oppressante, irradiant vers le bras gauche/mâchoire/dos, sueurs, essoufflement.' },
-      { title: 'Installez confortablement', content: 'Asseyez la personne en position semi-assise, desserrez les vêtements serrés.' },
-      { title: 'Alertez le 185 immédiatement', content: 'Appelez sans délai, décrivez précisément les symptômes au médecin régulateur.' },
-      { title: 'Ne laissez jamais seule', content: 'Restez auprès de la victime, rassurez-la, limitez ses efforts et mouvements.' },
-      { title: 'Si arrêt cardiaque survient', content: 'Si perte de conscience et absence de respiration normale, débutez immédiatement la RCP.' },
-      { title: 'Préparez l\'arrivée des secours', content: 'Si possible, ayez les médicaments habituels de la personne à disposition pour les secours.' },
+      { title: 'Reconnaître les signes', substeps: [
+        'Douleur thoracique intense et oppressante',
+        'Irradiant vers le bras gauche/mâchoire/dos',
+        'Sueurs',
+        'Essoufflement',
+      ] },
+      { title: 'Installez confortablement', substeps: [
+        'Asseyez la personne en position semi-assise',
+        'Desserrez les vêtements serrés',
+      ] },
+      { title: 'Alertez le 185 immédiatement', substeps: [
+        'Appelez sans délai',
+        'Décrivez précisément les symptômes au médecin régulateur',
+      ] },
+      { title: 'Ne laissez jamais seule', substeps: [
+        'Restez auprès de la victime',
+        'Rassurez-la',
+        'Limitez ses efforts et mouvements',
+      ] },
+      { title: 'Si arrêt cardiaque survient', substeps: [
+        'Si perte de conscience et absence de respiration normale, débutez immédiatement la RCP',
+      ] },
+      { title: 'Préparez l\'arrivée des secours', substeps: [
+        'Si possible, ayez les médicaments habituels de la personne à disposition pour les secours',
+      ] },
     ],
     quiz: [
       { question: 'Quelle position installer ?', options: ['Allongée à plat', 'Semi-assise'], correct: 1 },
@@ -232,12 +378,30 @@ export const TRAINING_MODULES = [
     icon: 'shield-alert', color: '#E67E22', difficulty: 'Très difficile',
     description: 'Reconnaître et réagir face à un choc anaphylactique',
     steps: [
-      { title: 'Reconnaître les signes', content: 'Gonflement rapide du visage/lèvres/gorge, urticaire généralisée, difficulté à respirer, chute de tension.' },
-      { title: 'Alertez immédiatement', content: 'Appelez le 185 dès les premiers signes - c\'est une urgence vitale qui évolue très vite.' },
-      { title: 'Position adaptée', content: 'Allongez sur le dos jambes surélevées. Si difficulté respiratoire : position semi-assise. Si inconscience : PLS.' },
-      { title: 'Auto-injecteur d\'épinéphrine', content: 'Si la personne possède un stylo auto-injecteur, aidez-la à l\'utiliser immédiatement dans la cuisse.' },
-      { title: 'Surveillez en continu', content: 'Restez auprès de la victime, surveillez conscience et respiration jusqu\'aux secours.' },
-      { title: 'Préparez l\'allergène en cause', content: 'Si possible, identifiez la cause (aliment, piqûre, médicament) pour informer les secours.' },
+      { title: 'Reconnaître les signes', substeps: [
+        'Gonflement rapide du visage/lèvres/gorge',
+        'Urticaire généralisée',
+        'Difficulté à respirer',
+        'Chute de tension',
+      ] },
+      { title: 'Alertez immédiatement', substeps: [
+        'Appelez le 185 dès les premiers signes - c\'est une urgence vitale qui évolue très vite',
+      ] },
+      { title: 'Position adaptée', substeps: [
+        'Allongez sur le dos jambes surélevées',
+        'Si difficulté respiratoire : position semi-assise',
+        'Si inconscience : PLS',
+      ] },
+      { title: 'Auto-injecteur d\'épinéphrine', substeps: [
+        'Si la personne possède un stylo auto-injecteur, aidez-la à l\'utiliser immédiatement dans la cuisse',
+      ] },
+      { title: 'Surveillez en continu', substeps: [
+        'Restez auprès de la victime',
+        'Surveillez conscience et respiration jusqu\'aux secours',
+      ] },
+      { title: 'Préparez l\'allergène en cause', substeps: [
+        'Si possible, identifiez la cause (aliment, piqûre, médicament) pour informer les secours',
+      ] },
     ],
     quiz: [
       { question: 'Quel est un signe de choc anaphylactique ?', options: ['Gonflement du visage/gorge', 'Petite démangeaison locale'], correct: 0 },
@@ -267,13 +431,31 @@ export const TRAINING_MODULES = [
     icon: 'activity', color: '#1565C0', difficulty: 'Très difficile',
     description: 'Protéger une personne en crise convulsive',
     steps: [
-      { title: 'Protégez', content: 'Éloignez tous les objets dangereux et durs autour de la personne pour éviter les blessures.' },
-      { title: 'Ne pas entraver', content: 'Ne forcez jamais les mouvements, ne mettez jamais rien dans la bouche de la victime.' },
-      { title: 'Protégez la tête', content: 'Si possible, glissez quelque chose de souple sous la tête sans entraver les mouvements.' },
-      { title: 'Chronométrez', content: 'Notez précisément l\'heure de début de la crise.' },
-      { title: 'Après la crise - PLS', content: 'Dès que les mouvements cessent, mettez la personne en position latérale de sécurité.' },
-      { title: 'Alertez si nécessaire', content: 'Appelez le 185 si la crise dure plus de 5 minutes, se répète, ou si c\'est la première crise.' },
-      { title: 'Restez et rassurez', content: 'La personne peut être confuse au réveil - restez calme, rassurez-la, ne la laissez pas seule.' },
+      { title: 'Protégez', substeps: [
+        'Éloignez tous les objets dangereux et durs autour de la personne pour éviter les blessures',
+      ] },
+      { title: 'Ne pas entraver', substeps: [
+        'Ne forcez jamais les mouvements',
+        'Ne mettez jamais rien dans la bouche de la victime',
+      ] },
+      { title: 'Protégez la tête', substeps: [
+        'Si possible, glissez quelque chose de souple sous la tête sans entraver les mouvements',
+      ] },
+      { title: 'Chronométrez', substeps: [
+        'Notez précisément l\'heure de début de la crise',
+      ] },
+      { title: 'Après la crise - PLS', substeps: [
+        'Dès que les mouvements cessent, mettez la personne en position latérale de sécurité',
+      ] },
+      { title: 'Alertez si nécessaire', substeps: [
+        'Appelez le 185 si la crise dure plus de 5 minutes, se répète, ou si c\'est la première crise',
+      ] },
+      { title: 'Restez et rassurez', substeps: [
+        'La personne peut être confuse au réveil',
+        'Restez calme',
+        'Rassurez-la',
+        'Ne la laissez pas seule',
+      ] },
     ],
     quiz: [
       { question: 'Faut-il mettre quelque chose dans la bouche ?', options: ['Oui, pour éviter qu\'elle se morde', 'Non, jamais'], correct: 1 },

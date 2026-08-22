@@ -54,11 +54,24 @@ function StepsPhase({ mod, onStartQuiz }) {
 
         <div style={{
           background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)',
-          padding: '20px 18px',
+          padding: '18px 18px',
+          display: 'flex', flexDirection: 'column', gap: 16,
         }}>
-          <p style={{ fontSize: 16, color: 'var(--sm-ink)', lineHeight: 1.75, fontFamily: 'var(--font-ui)', margin: 0 }}>
-            {step.content}
-          </p>
+          {step.substeps.map((line, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                background: mod.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'white', fontFamily: 'var(--font-ui)' }}>
+                  {i + 1}
+                </span>
+              </div>
+              <p style={{ fontSize: 16, color: 'var(--sm-ink)', lineHeight: 1.5, fontFamily: 'var(--font-ui)', margin: 0 }}>
+                {line}
+              </p>
+            </div>
+          ))}
         </div>
 
         {stepIdx > 0 && (
