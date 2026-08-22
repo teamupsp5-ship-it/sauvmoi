@@ -53,7 +53,7 @@ function SOSCountdown({ nav }) {
   // ── État idle ─────────────────────────────────────────────────────────────
   if (phase === 'idle') {
     return (
-      <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--sm-line)', background: 'linear-gradient(180deg, #f8f9fa, white)', flexShrink: 0 }}>
           <button onClick={() => goBack(nav)} style={{ background: 'none', border: 'none', padding: '4px', margin: '-4px', cursor: 'pointer' }}>
             <Icon name="arrow-left" size={22} color="var(--sm-ink)" />
@@ -122,7 +122,7 @@ function SOSCountdown({ nav }) {
   const dashoffset = C * (count / 5);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
       <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center' }}>
         {phase === 'fired' ? 'Alerte envoyée…' : 'Alerte SOS en cours d\'envoi…'}
       </p>
@@ -201,7 +201,7 @@ function SOSConfirm({ nav }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Header fixe ── */}
       <div style={{ flexShrink: 0, background: 'white', borderBottom: '1px solid var(--sm-line)' }}>

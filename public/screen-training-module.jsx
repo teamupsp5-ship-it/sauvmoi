@@ -431,7 +431,7 @@ function TrainingModuleScreen({ nav }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#F4F6F9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* En-tête */}
       <div style={{

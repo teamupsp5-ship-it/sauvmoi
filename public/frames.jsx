@@ -576,9 +576,23 @@ const BANNER_VARIANTS = {
   danger:  { bg: '#FDEDEC', accent: '#C0392B', text: '#641E16' },
   info:    { bg: '#EBF5FB', accent: '#1565C0', text: '#0D3B73' },
 };
+// En mode sombre, le texte d'origine (choisi très sombre pour un contraste
+// maximal sur le fond pastel clair) tombe sous 2:1 de contraste une fois ce
+// même fond assombri (les deux deviennent sombres) — vérifié par calcul
+// WCAG. `accent` reste identique aux deux thèmes (demande explicite : les
+// couleurs d'accent restent globalement similaires), seuls `bg`/`text`
+// changent. Contrastes texte/fond en sombre vérifiés ≥ 6.4:1.
+const BANNER_VARIANTS_DARK = {
+  success: { bg: '#1C2E16', accent: '#27AE60', text: '#8FDB7A' },
+  warning: { bg: '#332B18', accent: '#E67E22', text: '#F2B24A' },
+  danger:  { bg: '#3B211F', accent: '#C0392B', text: '#FF8A7A' },
+  info:    { bg: '#16232E', accent: '#1565C0', text: '#7FBBF5' },
+};
 
 function Banner({ variant = 'info', icon, title, text, stacked = false, children, style }) {
-  const c = BANNER_VARIANTS[variant] || BANNER_VARIANTS.info;
+  const theme = useTheme();
+  const palette = theme === 'dark' ? BANNER_VARIANTS_DARK : BANNER_VARIANTS;
+  const c = palette[variant] || palette.info;
   return (
     <div style={{
       position: 'relative', overflow: 'hidden',

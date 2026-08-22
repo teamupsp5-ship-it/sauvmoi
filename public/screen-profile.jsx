@@ -34,7 +34,10 @@ function calcCompletion(user, med) {
 }
 
 // ── Composant : ligne de liste ───────────────────────────────────────────────
-function ListRow({ icon, iconBg, iconColor, label, right, badge, onClick, last }) {
+// hideChevron : pour une ligne d'interrupteur (Mode sombre) — le chevron
+// suggère une navigation vers un sous-écran, trompeur pour un simple bouton
+// bascule dont l'état se voit déjà dans `right` (ThemeSwitch).
+function ListRow({ icon, iconBg, iconColor, label, right, badge, onClick, last, hideChevron }) {
   return (
     <button
       onClick={onClick}
@@ -55,8 +58,32 @@ function ListRow({ icon, iconBg, iconColor, label, right, badge, onClick, last }
       </div>
       <span style={{ flex: 1, fontSize: 15, fontWeight: 500, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{label}</span>
       {right && <span style={{ fontSize: 13, color: 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)', marginRight: 4 }}>{right}</span>}
-      <Icon name="chevron-right" size={18} color="var(--sm-ink-400)" />
+      {!hideChevron && <Icon name="chevron-right" size={18} color="var(--sm-ink-400)" />}
     </button>
+  );
+}
+
+// ── Composant : interrupteur (Mode sombre) ───────────────────────────────────
+function ThemeSwitch({ checked }) {
+  return (
+    <div
+      role="switch"
+      aria-checked={checked}
+      style={{
+        width: 44, height: 26, borderRadius: 999, flexShrink: 0, position: 'relative',
+        background: checked ? 'var(--sm-blue)' : 'var(--sm-line)',
+        transition: 'background 0.2s ease',
+      }}
+    >
+      {/* #FFFFFF (pas 'white') : le galet reste clair dans les deux thèmes —
+          l'override CSS global de mode sombre cible spécifiquement le
+          littéral 'white' (minuscules), pas cette valeur. */}
+      <div style={{
+        position: 'absolute', top: 2, left: checked ? 20 : 2,
+        width: 22, height: 22, borderRadius: '50%', background: '#FFFFFF',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.35)', transition: 'left 0.2s ease',
+      }} />
+    </div>
   );
 }
 
@@ -166,6 +193,7 @@ function NotifSheet({ notifs, onClose }) {
 function ProfileScreen({ nav }) {
   useLucide();
   const SM = window.useSM();
+  const theme = useTheme();
 
   const { notifs, showNotifs, setShowNotifs, unread, openNotifs } = useNotifications();
   const [showLogout, setShowLogout] = useState(false);
@@ -242,7 +270,7 @@ function ProfileScreen({ nav }) {
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#F4F6F9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── En-tête ────────────────────────────────────────────────────── */}
       <div style={{ padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12, background: 'white', borderBottom: '1px solid var(--sm-line)', flexShrink: 0 }}>
@@ -354,6 +382,13 @@ function ProfileScreen({ nav }) {
             icon="file-text" iconBg="#F1F2F4" iconColor="var(--sm-ink)"
             label="Conditions générales"
             onClick={() => nav.go('terms')}
+          />
+          <ListRow
+            icon={theme === 'dark' ? 'moon' : 'sun'} iconBg="#F1F2F4" iconColor="var(--sm-ink)"
+            label="Mode sombre"
+            right={<ThemeSwitch checked={theme === 'dark'} />}
+            onClick={() => window.SM_THEME.toggle()}
+            hideChevron
             last
           />
         </div>
@@ -484,7 +519,7 @@ function ProfilePersonal({ nav }) {
   ];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#F4F6F9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <SubHeader
         title="Informations personnelles"
         nav={nav}
@@ -611,7 +646,7 @@ function ProfileMedical({ nav }) {
   ];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#F4F6F9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <SubHeader
         title="Profil médical"
         nav={nav}
@@ -715,7 +750,7 @@ function ProfileContacts({ nav }) {
   const savedContacts = med.emergencyContacts || [];
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#F4F6F9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <SubHeader
         title="Contacts d'urgence"
         nav={nav}

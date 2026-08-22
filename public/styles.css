@@ -54,10 +54,172 @@
   --sm-blue-soft: #EBF5FB;
 }
 
+/* ── Mode sombre ──────────────────────────────────────────────────────────
+   Classe posée sur <html> par theme.js (window.SM_THEME). Deux volets,
+   comme pour le fix de scroll plus bas dans ce fichier :
+   1) Redéfinir les tokens --sm-* déjà utilisés via var(...) dans les
+      composants (547+ usages) — ça les fait basculer "gratuitement", sans
+      toucher un seul fichier JSX.
+   2) Une bonne partie du reste du code utilise des couleurs littérales
+      inline (background: 'white', '#F1F2F4', '#EAFAF1'...) plutôt que ces
+      tokens — habitude préexistante, pas quelque chose que ce fix a le
+      temps de corriger fichier par fichier partout. Ciblées ici par
+      attribut sur le style rendu (même technique que le fix de scroll —
+      React sérialise `background: 'white'` en `background: white;` dans
+      l'attribut style du DOM, donc le sélecteur est fiable), avec
+      !important : on écrase ici la MÊME propriété déjà posée inline, ce
+      que le fix de scroll n'avait pas besoin de faire (min-height/
+      flex-shrink n'étaient jamais posés inline par les composants).
+   Les couleurs d'accent (rouge/bleu/vert/orange) ne sont volontairement
+   pas touchées : le sujet a demandé de les garder globalement similaires,
+   et elles restent lisibles telles quelles sur fond sombre. Les racines
+   d'écran qui utilisaient une couleur littérale plutôt qu'un token
+   (`#F4F6F9`, `'white'`...) ont été converties directement en `var(--sm-
+   paper)` dans leur JSX plutôt que couvertes ici, pour distinguer
+   proprement fond de PAGE (plus sombre) et fond de CARTE (légèrement plus
+   clair) — voir screen-profile.jsx, screen-training.jsx, live-sos.jsx etc.
+   Écran de démarrage (screen-splash.jsx) et scanner QR (screen-qr-
+   scanner.jsx) délibérément exemptés : le premier est une séquence de
+   marque rouge→blanc chronométrée (comme un logo de lancement, indépendant
+   du thème système par convention) et le second un viewfinder caméra,
+   sombre par nature dans les deux thèmes. */
+:root.sm-dark {
+  --sm-paper: #121212;
+  --sm-paper-2: #1E1E1E;
+  --sm-paper-3: #262626;
+  --sm-ink: #F2F3F5;
+  --sm-ink-700: #D4D8DF;
+  --sm-ink-500: #A6ADB9;
+  --sm-ink-400: #7C8494;
+  --sm-line: #2E2E2E;
+  --sm-line-soft: #262626;
+
+  --sm-soft-red: #3B211F;
+  --sm-soft-blue: #16232E;
+  --sm-soft-green: #16281E;
+  --sm-soft-orange: #332A18;
+  --sm-soft-violet: #241D33;
+  --sm-red-soft: #3B211F;
+  --sm-blue-soft: #16232E;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-2: 0 4px 16px rgba(0,0,0,.55);
+  --shadow-3: 0 16px 48px rgba(0,0,0,.65);
+  --sm-shadow: 0 2px 12px rgba(0,0,0,0.45);
+  --sm-shadow-md: 0 4px 20px rgba(0,0,0,0.55);
+}
+
+/* Volet 2 : couleurs littérales les plus fréquentes (cartes/badges/pastels)
+   qui ne passent pas par un token --sm-*. Une même couleur littérale peut
+   apparaître dans plusieurs fichiers pour le même rôle visuel (ex.
+   #FDEDEC = fond "danger" pastel du composant Banner ET des badges/
+   feedback de quiz) — une seule règle ici couvre alors tous ces usages.
+
+   IMPORTANT — les sélecteurs ci-dessous ciblent la forme rgb(r, g, b), PAS
+   le hex d'origine : le navigateur NORMALISE toute couleur hex posée via
+   `element.style.background = '#RRGGBB'` (donc tout `background: '#...'`
+   React) en rgb(...) au moment de refléter l'attribut `style` dans le DOM
+   — vérifié empiriquement (`#F1F2F4` devient littéralement
+   `rgb(241, 242, 244)` dans l'attribut). Un sélecteur `[style*="#F1F2F4"]`
+   ne matche donc JAMAIS rien en pratique. Seuls les mots-clés (`white`) et
+   les références `var(--...)` survivent tels quels — c'est pour ça que
+   `background: white` et `background: var(--sm-ink)` (plus bas) n'ont pas
+   ce problème. Dans un gradient, seules les couleurs hex sont converties ;
+   un mot-clé comme `white` à l'intérieur du gradient reste `white` — d'où
+   la forme mixte du sélecteur gradient ci-dessous. */
+.sm-dark [style*="background: white"],
+.sm-dark [style*="background: rgb(255, 255, 255)"] {
+  background: #1E1E1E !important;
+}
+.sm-dark [style*="linear-gradient(rgb(248, 249, 250), white)"] {
+  background: linear-gradient(180deg, #161616, #1E1E1E) !important;
+}
+.sm-dark [style*="background: rgb(241, 242, 244)"] {
+  background: #262626 !important;
+}
+.sm-dark [style*="background: rgb(244, 248, 255)"],
+.sm-dark [style*="background: rgb(238, 244, 255)"] {
+  background: #17202B !important;
+}
+.sm-dark [style*="background: rgb(234, 250, 241)"] {
+  background: #16281E !important;
+}
+.sm-dark [style*="background: rgb(234, 243, 222)"] {
+  background: #1C2E16 !important;
+}
+.sm-dark [style*="background: rgb(254, 245, 231)"] {
+  background: #332B18 !important;
+}
+.sm-dark [style*="background: rgb(253, 237, 236)"] {
+  background: #3B211F !important;
+}
+.sm-dark [style*="background: rgb(235, 245, 251)"] {
+  background: #16232E !important;
+}
+.sm-dark [style*="background: rgb(255, 243, 224)"] {
+  background: #332612 !important;
+}
+.sm-dark [style*="background: rgb(224, 224, 224)"] {
+  background: #3A3A3A !important;
+}
+.sm-dark [style*="background: rgb(232, 232, 232)"] {
+  background: #2A2A2A !important;
+}
+.sm-dark [style*="background: rgb(232, 244, 248)"] {
+  background: #122328 !important;
+}
+.sm-dark [style*="background: rgb(254, 245, 236)"] {
+  background: #332A1C !important;
+}
+.sm-dark [style*="background: rgb(252, 228, 236)"] {
+  background: #33141C !important;
+}
+/* var(--sm-ink) est un token de TEXTE (s'éclaircit en mode sombre, voir
+   plus haut) mais aussi réutilisé tel quel comme fond de nombreux badges/
+   avatars "carré sombre + icône blanche" (avatar chatbot, bouton photo
+   profil, badge QR...) — sans ce correctif, ces badges deviendraient
+   clairs avec une icône blanche invisible dessus. Repéré et corrigé
+   d'abord sur le bouton "Continuer avec Apple" (fond fixé en dur à la
+   place, cas particulier où même le texte doit rester blanc), puis ici
+   pour tous les autres badges qui utilisent encore le token. `var(...)`
+   n'est PAS normalisé comme les hex (c'est une référence, pas une valeur
+   calculée) — le littéral `var(--sm-ink)` survit donc intact dans le DOM,
+   contrairement aux couleurs hex ci-dessus. La sous-chaîne recherchée
+   inclut la parenthèse fermante pour ne jamais accrocher
+   --sm-ink-700/-500/-400 par erreur. */
+.sm-dark [style*="background: var(--sm-ink)"] {
+  background: #1A1A1A !important;
+}
+
+/* Volet 3 : couleurs de TEXTE trop sombres pour rester sur les fonds
+   pastels une fois ces derniers assombris (volet 2 ci-dessus) — un texte
+   choisi à l'origine pour un fort contraste sur fond clair (ex. #1E8449
+   sur #EAFAF1) devient presque invisible une fois le fond assombri en
+   #16281E, les deux étant sombres. Contrôlé par calcul WCAG avant
+   d'écrire ces règles (toutes < 2:1 sans correctif, > 6:1 avec). Le
+   composant Banner (frames.jsx) est théorisé directement en JS plutôt
+   qu'ici, vu qu'il centralise déjà ses 4 variantes dans un seul objet —
+   ces règles couvrent les usages ÉPARPILLÉS dans d'autres écrans qui
+   partagent les mêmes teintes (badge "Profil complet", feedback quiz,
+   allergies de la fiche victime, "Alerte déclenchée" SOS). */
+.sm-dark [style*="color: rgb(30, 132, 73)"] {
+  color: #8FDB7A !important;
+}
+.sm-dark [style*="color: rgb(146, 43, 33)"] {
+  color: #FF8A7A !important;
+}
+.sm-dark [style*="color: rgb(39, 80, 10)"] {
+  color: #8FDB7A !important;
+}
+.sm-dark [style*="color: rgb(230, 81, 0)"],
+.sm-dark [style*="color: rgb(191, 54, 12)"] {
+  color: #FFB870 !important;
+}
+
 /* Police et fond global */
 body {
   font-family: 'Poppins', 'Public Sans', system-ui, sans-serif;
-  background: #FFFFFF;
+  background: var(--sm-paper);
 }
 
 /* Empêche la sélection de texte façon "app native" (appui long, double-tap)

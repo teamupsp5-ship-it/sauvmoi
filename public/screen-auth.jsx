@@ -215,7 +215,12 @@ function AuthScreen({ nav }) {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
               padding: '13px 20px', borderRadius: 999, width: '100%',
-              background: 'var(--sm-ink)', border: 'none',
+              // #1A1A1A fixe (pas var(--sm-ink)) : bouton "Apple" toujours
+              // noir avec texte blanc, quel que soit le thème — --sm-ink
+              // est un token de TEXTE qui s'éclaircit en mode sombre, ce
+              // qui rendait ce bouton blanc-sur-blanc une fois réutilisé
+              // comme fond ici.
+              background: '#1A1A1A', border: 'none',
               fontSize: 15, fontWeight: 600, fontFamily: 'inherit', color: 'white',
               cursor: 'pointer',
             }}

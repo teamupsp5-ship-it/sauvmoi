@@ -36,7 +36,7 @@ function SOSCountdown({ nav }) {
   // ── État initial : grand bouton + numéros rapides ──────────────────────────
   if (phase === 'idle') {
     return (
-      <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{
@@ -126,7 +126,7 @@ function SOSCountdown({ nav }) {
   const dashoffset = C * (count / 5);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
 
       <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center', fontFamily: 'var(--font-ui)' }}>
         Alerte SOS en cours d'envoi…
@@ -192,7 +192,7 @@ function SOSConfirm({ nav }) {
   };
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── Header fixe ── */}
       <div style={{ flexShrink: 0, background: 'white', borderBottom: '1px solid var(--sm-line)' }}>

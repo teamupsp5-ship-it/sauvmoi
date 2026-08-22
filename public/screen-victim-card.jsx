@@ -11,7 +11,7 @@ function VictimCardScreen({ nav }) {
   const isExpired = expiresAt && Date.now() > expiresAt;
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: '#f5f6f8', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── En-tête rouge ── */}
       <div style={{ background: 'var(--sm-red)', padding: '14px 16px 26px', flexShrink: 0 }}>

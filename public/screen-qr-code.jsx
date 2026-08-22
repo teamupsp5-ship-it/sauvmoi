@@ -16,7 +16,7 @@ function QrCodeScreen({ nav }) {
   const expiresAt = payload ? new Date(payload.expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'white', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column' }}>
 
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px 10px', borderBottom: '1px solid var(--sm-line)', flexShrink: 0 }}>
