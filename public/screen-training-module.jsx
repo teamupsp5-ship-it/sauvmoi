@@ -7,6 +7,16 @@ const DIFF_MODULE = {
   'Très difficile': { color: '#8E44AD', bg: '#F5EEF8' },
 };
 
+// Couleurs de texte des blocs correct/incorrect (quiz + révision des
+// erreurs) — les valeurs light sont inchangées (accent vert/rouge déjà
+// lisible sur leurs fonds pastel clairs) ; les valeurs dark sont les mêmes
+// que celles déjà validées (contraste ≥6.4:1) pour le Banner et les
+// overrides CSS de mode sombre — reprises ici en JS plutôt qu'en CSS pour
+// ce composant réécrit, plus direct que de dépendre du hack d'attribut
+// [style*="color: rgb(...)"].
+const FEEDBACK_LIGHT = { correctBg: '#EAFAF1', correctText: '#1E8449', wrongBg: '#FDEDEC', wrongText: '#C0392B' };
+const FEEDBACK_DARK  = { correctBg: '#16281E', correctText: '#8FDB7A', wrongBg: '#3B211F', wrongText: '#FF8A7A' };
+
 // ── Phase 1 : Étapes ──────────────────────────────────────────────────────
 
 function StepsPhase({ mod, onStartQuiz }) {
@@ -114,34 +124,50 @@ function StepsPhase({ mod, onStartQuiz }) {
 // ── Phase 2 : Quiz ────────────────────────────────────────────────────────
 
 function QuizPhase({ mod, onFinish }) {
+  const theme = useTheme();
+  const FB = theme === 'dark' ? FEEDBACK_DARK : FEEDBACK_LIGHT;
   const [qIdx, setQIdx] = useState(0);
-  const [picked, setPicked] = useState(null);
+  // `checked` : tableau des index cochés pour la question courante — un QCM
+  // peut avoir plusieurs bonnes réponses (q.correctAnswers), donc on ne
+  // valide plus au premier clic (`validated` sépare "sélection en cours" de
+  // "réponse validée", avec un bouton "Valider" explicite entre les deux).
+  const [checked, setChecked] = useState([]);
+  const [validated, setValidated] = useState(false);
   const [saving, setSaving] = useState(false);
   const correctRef = useRef(0);
   const wrongAnswersRef = useRef([]);
 
   const q = mod.quiz[qIdx];
   const isLastQ = qIdx === mod.quiz.length - 1;
-  const isCorrect = picked !== null && picked === q.correct;
   const progress = ((qIdx + 1) / mod.quiz.length) * 100;
+  const correctSet = q.correctAnswers;
+  // Exact match uniquement : toutes les bonnes réponses cochées, aucune
+  // mauvaise — un QCM à moitié coché ne compte pas comme correct.
+  const isFullyCorrect = checked.length === correctSet.length && checked.every(i => correctSet.includes(i));
 
-  const handlePick = (optIdx) => {
-    if (picked !== null) return;
-    setPicked(optIdx);
-    if (optIdx === q.correct) {
+  const toggleOption = (i) => {
+    if (validated) return;
+    setChecked(cs => cs.includes(i) ? cs.filter(x => x !== i) : [...cs, i]);
+  };
+
+  const handleValidate = () => {
+    if (checked.length === 0 || validated) return;
+    setValidated(true);
+    if (isFullyCorrect) {
       correctRef.current++;
     } else {
       wrongAnswersRef.current.push({
         question: q.question,
-        givenAnswer: q.options[optIdx],
-        correctAnswer: q.options[q.correct],
+        givenAnswer: checked.length ? checked.map(i => q.options[i]).join(', ') : '(aucune réponse cochée)',
+        correctAnswer: correctSet.map(i => q.options[i]).join(', '),
       });
     }
   };
 
   const handleNext = async () => {
     if (!isLastQ) {
-      setPicked(null);
+      setChecked([]);
+      setValidated(false);
       setQIdx(i => i + 1);
       return;
     }
@@ -159,6 +185,31 @@ function QuizPhase({ mod, onFinish }) {
       setSaving(false);
     }
   };
+
+  // Style d'une option selon son état — regroupé en une fonction pour éviter
+  // de dupliquer la logique avant/après validation dans le JSX.
+  function optionVisual(i) {
+    const isChecked = checked.includes(i);
+    const isCorrectOpt = correctSet.includes(i);
+    if (validated) {
+      if (isCorrectOpt && isChecked) {
+        return { bg: FB.correctBg, text: FB.correctText, border: '#27AE60', boxBg: '#27AE60', boxBorder: '#27AE60', icon: <Icon name="check" size={13} color="white" strokeWidth={3} /> };
+      }
+      if (!isCorrectOpt && isChecked) {
+        return { bg: FB.wrongBg, text: FB.wrongText, border: '#C0392B', boxBg: '#C0392B', boxBorder: '#C0392B', icon: <Icon name="x" size={13} color="white" strokeWidth={3} /> };
+      }
+      if (isCorrectOpt && !isChecked) {
+        // Bonne réponse non cochée : neutre/gris plutôt que rouge — ce
+        // n'est pas une erreur cochée, juste une réponse manquée à signaler.
+        return { bg: 'var(--sm-paper-2)', text: 'var(--sm-ink-500)', border: 'var(--sm-line)', boxBg: 'transparent', boxBorder: 'var(--sm-ink-400)', icon: <Icon name="check" size={13} color="var(--sm-ink-400)" strokeWidth={3} /> };
+      }
+      return { bg: 'white', text: 'var(--sm-ink)', border: 'var(--sm-line)', boxBg: 'transparent', boxBorder: 'var(--sm-line)', icon: null };
+    }
+    if (isChecked) {
+      return { bg: 'white', text: 'var(--sm-ink)', border: mod.color, boxBg: mod.color, boxBorder: mod.color, icon: <Icon name="check" size={13} color="white" strokeWidth={3} /> };
+    }
+    return { bg: 'white', text: 'var(--sm-ink)', border: 'var(--sm-line)', boxBg: 'transparent', boxBorder: 'var(--sm-line)', icon: null };
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -186,71 +237,103 @@ function QuizPhase({ mod, onFinish }) {
           <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--sm-ink)', lineHeight: 1.5, margin: 0, fontFamily: 'var(--font-ui)' }}>
             {q.question}
           </p>
+          {correctSet.length > 1 && (
+            <p style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--sm-ink-500)', margin: '6px 0 0', fontFamily: 'var(--font-ui)' }}>
+              Plusieurs réponses possibles
+            </p>
+          )}
         </div>
 
-        {/* Options */}
+        {/* Options — cases à cocher (QCM à choix multiple) */}
         {q.options.map((opt, i) => {
-          let bg = 'white', textColor = 'var(--sm-ink)', borderColor = 'var(--sm-line)';
-          if (picked !== null) {
-            if (i === q.correct)                   { bg = '#EAFAF1'; textColor = '#1E8449'; borderColor = '#27AE60'; }
-            else if (i === picked && i !== q.correct) { bg = '#FDEDEC'; textColor = '#C0392B'; borderColor = '#C0392B'; }
-          }
-          const showCheck = picked !== null && i === q.correct;
-          const showX     = picked !== null && i === picked && i !== q.correct;
+          const v = optionVisual(i);
           return (
             <button
               key={i}
-              onClick={() => handlePick(i)}
+              onClick={() => toggleOption(i)}
+              disabled={validated}
               style={{
                 width: '100%', textAlign: 'left', padding: '14px 16px',
-                borderRadius: 14, border: `2px solid ${borderColor}`,
-                background: bg, color: textColor,
-                cursor: picked !== null ? 'default' : 'pointer',
+                borderRadius: 14, border: `2px solid ${v.border}`,
+                background: v.bg, color: v.text,
+                cursor: validated ? 'default' : 'pointer',
                 fontSize: 14, fontWeight: 500, fontFamily: 'var(--font-ui)', lineHeight: 1.4,
                 display: 'flex', alignItems: 'center', gap: 12,
                 transition: 'background 0.15s, border-color 0.15s',
               }}
             >
-              {showCheck && <Icon name="check-circle" size={18} color="#27AE60" strokeWidth={2} />}
-              {showX     && <Icon name="x-circle"     size={18} color="#C0392B" strokeWidth={2} />}
-              {!showCheck && !showX && (
-                <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--sm-line)', flexShrink: 0 }} />
-              )}
+              <div style={{
+                width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                border: `2px solid ${v.boxBorder}`, background: v.boxBg,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {v.icon}
+              </div>
               <span style={{ flex: 1 }}>{opt}</span>
             </button>
           );
         })}
 
-        {/* Feedback */}
-        {picked !== null && (
-          <div style={{
-            padding: '12px 16px', borderRadius: 12,
-            background: isCorrect ? '#EAFAF1' : '#FDEDEC',
-            display: 'flex', alignItems: 'flex-start', gap: 10,
-          }}>
-            <Icon
-              name={isCorrect ? 'check-circle-2' : 'info'}
-              size={19} color={isCorrect ? '#27AE60' : '#C0392B'} strokeWidth={2}
-            />
-            <span style={{ fontSize: 14, lineHeight: 1.5, color: isCorrect ? '#1E8449' : '#922B21', fontFamily: 'var(--font-ui)' }}>
-              {isCorrect
-                ? 'Bonne réponse !'
-                : `Pas tout à fait — la bonne réponse est : « ${q.options[q.correct]} »`}
-            </span>
-          </div>
+        {/* Bouton Valider — étape explicite avant tout feedback */}
+        {!validated && (
+          <button
+            onClick={handleValidate}
+            disabled={checked.length === 0}
+            style={{
+              marginTop: 4, width: '100%', padding: '14px 20px', borderRadius: 'var(--sm-radius)',
+              background: checked.length === 0 ? 'var(--sm-line)' : mod.color,
+              color: 'white', border: 'none',
+              fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-ui)',
+              cursor: checked.length === 0 ? 'default' : 'pointer',
+            }}
+          >
+            Valider
+          </button>
+        )}
+
+        {/* Feedback + justification */}
+        {validated && (
+          <>
+            <div style={{
+              padding: '12px 16px', borderRadius: 12,
+              background: isFullyCorrect ? FB.correctBg : FB.wrongBg,
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}>
+              <Icon
+                name={isFullyCorrect ? 'check-circle-2' : 'info'}
+                size={19} color={isFullyCorrect ? '#27AE60' : '#C0392B'} strokeWidth={2}
+              />
+              <span style={{ fontSize: 14, lineHeight: 1.5, color: isFullyCorrect ? FB.correctText : FB.wrongText, fontFamily: 'var(--font-ui)' }}>
+                {isFullyCorrect
+                  ? 'Bonne réponse !'
+                  : `Pas tout à fait — la bonne réponse était : « ${correctSet.map(i => q.options[i]).join(', ')} »`}
+              </span>
+            </div>
+            {q.explanation && (
+              <div style={{
+                padding: '12px 16px', borderRadius: 12, background: 'var(--sm-paper-2)',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+              }}>
+                <Icon name="lightbulb" size={18} color="var(--sm-blue)" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--sm-ink-700)', fontFamily: 'var(--font-ui)' }}>
+                  {q.explanation}
+                </span>
+              </div>
+            )}
+          </>
         )}
         <div style={{ height: 4 }} />
       </div>
 
       {/* Bouton suivant */}
-      {picked !== null && (
+      {validated && (
         <div style={{ padding: '10px 20px 32px', borderTop: '1px solid var(--sm-line)', flexShrink: 0 }}>
           <button
             onClick={handleNext}
             disabled={saving}
             style={{
               width: '100%', padding: '15px 20px', borderRadius: 'var(--sm-radius)',
-              background: isCorrect ? '#27AE60' : mod.color,
+              background: isFullyCorrect ? '#27AE60' : mod.color,
               color: 'white', border: 'none',
               fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
               cursor: saving ? 'default' : 'pointer',
@@ -268,6 +351,8 @@ function QuizPhase({ mod, onFinish }) {
 // ── Phase 3 : Résultat ───────────────────────────────────────────────────
 
 function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
+  const theme = useTheme();
+  const FB = theme === 'dark' ? FEEDBACK_DARK : FEEDBACK_LIGHT;
   const { score, total, passed, percentage, nextModuleId, wrongAnswers } = result;
   const [nextMod, setNextMod] = useState(null);
 
@@ -286,7 +371,10 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
     nav.go('training_module');
   };
 
-  const scoreColor = passed ? '#27AE60' : '#C0392B';
+  // #27AE60 (réussite) garde un contraste correct sur son fond assombri en
+  // mode sombre (accent vert assez lumineux) ; #C0392B (échec) non — bascule
+  // sur FB.wrongText, déjà validé à ≥6.4:1 sur ce même type de fond.
+  const scoreColor = passed ? '#27AE60' : FB.wrongText;
   const scoreBg    = passed ? '#EAFAF1' : '#FDEDEC';
 
   return (
@@ -389,11 +477,11 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
                 </p>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                   <Icon name="x-circle" size={16} color="#C0392B" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 13, color: '#C0392B', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.givenAnswer}</span>
+                  <span style={{ fontSize: 13, color: FB.wrongText, lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.givenAnswer}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   <Icon name="check-circle" size={16} color="#27AE60" strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span style={{ fontSize: 13, color: '#1E8449', lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.correctAnswer}</span>
+                  <span style={{ fontSize: 13, color: FB.correctText, lineHeight: 1.4, fontFamily: 'var(--font-ui)' }}>{w.correctAnswer}</span>
                 </div>
               </div>
             ))}

@@ -125,11 +125,16 @@ function SplashScreen({ nav }) {
           </svg>
         )}
 
-        {/* Titre */}
+        {/* Titre — var(--sm-ink)/var(--sm-ink-500) plutôt que les hex d'origine
+            (#0A1628/#5B6677, valeurs identiques en mode clair) : le fond
+            blanc de cette phase bascule en sombre via l'override CSS global
+            (.sm-dark [style*="background: white"]), donc un texte figé en
+            hex foncé y devenait illisible — les tokens s'éclaircissent avec
+            lui automatiquement, sans rien changer en mode clair. */}
         {phase >= 2 && (
           <h1 style={{
             margin: '18px 0 0', fontSize: 'clamp(28px, 8.5vw, 34px)', fontWeight: 700,
-            color: '#0A1628', textAlign: 'center',
+            color: 'var(--sm-ink)', textAlign: 'center',
             fontFamily: "'Poppins', 'Public Sans', sans-serif",
             letterSpacing: '-0.02em',
             opacity: 0,
@@ -143,7 +148,7 @@ function SplashScreen({ nav }) {
         {phase >= 3 && (
           <p style={{
             marginTop: 8, fontSize: 14,
-            color: '#5B6677', textAlign: 'center',
+            color: 'var(--sm-ink-500)', textAlign: 'center',
             fontFamily: "'Poppins', 'Public Sans', sans-serif",
             opacity: 0,
             animation: 'sp-fadein 0.9s ease forwards',

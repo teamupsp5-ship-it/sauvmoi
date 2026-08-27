@@ -175,6 +175,7 @@ function ChatListening({ nav, lang }) {
   useLucide();
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
   const [messages, setMessages] = useState([{
     role: 'assistant',
@@ -477,6 +478,16 @@ function ChatListening({ nav, lang }) {
     }
   }
 
+  // Bouton "Modifier" d'une bulle utilisateur : préremplit le champ de
+  // saisie avec l'ancien texte plutôt que de le retirer de l'historique —
+  // le message corrigé s'ajoute simplement à la suite une fois renvoyé,
+  // ce qui évite de désynchroniser convId/l'historique déjà envoyé au
+  // backend pour un bénéfice cosmétique marginal.
+  function handleEditMessage(text) {
+    setInput(text);
+    inputRef.current?.focus();
+  }
+
   function handleImage(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
@@ -556,7 +567,7 @@ function ChatListening({ nav, lang }) {
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             {messages.map((m, i) =>
               m.role === 'user'
-                ? <ChatUserBubble key={i} text={m.text} image={m.image} />
+                ? <ChatUserBubble key={i} text={m.text} image={m.image} onEdit={handleEditMessage} />
                 : <ChatAIBubble key={i} id={i} lang={lang} text={m.text} actions={m.actions} />
             )}
             {loading && <ChatAIBubble loading />}
@@ -576,6 +587,7 @@ function ChatListening({ nav, lang }) {
               transition: 'border-color 0.2s',
             }}>
               <input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}

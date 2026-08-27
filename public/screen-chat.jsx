@@ -49,10 +49,44 @@ function renderMarkdown(text) {
   return nodes;
 }
 
-// ── Bulle utilisateur ──────────────────────────────────────────────────────
-function ChatUserBubble({ text, image }) {
+// ── Copier dans le presse-papiers ────────────────────────────────────────
+// Bouton icône partagé bulle utilisateur/IA : copie `getText()` (calculé au
+// clic, pas au montage, pour toujours copier le texte affiché à l'instant),
+// bascule brièvement sur une coche verte pour confirmer visuellement.
+function CopyButton({ getText }) {
+  useLucide();
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(getText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <button
+      onClick={handleCopy}
+      title={copied ? 'Copié !' : 'Copier'}
+      style={{
+        width: 22, height: 22, borderRadius: '50%', border: 'none', flexShrink: 0,
+        background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      <Icon name={copied ? 'check' : 'copy'} size={13} color={copied ? '#27AE60' : 'var(--sm-ink-500)'} />
+    </button>
+  );
+}
+
+// ── Bulle utilisateur ──────────────────────────────────────────────────────
+// onEdit (optionnel) : callback(text) déclenché par le bouton "Modifier" —
+// n'existe que côté live-chat.jsx (préremplit le champ de saisie), absent
+// sur le canvas statique donc le bouton ne s'affiche pas là où il ne
+// servirait à rien.
+function ChatUserBubble({ text, image, onEdit }) {
+  useLucide();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
       <div style={{
         maxWidth: '78%',
         padding: image ? 6 : '10px 14px',
@@ -71,6 +105,20 @@ function ChatUserBubble({ text, image }) {
         )}
         {text}
       </div>
+      {text && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginTop: 2 }}>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(text)}
+              title="Modifier"
+              style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <Icon name="pencil" size={13} color="var(--sm-ink-500)" />
+            </button>
+          )}
+          <CopyButton getText={() => text} />
+        </div>
+      )}
     </div>
   );
 }
@@ -120,6 +168,12 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
             </button>
           )}
         </div>
+
+        {!loading && text && (
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 2, marginLeft: 2 }}>
+            <CopyButton getText={() => stripMarkdownForSpeech(text)} />
+          </div>
+        )}
 
         {!loading && speechUnavailable && (
           <div style={{ fontSize: 11, color: 'var(--sm-ink-400)', marginTop: 4, marginLeft: 4 }}>
