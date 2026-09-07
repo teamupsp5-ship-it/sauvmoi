@@ -1,6 +1,7 @@
 // screen-splash.jsx — Animation "Révélation Vitale"
 
 function SplashScreen({ nav }) {
+  const t = useTranslation();
   const [phase, setPhase] = React.useState(0);
   const ecgRef = React.useRef(null);
 
@@ -153,7 +154,7 @@ function SplashScreen({ nav }) {
             opacity: 0,
             animation: 'sp-fadein 0.9s ease forwards',
           }}>
-            Restez calme, tout ira bien
+            {t('splash.tagline')}
           </p>
         )}
 

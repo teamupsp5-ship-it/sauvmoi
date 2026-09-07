@@ -13,12 +13,13 @@ const DAILY_TIPS = [
 
 // ── Barre de navigation fond bleu foncé avec SOS pulsé ────────────────────
 function HomeTabBar({ active, nav }) {
+  const t = useTranslation();
   const TABS = [
-    { id: 'home',     icon: 'home',      label: 'Accueil' },
-    { id: 'training', icon: 'book-open', label: 'Formation' },
-    { id: 'sos',      icon: 'siren',     label: 'SOS', special: true },
-    { id: 'map',      icon: 'map-pin',   label: 'Localisation' },
-    { id: 'profile',  icon: 'user',      label: 'Profil' },
+    { id: 'home',     icon: 'home',      label: t('tabbar.home') },
+    { id: 'training', icon: 'book-open', label: t('tabbar.training') },
+    { id: 'sos',      icon: 'siren',     label: t('tabbar.sos'), special: true },
+    { id: 'map',      icon: 'map-pin',   label: t('tabbar.map') },
+    { id: 'profile',  icon: 'user',      label: t('tabbar.profile') },
   ];
 
   return (
@@ -42,7 +43,7 @@ function HomeTabBar({ active, nav }) {
             <button
               onClick={() => nav.go('sos')}
               style={{ position: 'relative', width: 60, height: 60, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-              aria-label="Déclencher SOS"
+              aria-label={t('tabbar.sos_aria')}
             >
               <div className="sm-halo" style={{ borderColor: 'rgba(229,57,53,0.55)' }} />
               <div className="sm-halo delay1" style={{ borderColor: 'rgba(229,57,53,0.35)' }} />
@@ -55,7 +56,7 @@ function HomeTabBar({ active, nav }) {
                 <Icon name="siren" size={25} color="white" strokeWidth={2} />
               </div>
             </button>
-            <span style={{ fontSize: 10.5, color: 'white', fontWeight: 700, fontFamily: 'var(--font-ui)' }}>SOS</span>
+            <span style={{ fontSize: 10.5, color: 'white', fontWeight: 700, fontFamily: 'var(--font-ui)' }}>{t('tabbar.sos')}</span>
           </div>
         );
 
@@ -97,12 +98,13 @@ function HomeTabBar({ active, nav }) {
 // ════════════════════════════════════════════════════════════════════════════
 function HomeMobile({ nav, lang }) {
   useLucide();
+  const t = useTranslation();
   window.useSM(); // re-render quand SM.user change (après connexion)
 
   // Salutation dynamique
   const hour     = new Date().getHours();
   const user     = window.SM?.user;
-  const prenom   = (user?.prenom || user?.name?.split(' ')[0] || '').trim() || 'vous';
+  const prenom   = (user?.prenom || user?.name?.split(' ')[0] || '').trim() || t('home.default_name');
   const initials = user?.initials || prenom.slice(0, 2).toUpperCase();
   const _AV_COLORS = ['#E53935', '#4A90C2', '#2E6B4F', '#C77A2B', '#6B4F8C'];
   const avatarBg = _AV_COLORS[(initials.charCodeAt(0) || 0) % _AV_COLORS.length];
@@ -162,7 +164,7 @@ function HomeMobile({ nav, lang }) {
         {/* Salutation */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 className="sm-serif" style={{ fontSize: 22, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {hour < 13 ? 'Bonjour' : 'Bonsoir'} {prenom}
+            {hour < 13 ? t('home.greeting_morning') : t('home.greeting_evening')} {prenom}
           </h1>
         </div>
 
@@ -210,10 +212,10 @@ function HomeMobile({ nav, lang }) {
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 className="sm-serif" style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 10, lineHeight: 1.15 }}>
-              Que se passe-t-il ?
+              {t('home.chat_card_title')}
             </h2>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-              Écrivez, parlez ou envoyez une photo
+              {t('home.chat_card_subtitle')}
             </p>
           </div>
           {/* Micro rouge */}
@@ -247,17 +249,18 @@ function HomeMobile({ nav, lang }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sm-serif" style={{ fontSize: 16, color: 'var(--sm-ink)', marginBottom: 3 }}>
-              Scanner un QR Sauv'Moi
+              {t('home.qr_scan_title')}
             </div>
             <div style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>
-              Voir la fiche d'urgence d'une victime
+              {t('home.qr_scan_subtitle')}
             </div>
           </div>
           <Icon name="chevron-right" size={18} color="var(--sm-ink-400)" style={{ flexShrink: 0 }} />
         </button>
 
-        {/* Conseil du jour */}
-        <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>Conseil du jour</h3>
+        {/* Conseil du jour — titre traduit, contenu (DAILY_TIPS) reste en
+            français pour l'instant, voir Phase 2 */}
+        <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>{t('home.tip_of_day')}</h3>
         <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} stacked style={{ minHeight: 120, alignItems: 'center' }} />
       </div>
 
@@ -280,7 +283,7 @@ function HomeMobile({ nav, lang }) {
             <div style={{ width: 40, height: 4, borderRadius: 2, background: '#E0E0E0', margin: '12px auto 0', flexShrink: 0 }} />
             {/* Header sheet */}
             <div style={{ padding: '14px 20px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, borderBottom: '1px solid var(--sm-line)' }}>
-              <h2 className="sm-serif" style={{ fontSize: 18 }}>Alertes reçues</h2>
+              <h2 className="sm-serif" style={{ fontSize: 18 }}>{t('home.notifications_title')}</h2>
               <button onClick={() => setShowNotifs(false)} style={{ background: 'none', border: 'none', padding: '4px', cursor: 'pointer' }}>
                 <Icon name="x" size={20} color="var(--sm-ink-400)" />
               </button>
@@ -289,7 +292,7 @@ function HomeMobile({ nav, lang }) {
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 32px' }}>
               {notifs.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--sm-ink-500)', fontSize: 14 }}>
-                  Aucune alerte pour le moment
+                  {t('home.no_notifications')}
                 </div>
               ) : notifs.map(n => (
                 <div key={n.id} style={{
@@ -313,7 +316,7 @@ function HomeMobile({ nav, lang }) {
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 13, color: 'var(--sm-blue)', textDecoration: 'none', fontWeight: 500 }}
                       >
                         <Icon name="map-pin" size={13} color="var(--sm-blue)" />
-                        Voir sur la carte
+                        {t('home.view_on_map')}
                       </a>
                     )}
                   </div>

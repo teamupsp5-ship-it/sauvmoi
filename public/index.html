@@ -23,6 +23,12 @@
        rendu — pose la classe .sm-dark sur <html> avant le premier paint
        pour éviter un flash du mauvais thème. -->
   <script src="theme.js"></script>
+  <!-- i18n FR/EN : mêmes contraintes que theme.js (script classique, avant
+       tout rendu) — fr.js/en.js posent les dictionnaires sur window, i18n.js
+       lit sm_lang et expose t()/useTranslation()/useLang(). -->
+  <script src="i18n/fr.js"></script>
+  <script src="i18n/en.js"></script>
+  <script src="i18n.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 
@@ -61,6 +67,9 @@
   <script type="text/babel" src="screen-sos.jsx"></script>
   <script type="text/babel" src="screen-training.jsx"></script>
   <script type="text/babel" src="screen-training-module.jsx"></script>
+
+  <!-- Choix de langue au premier lancement -->
+  <script type="text/babel" src="screen-lang-choice.jsx"></script>
 
   <!-- Écrans d'authentification -->
   <script type="text/babel" src="screen-auth.jsx"></script>

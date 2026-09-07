@@ -55,6 +55,7 @@ function renderMarkdown(text) {
 // bascule brièvement sur une coche verte pour confirmer visuellement.
 function CopyButton({ getText }) {
   useLucide();
+  const t = useTranslation();
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
     try {
@@ -66,7 +67,7 @@ function CopyButton({ getText }) {
   return (
     <button
       onClick={handleCopy}
-      title={copied ? 'Copié !' : 'Copier'}
+      title={copied ? t('chat.copied') : t('chat.copy')}
       style={{
         width: 22, height: 22, borderRadius: '50%', border: 'none', flexShrink: 0,
         background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -85,6 +86,7 @@ function CopyButton({ getText }) {
 // servirait à rien.
 function ChatUserBubble({ text, image, onEdit }) {
   useLucide();
+  const t = useTranslation();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
       <div style={{
@@ -110,7 +112,7 @@ function ChatUserBubble({ text, image, onEdit }) {
           {onEdit && (
             <button
               onClick={() => onEdit(text)}
-              title="Modifier"
+              title={t('common.edit')}
               style={{ width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
             >
               <Icon name="pencil" size={13} color="var(--sm-ink-500)" />
@@ -126,6 +128,7 @@ function ChatUserBubble({ text, image, onEdit }) {
 // ── Bulle IA ────────────────────────────────────────────────────────────────
 function ChatAIBubble({ text, actions, loading, id, lang }) {
   useLucide();
+  const t = useTranslation();
   const speechId = id != null ? id : text;
   const isSpeaking = useSpeechActive(speechId);
   const speechUnavailable = useSpeechUnavailable(speechId);
@@ -156,7 +159,7 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
           {!loading && text && (
             <button
               onClick={() => speakText(speechId, text, lang)}
-              title={isSpeaking ? 'Arrêter la lecture' : 'Lire à voix haute'}
+              title={isSpeaking ? t('chat.stop_reading') : t('chat.read_aloud')}
               style={{
                 width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 1,
                 background: isSpeaking ? 'var(--sm-blue)' : 'var(--sm-paper-2)',
@@ -177,7 +180,7 @@ function ChatAIBubble({ text, actions, loading, id, lang }) {
 
         {!loading && speechUnavailable && (
           <div style={{ fontSize: 11, color: 'var(--sm-ink-400)', marginTop: 4, marginLeft: 4 }}>
-            La lecture vocale n'est pas disponible sur cet appareil
+            {t('chat.speech_unavailable')}
           </div>
         )}
 

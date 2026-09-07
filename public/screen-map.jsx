@@ -1,13 +1,6 @@
 // screen-map.jsx — Module Localisation : centres de santé + suivi GPS temps réel
 
 const SAN_PEDRO = { lat: 4.7485, lng: -6.6363 };
-const FILTERS = [
-  { id: 'all',        label: 'Tous' },
-  { id: 'hopital',    label: 'Hôpitaux' },
-  { id: 'clinique',   label: 'Cliniques' },
-  { id: 'dispensaire',label: 'Dispensaires' },
-  { id: '24h',        label: '24h/24' },
-];
 
 const TYPE_ICON  = { hopital: 'building-2', clinique: 'stethoscope', maternite: 'baby', dispensaire: 'pill', public: 'heart-handshake' };
 const TYPE_COLOR = { hopital: 'var(--sm-red)', clinique: 'var(--sm-blue)', maternite: '#D81B60', dispensaire: '#E67E22', public: '#27AE60' };
@@ -58,6 +51,14 @@ function SkeletonCard() {
 // ════════════════════════════════════════════════════════════════════════════
 function MapScreen({ nav }) {
   useLucide();
+  const t = useTranslation();
+  const FILTERS = [
+    { id: 'all',        label: t('map.filter_all') },
+    { id: 'hopital',    label: t('map.filter_hospitals') },
+    { id: 'clinique',   label: t('map.filter_clinics') },
+    { id: 'dispensaire',label: t('map.filter_dispensaries') },
+    { id: '24h',        label: t('map.filter_24h') },
+  ];
 
   const [centers, setCenters]   = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -137,7 +138,7 @@ function MapScreen({ nav }) {
             html: '<div style="width:16px;height:16px;border-radius:50%;background:#1565C0;border:3px solid white;box-shadow:0 2px 8px rgba(21,101,192,0.5)"></div>',
             iconSize: [16, 16], iconAnchor: [8, 8],
           });
-          userMarkerRef.current     = L.marker([lat, lng], { icon }).addTo(map).bindPopup('📍 Ma position');
+          userMarkerRef.current     = L.marker([lat, lng], { icon }).addTo(map).bindPopup(t('map.my_position_popup'));
           accuracyCircleRef.current = L.circle([lat, lng], {
             radius: accuracy, color: '#1565C0', fillColor: '#1565C0', fillOpacity: 0.08, weight: 1.5,
           }).addTo(map);
@@ -221,12 +222,12 @@ function MapScreen({ nav }) {
         <button onClick={() => goBack(nav)} style={{ background: 'none', border: 'none', padding: '4px', margin: '-4px', cursor: 'pointer' }}>
           <Icon name="arrow-left" size={22} color="var(--sm-ink)" />
         </button>
-        <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>Centres de santé proches</h1>
+        <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>{t('map.title')}</h1>
         {/* Indicateur GPS */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: userPos ? '#27AE60' : (gpsError ? '#E74C3C' : '#F59E0B') }} />
           <span style={{ fontSize: 11, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)', fontWeight: 500 }}>
-            {userPos ? 'GPS actif' : gpsError ? 'GPS indisponible' : 'Localisation…'}
+            {userPos ? t('map.gps_active') : gpsError ? t('map.gps_unavailable') : t('map.locating')}
           </span>
         </div>
       </div>
@@ -238,19 +239,19 @@ function MapScreen({ nav }) {
         {gpsError && (
           <Banner variant="warning" icon="alert-circle" style={{ margin: '12px 16px 0' }}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>
-              {gpsError === 'denied' ? 'Accès GPS refusé' : 'GPS indisponible'}
+              {gpsError === 'denied' ? t('map.gps_denied_title') : t('map.gps_unavailable')}
             </div>
             {gpsError === 'denied' && isIOSDevice() ? (
               // iOS ne permet pas de rouvrir la demande d'autorisation depuis le
               // JS une fois refusée — "Réessayer" ne peut rien faire dans ce cas
               // précis, on remplace donc par la marche à suivre manuelle.
               <div style={{ whiteSpace: 'pre-line' }}>
-                {'Pour activer la position sur iPhone :\n1. Ouvrez Réglages\n2. Safari → Position\n3. Sélectionnez « Autoriser »\n4. Revenez sur Sauv\'Moi et rechargez la page'}
+                {t('map.ios_gps_instructions')}
               </div>
             ) : (
               <>
                 <div style={{ marginBottom: 10 }}>
-                  Activez votre position pour voir les centres les plus proches
+                  {t('map.enable_location_prompt')}
                 </div>
                 <button
                   onClick={retryGps}
@@ -260,7 +261,7 @@ function MapScreen({ nav }) {
                     fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
                   }}
                 >
-                  Réessayer
+                  {t('common.retry')}
                 </button>
               </>
             )}
@@ -275,7 +276,7 @@ function MapScreen({ nav }) {
           {/* Bouton recentrer */}
           <button
             onClick={recenter}
-            title="Recentrer sur ma position"
+            title={t('map.recenter_title')}
             style={{
               position: 'absolute', bottom: 12, right: 12, zIndex: 500,
               width: 40, height: 40, borderRadius: '50%',
@@ -311,8 +312,8 @@ function MapScreen({ nav }) {
         {/* Compteur */}
         <div style={{ padding: '6px 16px 10px', fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
           {loading
-            ? 'Chargement des centres…'
-            : `${sorted.length} établissement${sorted.length !== 1 ? 's' : ''} trouvé${sorted.length !== 1 ? 's' : ''}`}
+            ? t('map.loading_centers')
+            : t(sorted.length === 1 ? 'map.results_one' : 'map.results_other').replace('{n}', sorted.length)}
         </div>
 
         {/* ── Liste ─────────────────────────────────────────────────────── */}
@@ -369,14 +370,14 @@ function MapScreen({ nav }) {
                           📍 {formatDist(dist)}
                         </span>
                       ) : (
-                        <span style={{ fontSize: 13, color: 'var(--sm-ink-400)' }}>Distance indisponible</span>
+                        <span style={{ fontSize: 13, color: 'var(--sm-ink-400)' }}>{t('map.distance_unavailable')}</span>
                       )}
                       {c.available24h && (
                         <span style={{
                           fontSize: 11, fontWeight: 700, color: '#27AE60',
                           background: '#EAFAF1', borderRadius: 999, padding: '2px 9px',
                           fontFamily: 'var(--font-ui)',
-                        }}>24h/24</span>
+                        }}>{t('map.filter_24h')}</span>
                       )}
                     </div>
                   </div>
@@ -399,7 +400,7 @@ function MapScreen({ nav }) {
                         cursor: 'pointer',
                       }}>
                         <Icon name="phone" size={15} color="var(--sm-blue)" />
-                        Appeler
+                        {t('map.call')}
                       </button>
                     </a>
                   ) : (
@@ -416,7 +417,7 @@ function MapScreen({ nav }) {
                       }}
                     >
                       <Icon name="phone-off" size={15} color="var(--sm-ink-400)" />
-                      Numéro non disponible
+                      {t('map.number_unavailable')}
                     </button>
                   )}
                   <a
@@ -435,7 +436,7 @@ function MapScreen({ nav }) {
                       cursor: 'pointer',
                     }}>
                       <Icon name="navigation" size={15} color="var(--sm-ink)" />
-                      Itinéraire
+                      {t('map.directions')}
                     </button>
                   </a>
                 </div>
@@ -446,7 +447,7 @@ function MapScreen({ nav }) {
           {/* Aucun résultat */}
           {!loading && sorted.length === 0 && (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--sm-ink-500)', fontSize: 14, fontFamily: 'var(--font-ui)' }}>
-              Aucun établissement pour ce filtre
+              {t('map.no_results')}
             </div>
           )}
         </div>

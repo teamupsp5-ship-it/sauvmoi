@@ -12,6 +12,7 @@ function buildWaUrl(phone, userName, lat, lng) {
 // ── 4a · Compte à rebours + état idle ─────────────────────────────────────────
 function SOSCountdown({ nav }) {
   useLucide();
+  const t = useTranslation();
   const [phase, setPhase] = useState('idle'); // 'idle' | 'counting' | 'fired'
   const [count, setCount] = useState(5);
   const gpsRef = useRef({ lat: 5.354, lng: -3.987, label: 'Abidjan' });
@@ -58,7 +59,7 @@ function SOSCountdown({ nav }) {
           <button onClick={() => goBack(nav)} style={{ background: 'none', border: 'none', padding: '4px', margin: '-4px', cursor: 'pointer' }}>
             <Icon name="arrow-left" size={22} color="var(--sm-ink)" />
           </button>
-          <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>Urgence SOS</h1>
+          <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>{t('sos.title')}</h1>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px 32px' }}>
@@ -86,15 +87,15 @@ function SOSCountdown({ nav }) {
           </div>
 
           <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', marginBottom: 40 }}>
-            Appuyez en cas d'urgence
+            {t('sos.press_in_emergency')}
           </p>
 
-          <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14, width: '100%' }}>Numéros d'urgence</h3>
+          <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14, width: '100%' }}>{t('sos.emergency_numbers')}</h3>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
-              { label: 'SAMU',     number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
-              { label: 'Pompiers', number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
-              { label: 'Police',   number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
+              { label: t('sos.samu'),        number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
+              { label: t('sos.firefighters'),number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
+              { label: t('sos.police'),      number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
             ].map(item => (
               <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none', display: 'block' }}>
                 <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -103,7 +104,7 @@ function SOSCountdown({ nav }) {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{item.label}</div>
-                    <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Appel direct · {item.number}</div>
+                    <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.direct_call')} · {item.number}</div>
                   </div>
                   <Icon name="phone" size={18} color={item.color} />
                 </div>
@@ -124,7 +125,7 @@ function SOSCountdown({ nav }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
       <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center' }}>
-        {phase === 'fired' ? 'Alerte envoyée…' : 'Alerte SOS en cours d\'envoi…'}
+        {phase === 'fired' ? t('sos.alert_sent') : t('sos.sending_alert')}
       </p>
       <div style={{ position: 'relative', width: 220, height: 220, marginBottom: 48 }}>
         <svg width={220} height={220} style={{ transform: 'rotate(-90deg)' }}>
@@ -133,7 +134,7 @@ function SOSCountdown({ nav }) {
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ fontSize: 72, fontWeight: 700, color: 'var(--sm-red)', fontFamily: 'var(--font-ui)', lineHeight: 1 }}>{Math.max(0, count)}</span>
-          <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 6 }}>secondes</span>
+          <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 6 }}>{t('sos.seconds')}</span>
         </div>
       </div>
       {phase === 'counting' && (
@@ -148,7 +149,7 @@ function SOSCountdown({ nav }) {
             boxShadow: '0 2px 8px rgba(192,57,43,0.12)',
           }}
         >
-          ANNULER
+          {t('sos.cancel')}
         </button>
       )}
     </div>
@@ -158,12 +159,13 @@ function SOSCountdown({ nav }) {
 // ── 4b · Confirmation avec carte Leaflet réelle ────────────────────────────────
 function SOSConfirm({ nav }) {
   useLucide();
+  const t = useTranslation();
   const sos = window.SM?.sos || {};
   const lat = sos.lat ?? 5.354;
   const lng = sos.lng ?? -3.987;
   const contacts = sos.contacts || [];
   const user = window.SM?.user;
-  const prenom = (user?.prenom || user?.name?.split(' ')[0] || 'Vous').trim();
+  const prenom = (user?.prenom || user?.name?.split(' ')[0] || t('sos.you_fallback')).trim();
 
   const mapDivRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -186,7 +188,7 @@ function SOSConfirm({ nav }) {
     });
     L.marker([lat, lng], { icon })
       .addTo(map)
-      .bindPopup(`📍 Position de ${prenom}`)
+      .bindPopup(t('sos.position_of').replace('{name}', prenom))
       .openPopup();
 
     mapInstanceRef.current = map;
@@ -208,7 +210,7 @@ function SOSConfirm({ nav }) {
         <div style={{ padding: '12px 20px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-red)', display: 'flex', alignItems: 'center', gap: 7 }}>
             <span className="sm-blink" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sm-red)' }} />
-            Alerte active
+            {t('sos.alert_active')}
           </span>
           <button onClick={() => nav.reset('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
             <Icon name="x" size={20} color="var(--sm-ink-400)" />
@@ -225,7 +227,7 @@ function SOSConfirm({ nav }) {
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
             }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
-              📞 Appeler le SAMU — 185
+              {t('sos.call_samu_185')}
             </button>
           </a>
         </div>
@@ -240,8 +242,8 @@ function SOSConfirm({ nav }) {
             <Icon name="check" size={26} color="white" strokeWidth={2.5} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#1E8449', fontFamily: 'var(--font-ui)' }}>✅ Alerte déclenchée</div>
-            <div style={{ fontSize: 13, color: '#27AE60', marginTop: 2 }}>Votre position a été enregistrée</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1E8449', fontFamily: 'var(--font-ui)' }}>{t('sos.alert_triggered')}</div>
+            <div style={{ fontSize: 13, color: '#27AE60', marginTop: 2 }}>{t('sos.position_recorded')}</div>
           </div>
         </div>
 
@@ -253,7 +255,7 @@ function SOSConfirm({ nav }) {
         {/* Contacts d'urgence */}
         {contacts.length > 0 && (
           <>
-            <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>Contacts d'urgence</h3>
+            <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>{t('sos.emergency_contacts')}</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
               {contacts.map(c => (
                 <div key={c.phone} style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '14px 16px' }}>
@@ -268,7 +270,7 @@ function SOSConfirm({ nav }) {
                     {c.hasAccount && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#EAFAF1', borderRadius: 999, padding: '4px 10px', flexShrink: 0 }}>
                         <Icon name="check" size={12} color="#27AE60" strokeWidth={2.5} />
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#27AE60', fontFamily: 'var(--font-ui)' }}>Notifié dans l'app</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#27AE60', fontFamily: 'var(--font-ui)' }}>{t('sos.notified_in_app')}</span>
                       </div>
                     )}
                   </div>
@@ -282,7 +284,7 @@ function SOSConfirm({ nav }) {
                         cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
                       }}>
                         <Icon name="message-circle" size={18} color="white" strokeWidth={2} />
-                        Alerter via WhatsApp
+                        {t('sos.alert_via_whatsapp')}
                       </button>
                     </a>
                   )}
@@ -293,7 +295,7 @@ function SOSConfirm({ nav }) {
         )}
 
         {/* Numéros d'urgence */}
-        <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>Intervention immédiate</h3>
+        <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>{t('sos.immediate_intervention')}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           <a href="tel:185" style={{ textDecoration: 'none' }}>
             <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -301,8 +303,8 @@ function SOSConfirm({ nav }) {
                 <Icon name="ambulance" size={22} color="var(--sm-red)" strokeWidth={1.9} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 Appeler le SAMU</div>
-                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Numéro d'urgence · 185</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 {t('sos.call_samu')}</div>
+                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.emergency_number')} · 185</div>
               </div>
               <Icon name="phone" size={18} color="var(--sm-red)" />
             </div>
@@ -313,8 +315,8 @@ function SOSConfirm({ nav }) {
                 <Icon name="flame" size={22} color="#E67E22" strokeWidth={1.9} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 Appeler les Pompiers</div>
-                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>Numéro d'urgence · 180</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 {t('sos.call_firefighters')}</div>
+                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.emergency_number')} · 180</div>
               </div>
               <Icon name="phone" size={18} color="#E67E22" />
             </div>
@@ -333,7 +335,7 @@ function SOSConfirm({ nav }) {
           }}
         >
           <Icon name="x-circle" size={18} color="var(--sm-red)" />
-          Annuler l'alerte
+          {t('sos.cancel_alert')}
         </button>
       </div>
     </div>

@@ -10,6 +10,7 @@
 })();
 
 const PHONE_SCREENS = {
+  lang_choice:      window.LangChoiceScreen,
   splash:           window.SplashScreen,
   auth:             window.AuthScreen,
   register:         window.RegisterScreen,
@@ -41,12 +42,18 @@ function applyTweaks(t) {
 }
 
 function LiveApp() {
-  const t = window.TWEAK_DEFAULTS;
+  const tweaks = window.TWEAK_DEFAULTS;
   const SM = window.useSM();
-  const initialScreen = 'splash';
+  const lang = useLang();
+  const t = useTranslation();
+  // Écran de choix de langue avant même le splash si rien n'est encore
+  // enregistré (window.SM_I18N.lang === null → useLang() renvoie 'fr' par
+  // défaut pour l'affichage, mais on teste la valeur brute non-résolue ici
+  // pour savoir si un choix a déjà été fait).
+  const initialScreen = window.SM_I18N.lang ? 'splash' : 'lang_choice';
   const navRef = React.useRef(null);
 
-  React.useEffect(() => { applyTweaks(t); window.SM.bootstrap(); }, []);
+  React.useEffect(() => { applyTweaks(tweaks); window.SM.bootstrap(); }, []);
   React.useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
 
   // Refresh implicite (voir api-client.js req()) qui échoue en cours de
@@ -73,14 +80,14 @@ function LiveApp() {
         <Banner
           variant="danger"
           icon="wifi-off"
-          text="Backend injoignable — mode hors-ligne actif."
+          text={t('home.offline_banner')}
           style={{ position: 'absolute', top: 8, left: 8, right: 8, zIndex: 100, borderRadius: 14 }}
         />
       )}
       <PhoneFrame
         initial={initialScreen}
         screens={PHONE_SCREENS}
-        lang={t.lang}
+        lang={lang.toUpperCase()}
         onNavReady={(nav) => { navRef.current = nav; }}
       />
     </div>

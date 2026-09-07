@@ -77,6 +77,7 @@ function applySession(data, nav) {
 // ════════════════════════════════════════════════════════════════════════════
 function AuthScreen({ nav }) {
   useLucide();
+  const t = useTranslation();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -85,14 +86,14 @@ function AuthScreen({ nav }) {
 
   async function handleLogin(e) {
     e.preventDefault();
-    if (!email.trim() || !password) return setError('Remplissez tous les champs');
+    if (!email.trim() || !password) return setError(t('auth.error_fill_fields'));
     setLoading(true); setError('');
     try {
       const { ok, data } = await authFetch('/api/auth/login', { email: email.trim(), password });
-      if (!ok) { setError(data.error || 'Identifiants incorrects'); return; }
+      if (!ok) { setError(data.error || t('auth.error_invalid_credentials')); return; }
       applySession(data, nav);
     } catch {
-      setError('Erreur réseau — vérifiez que le serveur est lancé.');
+      setError(t('auth.error_network'));
     } finally {
       setLoading(false);
     }
@@ -105,23 +106,23 @@ function AuthScreen({ nav }) {
   async function handleGoogleLogin() {
     setError('');
     if (!window.getSupabaseClient) {
-      setError('Connexion Google indisponible pour le moment.');
+      setError(t('auth.google_unavailable'));
       return;
     }
     setGoogleLoading(true);
     try {
       const client = await window.getSupabaseClient();
       if (!client) {
-        setError('Connexion Google indisponible — réessayez plus tard ou utilisez votre e-mail.');
+        setError(t('auth.google_unavailable_retry'));
         return;
       }
       const { error: oauthErr } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin },
       });
-      if (oauthErr) setError(oauthErr.message || 'Échec de la connexion Google');
+      if (oauthErr) setError(oauthErr.message || t('auth.google_failed'));
     } catch {
-      setError('Erreur réseau — vérifiez votre connexion.');
+      setError(t('auth.network_error_check_connection'));
     } finally {
       setGoogleLoading(false);
     }
@@ -140,16 +141,16 @@ function AuthScreen({ nav }) {
           />
           <h1 className="sm-serif" style={{ fontSize: 'clamp(26px, 7.5vw, 30px)', marginBottom: 6 }}>Sauv'Moi</h1>
           <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.4 }}>
-            Restez calme, tout ira bien
+            {t('splash.tagline')}
           </p>
         </div>
 
         {/* ── Formulaire ── */}
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <FieldWrap label="Adresse e-mail">
+          <FieldWrap label={t('auth.email_label')}>
             <input
               type="email"
-              placeholder="votre@email.com"
+              placeholder={t('auth.email_placeholder')}
               value={email}
               onChange={e => setEmail(e.target.value)}
               autoComplete="email"
@@ -157,7 +158,7 @@ function AuthScreen({ nav }) {
             />
           </FieldWrap>
 
-          <FieldWrap label="Mot de passe">
+          <FieldWrap label={t('auth.password_label')}>
             <input
               type="password"
               placeholder="••••••••"
@@ -174,7 +175,7 @@ function AuthScreen({ nav }) {
             disabled={loading}
             style={{ width: '100%', marginTop: 4 }}
           >
-            {loading ? 'Connexion…' : 'Se connecter'}
+            {loading ? t('auth.login_loading') : t('auth.login_button')}
           </button>
         </form>
 
@@ -187,7 +188,7 @@ function AuthScreen({ nav }) {
         {/* ── Séparateur ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--sm-line)' }} />
-          <span style={{ fontSize: 13, color: 'var(--sm-ink-400)', fontWeight: 500 }}>ou</span>
+          <span style={{ fontSize: 13, color: 'var(--sm-ink-400)', fontWeight: 500 }}>{t('common.or')}</span>
           <div style={{ flex: 1, height: 1, background: 'var(--sm-line)' }} />
         </div>
 
@@ -207,7 +208,7 @@ function AuthScreen({ nav }) {
             }}
           >
             <GoogleIcon />
-            {googleLoading ? 'Redirection…' : 'Continuer avec Google'}
+            {googleLoading ? t('auth.google_redirecting') : t('auth.continue_google')}
           </button>
 
           <button
@@ -226,19 +227,19 @@ function AuthScreen({ nav }) {
             }}
           >
             <AppleIcon />
-            Continuer avec Apple
+            {t('auth.continue_apple')}
           </button>
         </div>
 
         {/* ── Lien inscription ── */}
         <p style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--sm-ink-500)' }}>
-          Pas encore de compte ?{' '}
+          {t('auth.no_account_yet')}{' '}
           <button
             type="button"
             onClick={() => nav.go('register')}
             style={{ background: 'none', border: 'none', color: 'var(--sm-red)', fontWeight: 600, fontSize: 14, cursor: 'pointer', padding: 0 }}
           >
-            S'inscrire
+            {t('auth.signup_link')}
           </button>
         </p>
       </div>
@@ -254,6 +255,7 @@ const GENDERS = ['Masculin', 'Féminin'];
 
 function RegisterScreen({ nav }) {
   useLucide();
+  const t = useTranslation();
   const [step, setStep] = React.useState(1);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -273,11 +275,11 @@ function RegisterScreen({ nav }) {
 
   // ── Validation étape 1 ────────────────────────────────────────────────────
   function validateStep1() {
-    if (!form.name.trim())     return 'Le nom est requis';
-    if (!form.email.trim())    return "L'adresse e-mail est requise";
-    if (!form.password)        return 'Le mot de passe est requis';
-    if (form.password.length < 6) return 'Mot de passe : 6 caractères minimum';
-    if (form.password !== form.confirm) return 'Les mots de passe ne correspondent pas';
+    if (!form.name.trim())     return t('auth.error_name_required');
+    if (!form.email.trim())    return t('auth.error_email_required');
+    if (!form.password)        return t('auth.error_password_required');
+    if (form.password.length < 6) return t('auth.error_password_min');
+    if (form.password !== form.confirm) return t('auth.error_password_mismatch');
     return null;
   }
 
@@ -307,10 +309,10 @@ function RegisterScreen({ nav }) {
         allergies:  form.allergies,
         emergencyContact: form.ecName ? { name: form.ecName, phone: form.ecPhone } : null,
       });
-      if (!ok) { setError(data.error || "Erreur lors de l'inscription"); return; }
+      if (!ok) { setError(data.error || t('auth.error_register_generic')); return; }
       applySession(data, nav);
     } catch {
-      setError('Erreur réseau — vérifiez que le serveur est lancé.');
+      setError(t('auth.error_network'));
     } finally {
       setLoading(false);
     }
@@ -335,10 +337,10 @@ function RegisterScreen({ nav }) {
 
         <div style={{ flex: 1 }}>
           <p style={{ fontSize: 11, color: 'var(--sm-ink-400)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>
-            Étape {step} sur 2
+            {t('auth.step_of_2').replace('{n}', step)}
           </p>
           <h2 className="sm-serif" style={{ fontSize: 19 }}>
-            {step === 1 ? 'Informations personnelles' : 'Profil médical'}
+            {step === 1 ? t('auth.step1_title') : t('auth.step2_title')}
           </h2>
         </div>
 
@@ -362,7 +364,7 @@ function RegisterScreen({ nav }) {
         {step === 1 && (
           <form onSubmit={goStep2} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-            <FieldWrap label="Nom & prénom">
+            <FieldWrap label={t('auth.fullname_label')}>
               <input
                 type="text" placeholder="Aïcha Koné"
                 value={form.name} onChange={set('name')}
@@ -377,9 +379,10 @@ function RegisterScreen({ nav }) {
               boxStyle={AUTH_BOX}
             />
 
-            {/* Sexe — sélection visuelle */}
+            {/* Sexe — sélection visuelle. Valeur stockée toujours en FR
+                (GENDERS), seul le libellé affiché est traduit (genderLabel). */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>Sexe</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>{t('auth.gender_label')}</label>
               <div style={{ display: 'flex', gap: 10 }}>
                 {GENDERS.map(g => (
                   <button
@@ -394,21 +397,21 @@ function RegisterScreen({ nav }) {
                       border: `1.5px solid ${form.gender === g ? 'var(--sm-ink)' : 'var(--sm-line)'}`,
                     }}
                   >
-                    {g}
+                    {genderLabel(g)}
                   </button>
                 ))}
               </div>
             </div>
 
-            <FieldWrap label="Adresse e-mail">
+            <FieldWrap label={t('auth.email_label')}>
               <input
-                type="email" placeholder="votre@email.com"
+                type="email" placeholder={t('auth.email_placeholder')}
                 value={form.email} onChange={set('email')}
                 autoComplete="email" style={AUTH_INP}
               />
             </FieldWrap>
 
-            <FieldWrap label="Téléphone">
+            <FieldWrap label={t('auth.phone_label')}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 14, color: 'var(--sm-ink-500)', fontWeight: 500, flexShrink: 0 }}>🇨🇮 +225</span>
                 <input
@@ -419,15 +422,15 @@ function RegisterScreen({ nav }) {
               </div>
             </FieldWrap>
 
-            <FieldWrap label="Mot de passe">
+            <FieldWrap label={t('auth.password_label')}>
               <input
-                type="password" placeholder="Minimum 6 caractères"
+                type="password" placeholder={t('auth.password_min_placeholder')}
                 value={form.password} onChange={set('password')}
                 autoComplete="new-password" style={AUTH_INP}
               />
             </FieldWrap>
 
-            <FieldWrap label="Confirmer le mot de passe">
+            <FieldWrap label={t('auth.confirm_password_label')}>
               <input
                 type="password" placeholder="••••••••"
                 value={form.confirm} onChange={set('confirm')}
@@ -438,17 +441,17 @@ function RegisterScreen({ nav }) {
             {error && <Banner variant="danger" icon="alert-circle" text={error} />}
 
             <button type="submit" className="sm-btn sm-btn-primary" style={{ width: '100%', marginTop: 4 }}>
-              Continuer →
+              {t('auth.continue_button')}
             </button>
 
             <p style={{ textAlign: 'center', fontSize: 14, color: 'var(--sm-ink-500)', margin: 0 }}>
-              Déjà un compte ?{' '}
+              {t('auth.already_account')}{' '}
               <button
                 type="button"
                 onClick={() => nav.back()}
                 style={{ background: 'none', border: 'none', color: 'var(--sm-red)', fontWeight: 600, fontSize: 14, cursor: 'pointer', padding: 0 }}
               >
-                Se connecter
+                {t('auth.login_button')}
               </button>
             </p>
           </form>
@@ -458,13 +461,12 @@ function RegisterScreen({ nav }) {
         {step === 2 && (
           <form onSubmit={e => { e.preventDefault(); doRegister(); }} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <p style={{ fontSize: 13, color: 'var(--sm-ink-500)', margin: 0 }}>
-              Ces informations permettent aux secouristes de mieux vous aider en cas d'urgence.
-              Tous les champs sont facultatifs.
+              {t('auth.step2_intro')}
             </p>
 
             {/* Groupe sanguin — chips */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>Groupe sanguin</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>{t('auth.blood_type_label')}</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {BLOOD_TYPES.map(bt => (
                   <button
@@ -487,14 +489,14 @@ function RegisterScreen({ nav }) {
 
             {/* Taille + Poids en colonne */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <FieldWrap label="Taille (cm)">
+              <FieldWrap label={t('auth.height_label')}>
                 <input
                   type="number" placeholder="170"
                   value={form.height} onChange={set('height')}
                   min="50" max="250" style={AUTH_INP}
                 />
               </FieldWrap>
-              <FieldWrap label="Poids (kg)">
+              <FieldWrap label={t('auth.weight_label')}>
                 <input
                   type="number" placeholder="65"
                   value={form.weight} onChange={set('weight')}
@@ -505,10 +507,10 @@ function RegisterScreen({ nav }) {
 
             {/* Antécédents */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>Antécédents médicaux</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>{t('auth.conditions_label')}</label>
               <div style={{ ...AUTH_BOX }}>
                 <textarea
-                  placeholder="Ex : diabète, hypertension, asthme…"
+                  placeholder={t('auth.conditions_placeholder')}
                   value={form.conditions} onChange={set('conditions')}
                   rows={3} style={{ ...AUTH_INP, resize: 'none', lineHeight: 1.55 }}
                 />
@@ -517,10 +519,10 @@ function RegisterScreen({ nav }) {
 
             {/* Allergies */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>Allergies</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>{t('auth.allergies_label')}</label>
               <div style={{ ...AUTH_BOX }}>
                 <textarea
-                  placeholder="Ex : pénicilline, arachides, latex…"
+                  placeholder={t('auth.allergies_placeholder')}
                   value={form.allergies} onChange={set('allergies')}
                   rows={2} style={{ ...AUTH_INP, resize: 'none', lineHeight: 1.55 }}
                 />
@@ -529,10 +531,10 @@ function RegisterScreen({ nav }) {
 
             {/* Contact d'urgence */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>Contact d'urgence</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>{t('auth.emergency_contact_label')}</label>
               <div style={{ ...AUTH_BOX }}>
                 <input
-                  type="text" placeholder="Nom du contact (ex : Mamadou Koné)"
+                  type="text" placeholder={t('auth.emergency_contact_name_placeholder')}
                   value={form.ecName} onChange={set('ecName')}
                   style={AUTH_INP}
                 />
@@ -555,7 +557,7 @@ function RegisterScreen({ nav }) {
               disabled={loading}
               style={{ width: '100%', marginTop: 4 }}
             >
-              {loading ? 'Création du compte…' : 'Créer mon compte'}
+              {loading ? t('auth.create_account_loading') : t('auth.create_account_button')}
             </button>
 
             <button
@@ -565,7 +567,7 @@ function RegisterScreen({ nav }) {
               onClick={doRegister}
               style={{ width: '100%' }}
             >
-              Passer cette étape
+              {t('auth.skip_step')}
             </button>
           </form>
         )}

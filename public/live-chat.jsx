@@ -173,13 +173,14 @@ function VoiceModeOverlay({ voiceState, voiceError, voiceInterim, voicePaused, l
 // ── Écran chat live ────────────────────────────────────────────────────────
 function ChatListening({ nav, lang }) {
   useLucide();
+  const t = useTranslation();
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    text: 'Bonjour ! Je suis votre assistant de premiers secours. Décrivez ce qui se passe, je vous guide.',
+    text: t('chat.initial_greeting'),
     actions: [],
   }]);
   const [input, setInput] = useState('');
@@ -507,7 +508,7 @@ function ChatListening({ nav, lang }) {
       {offline && (
         <div style={{ background: '#92400e', color: 'white', padding: '5px 14px', fontSize: 12, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0 }}>
           <Icon name="wifi-off" size={12} color="white" />
-          Mode hors-ligne — protocoles PSC1 locaux actifs
+          {t('chat.offline_banner')}
         </div>
       )}
 
@@ -531,18 +532,18 @@ function ChatListening({ nav, lang }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Assistant Sauv'Moi</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('chat.assistant_name')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
             <div style={{ width: 7, height: 7, borderRadius: '50%', background: offline ? '#ef4444' : '#22c55e', transition: 'background 0.4s' }} />
             <span style={{ fontSize: 12, color: 'var(--sm-ink-500)' }}>
-              {offline ? 'Hors ligne' : 'En ligne'}
+              {offline ? t('chat.offline') : t('chat.online')}
             </span>
           </div>
         </div>
 
         <button
           onClick={enterVoiceMode}
-          title="Mode vocal"
+          title={t('chat.voice_mode_title')}
           style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--sm-soft-blue)', border: 'none', flexShrink: 0, cursor: 'pointer' }}
         >
           <Icon name="headphones" size={17} color="var(--sm-blue)" />
@@ -591,7 +592,7 @@ function ChatListening({ nav, lang }) {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKey}
-                placeholder="Décrivez la situation..."
+                placeholder={t('chat.input_placeholder')}
                 disabled={loading || listening}
                 style={{
                   flex: 1, border: 'none', outline: 'none', background: 'transparent',
@@ -603,7 +604,7 @@ function ChatListening({ nav, lang }) {
               {/* Bouton image */}
               <button
                 onClick={() => fileRef.current?.click()}
-                title="Envoyer une image"
+                title={t('chat.image_button_title')}
                 style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--sm-paper-2)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}
               >
                 <Icon name="image" size={16} color="var(--sm-ink-400)" />
@@ -612,7 +613,7 @@ function ChatListening({ nav, lang }) {
               {/* Bouton micro — saisie vocale ponctuelle : remplit le champ, n'envoie pas */}
               <button
                 onClick={startVoice}
-                title={listening ? 'En écoute…' : 'Saisie vocale'}
+                title={listening ? t('chat.mic_listening_title') : t('chat.mic_voice_input_title')}
                 style={{
                   width: 32, height: 32, borderRadius: '50%',
                   background: listening ? 'var(--sm-red)' : 'var(--sm-soft-red)',
@@ -640,7 +641,7 @@ function ChatListening({ nav, lang }) {
             </div>
 
             <p style={{ fontSize: 11, color: 'var(--sm-ink-400)', textAlign: 'center', marginTop: 7 }}>
-              Urgence vitale → 185 (SAMU) · 180 (pompiers) · 170 (police)
+              {t('chat.emergency_footer')}
             </p>
           </div>
         </>

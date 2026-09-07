@@ -496,7 +496,22 @@ function formatFRDateInput(raw) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
-function BirthdateField({ value, onChange, label = 'Date de naissance', labelStyle, inputStyle, boxStyle, toggleColor = 'var(--sm-blue)' }) {
+// ── Sexe : valeur stockée (FR, envoyée au backend) vs libellé affiché ──────
+// Le formulaire d'inscription et l'écran profil envoient/relisent 'Masculin'
+// /'Féminin'/'Autre' tels quels côté backend (valeur canonique, indépendante
+// de la langue d'interface active au moment de la saisie) — seul l'AFFICHAGE
+// se traduit, via cette fonction, pour ne jamais faire dépendre les données
+// stockées de la langue choisie ce jour-là.
+function genderLabel(value) {
+  if (value === 'Masculin') return t('auth.gender_male');
+  if (value === 'Féminin') return t('auth.gender_female');
+  if (value === 'Autre') return t('auth.gender_other');
+  return value;
+}
+
+function BirthdateField({ value, onChange, label, labelStyle, inputStyle, boxStyle, toggleColor = 'var(--sm-blue)' }) {
+  const tr = useTranslation();
+  const lbl = label !== undefined ? label : tr('common.birthdate_label');
   const [mode, setMode] = useState('calendar');
   const [textValue, setTextValue] = useState(() => isoToFRDate(value));
   const [error, setError] = useState('');
@@ -523,16 +538,16 @@ function BirthdateField({ value, onChange, label = 'Date de naissance', labelSty
     const current = e.target.value;
     if (!current) { onChange(''); setError(''); return; }
     const iso = frDateToISO(current);
-    if (!iso) { setError('Date invalide (JJ/MM/AAAA)'); onChange(''); }
+    if (!iso) { setError(tr('common.date_invalid')); onChange(''); }
     else { setError(''); }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        {label && (
+        {lbl && (
           <label style={labelStyle || { fontSize: 13, fontWeight: 600, color: 'var(--sm-ink-700)' }}>
-            {label}
+            {lbl}
           </label>
         )}
         <button
@@ -540,7 +555,7 @@ function BirthdateField({ value, onChange, label = 'Date de naissance', labelSty
           onClick={toggleMode}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: toggleColor, fontFamily: 'inherit' }}
         >
-          {mode === 'calendar' ? 'Saisir en texte' : 'Utiliser le calendrier'}
+          {mode === 'calendar' ? tr('common.date_input_switch_to_text') : tr('common.date_input_switch_to_calendar')}
         </button>
       </div>
       <div style={boxStyle}>
@@ -555,7 +570,7 @@ function BirthdateField({ value, onChange, label = 'Date de naissance', labelSty
           <input
             type="text"
             inputMode="numeric"
-            placeholder="JJ/MM/AAAA"
+            placeholder={tr('common.date_placeholder')}
             maxLength={10}
             value={textValue}
             onChange={handleTextChange}
