@@ -138,7 +138,7 @@
     trainingPath: () => req('/api/training/path'),
     courses: (filter) => req('/api/training/courses' + (filter ? '?filter=' + filter : '')),
     trainingMe: () => req('/api/training/me'),
-    trainingModules: () => req('/api/training/modules'),
+    trainingModules: (lang) => req('/api/training/modules' + (lang ? '?lang=' + lang.toLowerCase() : '')),
     trainingComplete: (moduleId, score, total) =>
       req('/api/training/' + moduleId + '/complete', { method: 'POST', body: { score, total } }),
 

@@ -509,6 +509,17 @@ function genderLabel(value) {
   return value;
 }
 
+// Même principe que genderLabel : la difficulté d'un module de formation
+// reste stockée/comparée en canonique FR (clé de DIFF_STYLES_T/DIFF_MODULE
+// pour les couleurs), seul le libellé affiché est traduit.
+function difficultyLabel(value) {
+  if (value === 'Facile') return t('common.difficulty_easy');
+  if (value === 'Moyen') return t('common.difficulty_medium');
+  if (value === 'Difficile') return t('common.difficulty_hard');
+  if (value === 'Très difficile') return t('common.difficulty_very_hard');
+  return value;
+}
+
 function BirthdateField({ value, onChange, label, labelStyle, inputStyle, boxStyle, toggleColor = 'var(--sm-blue)' }) {
   const tr = useTranslation();
   const lbl = label !== undefined ? label : tr('common.birthdate_label');

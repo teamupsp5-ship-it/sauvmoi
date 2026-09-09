@@ -21,55 +21,82 @@ function speechSilentFailureMessage() {
 }
 
 // ── Protocoles PSC1 embarqués (fallback quand le backend est injoignable) ──
+const _CALL_LABELS = {
+  '185': { fr: 'Appeler SAMU 185', en: 'Call SAMU 185' },
+  '180': { fr: 'Pompiers 180', en: 'Call Firefighters 180' },
+};
+function _callAction(number, lang) {
+  return { type: 'call', label: _CALL_LABELS[number][lang === 'en' ? 'en' : 'fr'], number };
+}
+
 const _PSC1 = [
   {
     kw: ['saigne','sang','hémorragie','hémorragi','plaie','coupure','bless','blood','bleeding','cut','wound'],
-    reply: 'Hémorragie. Restez calme.\n1. Appuyez fermement sur la plaie avec un linge propre.\n2. Maintenez la pression 10 min sans soulever.\n3. Surélevez le membre si possible.\nAppelez le SAMU 185.',
-    actions: [
-      { type: 'call', label: 'Appeler SAMU 185', number: '185' },
-      { type: 'call', label: 'Pompiers 180', number: '180' },
-    ],
+    reply: {
+      fr: 'Hémorragie. Restez calme.\n1. Appuyez fermement sur la plaie avec un linge propre.\n2. Maintenez la pression 10 min sans soulever.\n3. Surélevez le membre si possible.\nAppelez le SAMU 185.',
+      en: 'Bleeding. Stay calm.\n1. Press firmly on the wound with a clean cloth.\n2. Maintain pressure for 10 min without lifting.\n3. Raise the limb if possible.\nCall SAMU 185.',
+    },
+    numbers: ['185', '180'],
   },
   {
     kw: ['étouffe','etouffe','avale de travers','gorge','heimlich','choke','choking'],
-    reply: 'Étouffement. Agissez vite.\n1. Si la personne tousse : laissez-la tousser.\n2. Sinon : 5 claques fermes dans le dos.\n3. 5 compressions abdominales (Heimlich).\nAlternez et appelez le 185.',
-    actions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+    reply: {
+      fr: 'Étouffement. Agissez vite.\n1. Si la personne tousse : laissez-la tousser.\n2. Sinon : 5 claques fermes dans le dos.\n3. 5 compressions abdominales (Heimlich).\nAlternez et appelez le 185.',
+      en: 'Choking. Act fast.\n1. If the person is coughing: let them cough.\n2. If not: 5 firm back blows.\n3. 5 abdominal thrusts (Heimlich maneuver).\nAlternate and call 185.',
+    },
+    numbers: ['185'],
   },
   {
     kw: ['inconscient','évanoui','evanouie','tombé','répond plus','ne répond','unconscious','passed out','fainted'],
-    reply: 'Inconscience. Vite !\n1. Parlez fort, secouez les épaules.\n2. Vérifiez la respiration 10 secondes.\n3. Respire → Position Latérale de Sécurité.\n4. Ne respire pas → 185 + massage cardiaque.',
-    actions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+    reply: {
+      fr: 'Inconscience. Vite !\n1. Parlez fort, secouez les épaules.\n2. Vérifiez la respiration 10 secondes.\n3. Respire → Position Latérale de Sécurité.\n4. Ne respire pas → 185 + massage cardiaque.',
+      en: 'Unconsciousness. Quick!\n1. Speak loudly, shake the shoulders.\n2. Check breathing for 10 seconds.\n3. Breathing → Recovery Position.\n4. Not breathing → 185 + chest compressions.',
+    },
+    numbers: ['185'],
   },
   {
     kw: ['brûlé','brule','brûlure','feu','eau chaude','huile chaude','burn','burned','scald'],
-    reply: 'Brûlure. Agissez immédiatement.\n1. Eau tiède (15-25 °C) pendant 15 min. Pas de glace.\n2. Retirez bijoux et vêtements (sauf ce qui colle).\n3. Couvrez d\'un linge propre humide.\nSi grave (large, profonde, visage) : appelez le 185.',
-    actions: [
-      { type: 'call', label: 'Appeler SAMU 185', number: '185' },
-      { type: 'call', label: 'Pompiers 180', number: '180' },
-    ],
+    reply: {
+      fr: 'Brûlure. Agissez immédiatement.\n1. Eau tiède (15-25 °C) pendant 15 min. Pas de glace.\n2. Retirez bijoux et vêtements (sauf ce qui colle).\n3. Couvrez d\'un linge propre humide.\nSi grave (large, profonde, visage) : appelez le 185.',
+      en: 'Burn. Act immediately.\n1. Cool running water (15-25°C) for 15 min. No ice.\n2. Remove jewelry and clothing (except anything stuck to the skin).\n3. Cover with a clean damp cloth.\nIf severe (large, deep, face): call 185.',
+    },
+    numbers: ['185', '180'],
   },
   {
     kw: ['avc','attaque cérébrale','visage tordu','paralysé','parle mal','stroke','face droop'],
-    reply: 'AVC suspecté. Test V.I.T.E :\n• Visage : sourire asymétrique ?\n• Inertie : un bras retombe ?\n• Trouble de la parole : mots déformés ?\nSi oui → appelez le 185 IMMÉDIATEMENT. Notez l\'heure.',
-    actions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+    reply: {
+      fr: 'AVC suspecté. Test V.I.T.E :\n• Visage : sourire asymétrique ?\n• Inertie : un bras retombe ?\n• Trouble de la parole : mots déformés ?\nSi oui → appelez le 185 IMMÉDIATEMENT. Notez l\'heure.',
+      en: 'Suspected stroke. FAST test:\n• Face: asymmetric smile?\n• Arm: one arm drifting down?\n• Speech: slurred words?\nIf yes → call 185 IMMEDIATELY. Note the time.',
+    },
+    numbers: ['185'],
   },
   {
     kw: ['cardiaque','cœur','coeur','douleur poitrine','thorax','heart attack','chest pain'],
-    reply: 'Crise cardiaque suspectée.\n1. Mettez au repos, demi-assis, jambes pliées. Desserrez les vêtements.\n2. Appelez le 185 maintenant. Ne raccrochez pas.\n3. Si perd connaissance : massage cardiaque 100-120/min.',
-    actions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+    reply: {
+      fr: 'Crise cardiaque suspectée.\n1. Mettez au repos, demi-assis, jambes pliées. Desserrez les vêtements.\n2. Appelez le 185 maintenant. Ne raccrochez pas.\n3. Si perd connaissance : massage cardiaque 100-120/min.',
+      en: 'Suspected heart attack.\n1. Rest in a half-sitting position, knees bent. Loosen clothing.\n2. Call 185 now. Do not hang up.\n3. If they lose consciousness: chest compressions 100-120/min.',
+    },
+    numbers: ['185'],
   },
 ];
 
-function _localFallback(text) {
+function _localFallback(text, lang) {
+  const isEn = lang === 'en';
   const t = (text || '').toLowerCase();
   for (const p of _PSC1) {
     if (p.kw.some((k) => t.includes(k))) {
-      return { reply: p.reply, suggestedActions: p.actions, source: 'local' };
+      return {
+        reply: isEn ? p.reply.en : p.reply.fr,
+        suggestedActions: p.numbers.map(n => _callAction(n, lang)),
+        source: 'local',
+      };
     }
   }
   return {
-    reply: 'Je suis là pour vous aider. Décrivez brièvement ce qui se passe\n(ex. « quelqu\'un saigne », « il s\'étouffe », « elle ne répond plus »).\nEn cas d\'urgence vitale, appelez le 185 (SAMU) tout de suite.',
-    suggestedActions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
+    reply: isEn
+      ? 'I\'m here to help. Briefly describe what\'s happening\n(e.g. "someone is bleeding", "they are choking", "they are not responding").\nFor a life-threatening emergency, call 185 (SAMU) right away.'
+      : 'Je suis là pour vous aider. Décrivez brièvement ce qui se passe\n(ex. « quelqu\'un saigne », « il s\'étouffe », « elle ne répond plus »).\nEn cas d\'urgence vitale, appelez le 185 (SAMU) tout de suite.',
+    suggestedActions: [_callAction('185', lang)],
     source: 'local',
   };
 }
@@ -228,6 +255,7 @@ function ChatListening({ nav, lang }) {
     setMessages(prev => [...prev, { role: 'user', text: msg, image: imageUrl }]);
     setLoading(true);
 
+    const chatLang = (lang || 'FR').toLowerCase();
     let result;
     try {
       result = await window.API.chat(msg, lang || 'FR', convId);
@@ -236,16 +264,22 @@ function ChatListening({ nav, lang }) {
     } catch (err) {
       if (err && err.isNetworkError) {
         // Vraie panne réseau (hors-ligne) : protocoles PSC1 embarqués côté client.
-        result = _localFallback(msg);
+        result = _localFallback(msg, chatLang);
         setOffline(true);
       } else {
         // Le serveur a répondu mais en erreur — ce n'est pas du hors-ligne,
         // ne pas prétendre le contraire avec le fallback local.
-        result = {
-          reply: 'Une erreur est survenue côté serveur. Réessayez dans un instant.\nEn cas d\'urgence vitale, appelez directement le 185 (SAMU).',
-          suggestedActions: [{ type: 'call', label: 'Appeler SAMU 185', number: '185' }],
-          source: 'error',
-        };
+        result = chatLang === 'en'
+          ? {
+              reply: 'A server error occurred. Please try again in a moment.\nFor a life-threatening emergency, call 185 (SAMU) directly.',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            }
+          : {
+              reply: 'Une erreur est survenue côté serveur. Réessayez dans un instant.\nEn cas d\'urgence vitale, appelez directement le 185 (SAMU).',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            };
         setOffline(false);
       }
     }

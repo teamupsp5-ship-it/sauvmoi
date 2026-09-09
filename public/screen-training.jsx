@@ -13,12 +13,14 @@ function TrainingMobile({ nav }) {
   const [loading, setLoading] = useState(true);
   const [lockedToast, setLockedToast] = useState(false);
   useLucide();
+  const t = useTranslation();
+  const lang = useLang();
 
   useEffect(() => {
-    window.API.trainingModules()
+    window.API.trainingModules(lang)
       .then(m => { setModules(m); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [lang]);
 
   const completed = modules.filter(m => m.status === 'completed').length;
   const total = modules.length || 10;
@@ -40,11 +42,11 @@ function TrainingMobile({ nav }) {
       {/* En-tête */}
       <div style={{ background: 'white', borderBottom: '1px solid var(--sm-line)', padding: '18px 20px 14px', flexShrink: 0 }}>
         <h1 className="sm-serif" style={{ fontSize: 20, lineHeight: 1.2, marginBottom: 10 }}>
-          Formation aux gestes de secours
+          {t('training.title')}
         </h1>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
-            {completed}/{total} modules complétés
+            {t('training.modules_completed').replace('{done}', completed).replace('{total}', total)}
           </span>
           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-ui)', color: pct >= 60 ? '#27AE60' : 'var(--sm-blue)' }}>
             {pct}%
@@ -148,11 +150,11 @@ function TrainingMobile({ nav }) {
                             color: diff.color, background: diff.bg,
                             borderRadius: 999, padding: '2px 9px',
                           }}>
-                            {mod.difficulty}
+                            {difficultyLabel(mod.difficulty)}
                           </span>
                         )}
                         <span style={{ fontSize: 12, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
-                          {isLocked ? '🔒 Verrouillé' : `${mod.quiz.length} questions`}
+                          {isLocked ? t('training.locked') : t('training.questions_count').replace('{n}', mod.quiz.length)}
                         </span>
                       </div>
                       {mod.score !== null && (
@@ -190,7 +192,7 @@ function TrainingMobile({ nav }) {
         }}>
           <Icon name="lock" size={16} color="white" />
           <span style={{ fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-ui)', lineHeight: 1.3 }}>
-            Terminez le module précédent pour débloquer
+            {t('training.locked_toast')}
           </span>
         </div>
       )}

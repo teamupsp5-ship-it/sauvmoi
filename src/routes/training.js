@@ -15,8 +15,22 @@ async function getProgress(userId) {
   return data || { completed_modules: [], scores: {} };
 }
 
+// Aplati un module bilingue { id, order, icon, color, difficulty, fr:{...},
+// en:{...} } vers la forme que le frontend consomme depuis toujours (title/
+// description/steps/quiz au premier niveau) — un seul endroit à changer si
+// une langue supplémentaire arrive un jour, plutôt que de faire porter le
+// choix de langue à chaque composant qui lit `mod.title`/`mod.quiz`/etc.
+function localizeModule(m, lang) {
+  const content = lang === 'en' ? m.en : m.fr;
+  return {
+    id: m.id, order: m.order, icon: m.icon, color: m.color, difficulty: m.difficulty,
+    ...content,
+  };
+}
+
 router.get('/training/modules', requireAuth, async (req, res) => {
   try {
+    const lang = req.query.lang === 'en' ? 'en' : 'fr';
     const progress = await getProgress(req.user.id);
     const completed = new Set(progress.completed_modules || []);
 
@@ -30,7 +44,7 @@ router.get('/training/modules', requireAuth, async (req, res) => {
       // ci-dessus, sans attendre que l'utilisateur repasse le module.
       const score = rawScore == null ? null : Math.min(100, Math.max(0, rawScore));
       return {
-        ...m,
+        ...localizeModule(m, lang),
         status: isDone ? 'completed' : (isUnlocked ? 'unlocked' : 'locked'),
         score,
       };

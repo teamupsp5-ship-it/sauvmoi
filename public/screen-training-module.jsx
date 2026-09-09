@@ -20,6 +20,7 @@ const FEEDBACK_DARK  = { correctBg: '#16281E', correctText: '#8FDB7A', wrongBg: 
 // ── Phase 1 : Étapes ──────────────────────────────────────────────────────
 
 function StepsPhase({ mod, onStartQuiz }) {
+  const t = useTranslation();
   const [stepIdx, setStepIdx] = useState(0);
   const step = mod.steps[stepIdx];
   const isLast = stepIdx === mod.steps.length - 1;
@@ -31,7 +32,7 @@ function StepsPhase({ mod, onStartQuiz }) {
       <div style={{ padding: '12px 20px 10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 13, fontFamily: 'var(--font-ui)', color: 'var(--sm-ink-500)' }}>
-            Étape {stepIdx + 1} / {mod.steps.length}
+            {t('training_module.step_of').replace('{n}', stepIdx + 1).replace('{total}', mod.steps.length)}
           </span>
           <span style={{ fontSize: 13, fontFamily: 'var(--font-ui)', color: mod.color, fontWeight: 600 }}>
             {Math.round(((stepIdx + 1) / mod.steps.length) * 100)}%
@@ -94,7 +95,7 @@ function StepsPhase({ mod, onStartQuiz }) {
             }}
           >
             <Icon name="arrow-left" size={14} color="var(--sm-ink-500)" />
-            Étape précédente
+            {t('training_module.previous_step')}
           </button>
         )}
         <div style={{ height: 20 }} />
@@ -112,8 +113,8 @@ function StepsPhase({ mod, onStartQuiz }) {
           }}
         >
           {isLast
-            ? <><Icon name="circle-play" size={20} color="white" strokeWidth={1.9} />Commencer le quiz</>
-            : <>Étape suivante<Icon name="arrow-right" size={20} color="white" /></>
+            ? <><Icon name="circle-play" size={20} color="white" strokeWidth={1.9} />{t('training_module.start_quiz')}</>
+            : <>{t('training_module.next_step')}<Icon name="arrow-right" size={20} color="white" /></>
           }
         </button>
       </div>
@@ -125,6 +126,7 @@ function StepsPhase({ mod, onStartQuiz }) {
 
 function QuizPhase({ mod, onFinish }) {
   const theme = useTheme();
+  const t = useTranslation();
   const FB = theme === 'dark' ? FEEDBACK_DARK : FEEDBACK_LIGHT;
   const [qIdx, setQIdx] = useState(0);
   // `checked` : tableau des index cochés pour la question courante — un QCM
@@ -158,7 +160,7 @@ function QuizPhase({ mod, onFinish }) {
     } else {
       wrongAnswersRef.current.push({
         question: q.question,
-        givenAnswer: checked.length ? checked.map(i => q.options[i]).join(', ') : '(aucune réponse cochée)',
+        givenAnswer: checked.length ? checked.map(i => q.options[i]).join(', ') : t('training_module.no_answer_checked'),
         correctAnswer: correctSet.map(i => q.options[i]).join(', '),
       });
     }
@@ -218,7 +220,7 @@ function QuizPhase({ mod, onFinish }) {
       <div style={{ padding: '10px 20px 12px', flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: mod.color, fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Quiz
+            {t('training_module.quiz_label')}
           </span>
           <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
             {qIdx + 1} / {mod.quiz.length}
@@ -239,7 +241,7 @@ function QuizPhase({ mod, onFinish }) {
           </p>
           {correctSet.length > 1 && (
             <p style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--sm-ink-500)', margin: '6px 0 0', fontFamily: 'var(--font-ui)' }}>
-              Plusieurs réponses possibles
+              {t('training_module.multiple_answers_possible')}
             </p>
           )}
         </div>
@@ -287,7 +289,7 @@ function QuizPhase({ mod, onFinish }) {
               cursor: checked.length === 0 ? 'default' : 'pointer',
             }}
           >
-            Valider
+            {t('training_module.validate')}
           </button>
         )}
 
@@ -305,8 +307,8 @@ function QuizPhase({ mod, onFinish }) {
               />
               <span style={{ fontSize: 14, lineHeight: 1.5, color: isFullyCorrect ? FB.correctText : FB.wrongText, fontFamily: 'var(--font-ui)' }}>
                 {isFullyCorrect
-                  ? 'Bonne réponse !'
-                  : `Pas tout à fait — la bonne réponse était : « ${correctSet.map(i => q.options[i]).join(', ')} »`}
+                  ? t('training_module.correct_answer')
+                  : t('training_module.incorrect_answer_prefix').replace('{answer}', correctSet.map(i => q.options[i]).join(', '))}
               </span>
             </div>
             {q.explanation && (
@@ -340,7 +342,7 @@ function QuizPhase({ mod, onFinish }) {
               opacity: saving ? 0.7 : 1,
             }}
           >
-            {saving ? 'Calcul du score…' : isLastQ ? 'Voir les résultats' : 'Question suivante →'}
+            {saving ? t('training_module.calculating_score') : isLastQ ? t('training_module.see_results') : t('training_module.next_question')}
           </button>
         </div>
       )}
@@ -352,19 +354,21 @@ function QuizPhase({ mod, onFinish }) {
 
 function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
   const theme = useTheme();
+  const t = useTranslation();
+  const lang = useLang();
   const FB = theme === 'dark' ? FEEDBACK_DARK : FEEDBACK_LIGHT;
   const { score, total, passed, percentage, nextModuleId, wrongAnswers } = result;
   const [nextMod, setNextMod] = useState(null);
 
   useEffect(() => {
     if (!nextModuleId) return;
-    window.API.trainingModules()
+    window.API.trainingModules(lang)
       .then(mods => {
         const n = mods.find(m => m.id === nextModuleId && m.status !== 'locked');
         setNextMod(n || null);
       })
       .catch(() => {});
-  }, [nextModuleId]);
+  }, [nextModuleId, lang]);
 
   const openNext = () => {
     window.SM.trainingModule = nextMod;
@@ -397,18 +401,16 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
       </div>
 
       <h2 className="sm-serif" style={{ fontSize: 'clamp(20px, 6vw, 24px)', textAlign: 'center', marginBottom: 10, lineHeight: 1.2 }}>
-        {passed ? 'Module complété !' : 'Essayez encore'}
+        {passed ? t('training_module.module_completed') : t('training_module.try_again')}
       </h2>
       <p style={{
         fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.65,
         fontFamily: 'var(--font-ui)', marginBottom: 34, maxWidth: 290,
       }}>
-        {passed
-          ? nextMod
-            ? `Félicitations ! ${score}/${total} bonnes réponses. Le module suivant est débloqué !`
-            : `Félicitations ! ${score}/${total} bonnes réponses. Vous maîtrisez ce module.`
-          : `Il faut au moins 60% pour valider. Vous avez eu ${score} bonne${score > 1 ? 's' : ''} réponse${score > 1 ? 's' : ''} sur ${total}.`
-        }
+        {(passed
+          ? (nextMod ? t('training_module.congrats_next_unlocked') : t('training_module.congrats_mastered'))
+          : t('training_module.need_60_percent')
+        ).replace('{score}', score).replace('{total}', total)}
       </p>
 
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -420,7 +422,7 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}>
             <Icon name="arrow-right" size={20} color="white" />
-            Module suivant : {nextMod.title}
+            {t('training_module.next_module_prefix')}{nextMod.title}
           </button>
         )}
         {/* Validé mais pas parfait : "Module suivant" reste l'action principale
@@ -434,7 +436,7 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}>
             <Icon name="rotate-ccw" size={18} color={mod.color} />
-            Revoir mes erreurs et refaire le quiz
+            {t('training_module.review_mistakes_retry')}
           </button>
         )}
         {!passed && (
@@ -445,7 +447,7 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}>
             <Icon name="rotate-ccw" size={18} color="white" />
-            Recommencer le quiz
+            {t('training_module.retry_quiz')}
           </button>
         )}
         <button onClick={() => nav.reset('training')} style={{
@@ -454,7 +456,7 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
           fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-ui)',
           cursor: 'pointer',
         }}>
-          Retour à la formation
+          {t('training_module.back_to_training')}
         </button>
       </div>
 
@@ -464,7 +466,7 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
       {percentage < 100 && wrongAnswers && wrongAnswers.length > 0 && (
         <div style={{ width: '100%', marginTop: 28 }}>
           <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12, textAlign: 'left' }}>
-            Questions à revoir
+            {t('training_module.questions_to_review')}
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {wrongAnswers.map((w, i) => (
@@ -561,7 +563,7 @@ function TrainingModuleScreen({ nav }) {
           color: diff.color, background: diff.bg,
           borderRadius: 999, padding: '3px 10px', flexShrink: 0,
         }}>
-          {mod.difficulty}
+          {difficultyLabel(mod.difficulty)}
         </span>
       </div>
 

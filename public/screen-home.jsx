@@ -2,13 +2,27 @@
 
 // ── Conseils PSC1 — rotation sur les 7 jours de la semaine ───────────────
 const DAILY_TIPS = [
-  { icon: 'user-round',  title: 'Position Latérale de Sécurité', text: 'Pour une personne inconsciente qui respire, placez-la en PLS pour dégager les voies aériennes et éviter l\'étouffement.' },
-  { icon: 'wind',        title: 'Étouffement — Manœuvre de Heimlich', text: '5 tapes dans le dos puis 5 compressions abdominales. Répétez jusqu\'à dégagement complet de l\'obstruction.' },
-  { icon: 'heart-pulse', title: 'Massage cardiaque', text: '30 compressions (5–6 cm, 100–120/min) alternées avec 2 insufflations. Continuez jusqu\'à l\'arrivée des secours.' },
-  { icon: 'flame',       title: 'Brûlure — réflexe immédiat', text: '15 minutes sous eau tempérée courante. Jamais de glace, de beurre ou de dentifrice sur la brûlure.' },
-  { icon: 'droplets',    title: 'Hémorragie — compression directe', text: 'Appuyez fermement avec un linge propre sur la plaie sans relâcher. Appelez le 185 immédiatement.' },
-  { icon: 'brain',       title: 'Reconnaître un AVC (FAST)', text: 'Visage asymétrique · Bras tombant · Parole difficile → Temps = urgence absolue. Appelez le 185.' },
-  { icon: 'thermometer', title: 'Malaise — premiers gestes', text: 'Allongez la victime, surélevez les jambes, desserrez les vêtements. Si inconsciente → mettez en PLS.' },
+  { icon: 'user-round',
+    fr: { title: 'Position Latérale de Sécurité', text: 'Pour une personne inconsciente qui respire, placez-la en PLS pour dégager les voies aériennes et éviter l\'étouffement.' },
+    en: { title: 'Recovery Position', text: 'For an unconscious person who is breathing, place them in the recovery position to keep the airway clear and prevent choking.' } },
+  { icon: 'wind',
+    fr: { title: 'Étouffement — Manœuvre de Heimlich', text: '5 tapes dans le dos puis 5 compressions abdominales. Répétez jusqu\'à dégagement complet de l\'obstruction.' },
+    en: { title: 'Choking — Heimlich Maneuver', text: '5 back blows followed by 5 abdominal thrusts. Repeat until the obstruction is fully cleared.' } },
+  { icon: 'heart-pulse',
+    fr: { title: 'Massage cardiaque', text: '30 compressions (5–6 cm, 100–120/min) alternées avec 2 insufflations. Continuez jusqu\'à l\'arrivée des secours.' },
+    en: { title: 'Chest Compressions (CPR)', text: '30 compressions (5–6 cm deep, 100–120/min) alternated with 2 rescue breaths. Continue until help arrives.' } },
+  { icon: 'flame',
+    fr: { title: 'Brûlure — réflexe immédiat', text: '15 minutes sous eau tempérée courante. Jamais de glace, de beurre ou de dentifrice sur la brûlure.' },
+    en: { title: 'Burns — Immediate Response', text: '15 minutes under cool running water. Never apply ice, butter, or toothpaste to a burn.' } },
+  { icon: 'droplets',
+    fr: { title: 'Hémorragie — compression directe', text: 'Appuyez fermement avec un linge propre sur la plaie sans relâcher. Appelez le 185 immédiatement.' },
+    en: { title: 'Bleeding — Direct Pressure', text: 'Press firmly on the wound with a clean cloth without releasing. Call 185 immediately.' } },
+  { icon: 'brain',
+    fr: { title: 'Reconnaître un AVC (FAST)', text: 'Visage asymétrique · Bras tombant · Parole difficile → Temps = urgence absolue. Appelez le 185.' },
+    en: { title: 'Recognizing a Stroke (FAST)', text: 'Face drooping · Arm weakness · Speech difficulty → Time is critical. Call 185.' } },
+  { icon: 'thermometer',
+    fr: { title: 'Malaise — premiers gestes', text: 'Allongez la victime, surélevez les jambes, desserrez les vêtements. Si inconsciente → mettez en PLS.' },
+    en: { title: 'Feeling Faint — First Steps', text: 'Lay the person down, raise their legs, loosen tight clothing. If unconscious → place in the recovery position.' } },
 ];
 
 // ── Barre de navigation fond bleu foncé avec SOS pulsé ────────────────────
@@ -99,6 +113,7 @@ function HomeTabBar({ active, nav }) {
 function HomeMobile({ nav, lang }) {
   useLucide();
   const t = useTranslation();
+  const currentLang = useLang();
   window.useSM(); // re-render quand SM.user change (après connexion)
 
   // Salutation dynamique
@@ -110,7 +125,8 @@ function HomeMobile({ nav, lang }) {
   const avatarBg = _AV_COLORS[(initials.charCodeAt(0) || 0) % _AV_COLORS.length];
 
   // Conseil du jour (indexé sur le jour de la semaine)
-  const tip = DAILY_TIPS[new Date().getDay()];
+  const tipEntry = DAILY_TIPS[new Date().getDay()];
+  const tip = { icon: tipEntry.icon, ...(currentLang === 'en' ? tipEntry.en : tipEntry.fr) };
 
   // Notifications in-app
   const [notifs, setNotifs] = useState([]);
@@ -258,8 +274,6 @@ function HomeMobile({ nav, lang }) {
           <Icon name="chevron-right" size={18} color="var(--sm-ink-400)" style={{ flexShrink: 0 }} />
         </button>
 
-        {/* Conseil du jour — titre traduit, contenu (DAILY_TIPS) reste en
-            français pour l'instant, voir Phase 2 */}
         <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>{t('home.tip_of_day')}</h3>
         <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} stacked style={{ minHeight: 120, alignItems: 'center' }} />
       </div>

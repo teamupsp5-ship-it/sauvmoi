@@ -2,10 +2,13 @@
 // Surcharge SOSCountdown et SOSConfirm de screen-sos.jsx
 
 // ── URL WhatsApp géolocalisé ──────────────────────────────────────────────────
-function buildWaUrl(phone, userName, lat, lng) {
+function buildWaUrl(phone, userName, lat, lng, lang) {
   const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
-  const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const msg = `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${lat},${lng}\nHeure : ${now}`;
+  const isEn = lang === 'en';
+  const now = new Date().toLocaleTimeString(isEn ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const msg = isEn
+    ? `🚨 EMERGENCY ALERT - Sauv'Moi\n${userName} has triggered an SOS alert.\nLocation: https://maps.google.com/?q=${lat},${lng}\nTime: ${now}`
+    : `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${lat},${lng}\nHeure : ${now}`;
   return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
 }
 
@@ -160,6 +163,7 @@ function SOSCountdown({ nav }) {
 function SOSConfirm({ nav }) {
   useLucide();
   const t = useTranslation();
+  const lang = useLang();
   const sos = window.SM?.sos || {};
   const lat = sos.lat ?? 5.354;
   const lng = sos.lng ?? -3.987;
@@ -275,7 +279,7 @@ function SOSConfirm({ nav }) {
                     )}
                   </div>
                   {!c.hasAccount && (
-                    <a href={buildWaUrl(c.phone, prenom, lat, lng)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
+                    <a href={buildWaUrl(c.phone, prenom, lat, lng, lang)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'block' }}>
                       <button style={{
                         width: '100%', padding: '11px 14px', borderRadius: 'var(--sm-radius)',
                         background: '#25D366', color: 'white', border: 'none',
