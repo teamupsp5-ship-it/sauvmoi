@@ -296,8 +296,11 @@ function MapScreen({ nav }) {
               key={f.id}
               onClick={() => setFilter(f.id)}
               style={{
+                // Actif en bleu marine profond — cohérent avec l'identité de
+                // la nav du bas (--sm-navy-deep, Phase 1) plutôt que le bleu
+                // fonctionnel générique utilisé ailleurs pour les liens/CTA.
                 padding: '7px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                background: filter === f.id ? 'var(--sm-blue)' : '#F1F2F4',
+                background: filter === f.id ? 'var(--sm-navy-deep)' : '#F1F2F4',
                 color: filter === f.id ? 'white' : 'var(--sm-ink)',
                 fontSize: 13, fontWeight: filter === f.id ? 600 : 400,
                 fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', flexShrink: 0,

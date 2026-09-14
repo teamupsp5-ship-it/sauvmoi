@@ -310,7 +310,7 @@ function ProfileScreen({ nav }) {
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── En-tête ────────────────────────────────────────────────────── */}
-      <div style={{ padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12, background: 'white', borderBottom: '1px solid var(--sm-line)', flexShrink: 0 }}>
+      <div style={{ padding: '16px 20px 14px', display: 'flex', alignItems: 'center', gap: 12, background: 'linear-gradient(180deg, #f8f9fa, white)', borderBottom: '1px solid var(--sm-line)', flexShrink: 0 }}>
         <img src="logo_80.png" alt="Sauv'Moi" style={{ width: 32, height: 32, objectFit: 'contain', borderRadius: 8 }} />
         <h1 className="sm-serif" style={{ fontSize: 20, flex: 1 }}>{t('profile.title')}</h1>
         {/* Cloche notifications */}

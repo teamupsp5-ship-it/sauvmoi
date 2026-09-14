@@ -181,7 +181,7 @@ function TrainingMobile({ nav }) {
                       <FallbackImage
                         src={mod.image}
                         fallbackColor={mod.color}
-                        style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0 }}
+                        style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0 }}
                       />
                     </button>
                   </div>

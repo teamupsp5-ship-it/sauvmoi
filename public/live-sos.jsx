@@ -94,6 +94,10 @@ function SOSCountdown({ nav }) {
           </p>
 
           <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14, width: '100%' }}>{t('sos.emergency_numbers')}</h3>
+          {/* Même structure que la carte QR de l'accueil : icône dans un
+              carré pastel (sm-icon-tile) + indicateur d'action dans un
+              cercle pastel à droite (sm-icon-circle) — pas d'aplat rouge
+              plein ici, réservé au bouton SOS principal ci-dessus. */}
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
               { label: t('sos.samu'),        number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
@@ -102,14 +106,16 @@ function SOSCountdown({ nav }) {
             ].map(item => (
               <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none', display: 'block' }}>
                 <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 14, background: item.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <div className="sm-icon-tile" style={{ background: item.bg }}>
                     <Icon name={item.icon} size={22} color={item.color} strokeWidth={1.9} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{item.label}</div>
                     <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.direct_call')} · {item.number}</div>
                   </div>
-                  <Icon name="phone" size={18} color={item.color} />
+                  <div className="sm-icon-circle" style={{ background: item.bg }}>
+                    <Icon name="phone" size={16} color={item.color} strokeWidth={2} />
+                  </div>
                 </div>
               </a>
             ))}
@@ -130,7 +136,13 @@ function SOSCountdown({ nav }) {
       <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center' }}>
         {phase === 'fired' ? t('sos.alert_sent') : t('sos.sending_alert')}
       </p>
-      <div style={{ position: 'relative', width: 220, height: 220, marginBottom: 48 }}>
+      {/* Fond disque + ombre douce (var(--sm-shadow-md), échelle du design
+          system) derrière l'anneau de progression, plutôt qu'un SVG nu sur
+          fond plat. */}
+      <div style={{
+        position: 'relative', width: 220, height: 220, marginBottom: 48,
+        borderRadius: '50%', background: 'var(--sm-paper)', boxShadow: 'var(--sm-shadow-md)',
+      }}>
         <svg width={220} height={220} style={{ transform: 'rotate(-90deg)' }}>
           <circle cx={110} cy={110} r={R} fill="var(--sm-red-soft)" stroke="rgba(192,57,43,0.12)" strokeWidth="2" />
           <circle cx={110} cy={110} r={R} fill="none" stroke="var(--sm-red)" strokeWidth="7" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={dashoffset} style={{ transition: 'stroke-dashoffset 980ms linear' }} />
@@ -228,7 +240,7 @@ function SOSConfirm({ nav }) {
               background: 'var(--sm-red)', color: 'white', border: 'none',
               fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
+              cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.22)',
             }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
               {t('sos.call_samu_185')}
@@ -240,16 +252,16 @@ function SOSConfirm({ nav }) {
       {/* ── Corps scrollable ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 24px' }}>
 
-        {/* Carte succès */}
-        <div style={{ background: '#EAFAF1', borderRadius: 'var(--sm-radius)', padding: '16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#27AE60', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name="check" size={26} color="white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#1E8449', fontFamily: 'var(--font-ui)' }}>{t('sos.alert_triggered')}</div>
-            <div style={{ fontSize: 13, color: '#27AE60', marginTop: 2 }}>{t('sos.position_recorded')}</div>
-          </div>
-        </div>
+        {/* Carte succès — composant Banner partagé (frames.jsx), même style
+            que le reste de l'app plutôt qu'un bloc vert refait à la main. */}
+        <Banner
+          variant="success"
+          icon="check-circle-2"
+          title={t('sos.alert_triggered')}
+          text={t('sos.position_recorded')}
+          stacked
+          style={{ marginBottom: 16 }}
+        />
 
         {/* Carte Leaflet */}
         <div style={{ borderRadius: 'var(--sm-radius)', overflow: 'hidden', marginBottom: 16, boxShadow: 'var(--sm-shadow)' }}>
@@ -285,7 +297,7 @@ function SOSConfirm({ nav }) {
                         background: '#25D366', color: 'white', border: 'none',
                         fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-ui)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
+                        cursor: 'pointer', boxShadow: '0 2px 8px rgba(37,211,102,0.22)',
                       }}>
                         <Icon name="message-circle" size={18} color="white" strokeWidth={2} />
                         {t('sos.alert_via_whatsapp')}

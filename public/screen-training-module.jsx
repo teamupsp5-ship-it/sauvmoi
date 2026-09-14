@@ -14,7 +14,11 @@ const DIFF_MODULE = {
 // overrides CSS de mode sombre — reprises ici en JS plutôt qu'en CSS pour
 // ce composant réécrit, plus direct que de dépendre du hack d'attribut
 // [style*="color: rgb(...)"].
-const FEEDBACK_LIGHT = { correctBg: '#EAFAF1', correctText: '#1E8449', wrongBg: '#FDEDEC', wrongText: '#C0392B' };
+// wrongText garde #C0392B (pas la valeur texte du Banner danger, #641E16) :
+// il joue aussi le rôle d'accent (anneau + score du ResultPhase en cas
+// d'échec), où une teinte vive reste nécessaire — voir le commentaire sur
+// scoreColor plus bas.
+const FEEDBACK_LIGHT = { correctBg: '#EAF3DE', correctText: '#145A32', wrongBg: '#FDEDEC', wrongText: '#C0392B' };
 const FEEDBACK_DARK  = { correctBg: '#16281E', correctText: '#8FDB7A', wrongBg: '#3B211F', wrongText: '#FF8A7A' };
 
 // ── Phase 1 : Étapes ──────────────────────────────────────────────────────
@@ -410,18 +414,20 @@ function ResultPhase({ mod, result, nav, onRetry, onRetryQuiz }) {
         </span>
       </div>
 
-      <h2 className="sm-serif" style={{ fontSize: 'clamp(20px, 6vw, 24px)', textAlign: 'center', marginBottom: 10, lineHeight: 1.2 }}>
-        {passed ? t('training_module.module_completed') : t('training_module.try_again')}
-      </h2>
-      <p style={{
-        fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', lineHeight: 1.65,
-        fontFamily: 'var(--font-ui)', marginBottom: 34, maxWidth: 290,
-      }}>
-        {(passed
+      {/* Bloc titre + message — composant Banner partagé (frames.jsx),
+          success/danger selon la réussite, plutôt qu'un titre/paragraphe
+          centrés refaits à la main. */}
+      <Banner
+        variant={passed ? 'success' : 'danger'}
+        icon={passed ? 'party-popper' : 'rotate-ccw'}
+        title={passed ? t('training_module.module_completed') : t('training_module.try_again')}
+        text={(passed
           ? (nextMod ? t('training_module.congrats_next_unlocked') : t('training_module.congrats_mastered'))
           : t('training_module.need_60_percent')
         ).replace('{score}', score).replace('{total}', total)}
-      </p>
+        stacked
+        style={{ width: '100%', marginBottom: 28 }}
+      />
 
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {passed && nextMod && (
