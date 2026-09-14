@@ -134,45 +134,55 @@ function TrainingMobile({ nav }) {
                         boxShadow: 'var(--sm-shadow)', padding: '14px 16px',
                         cursor: isLocked ? 'default' : 'pointer',
                         opacity: isLocked ? 0.5 : 1,
+                        display: 'flex', alignItems: 'flex-start', gap: 12,
                       }}
                     >
-                      <div style={{
-                        fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-ui)',
-                        color: isLocked ? 'var(--sm-ink-400)' : 'var(--sm-ink)',
-                        marginBottom: 7, lineHeight: 1.3,
-                      }}>
-                        {mod.title}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: mod.score !== null ? 9 : 0 }}>
-                        {!isLocked && (
-                          <span style={{
-                            fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-ui)',
-                            color: diff.color, background: diff.bg,
-                            borderRadius: 999, padding: '2px 9px',
-                          }}>
-                            {difficultyLabel(mod.difficulty)}
-                          </span>
-                        )}
-                        <span style={{ fontSize: 12, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
-                          {isLocked ? t('training.locked') : t('training.questions_count').replace('{n}', mod.quiz.length)}
-                        </span>
-                      </div>
-                      {mod.score !== null && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 5, borderRadius: 999, background: '#F1F2F4', overflow: 'hidden' }}>
-                            <div style={{
-                              height: '100%', width: mod.score + '%', borderRadius: 999,
-                              background: mod.score >= 60 ? '#27AE60' : 'var(--sm-red)',
-                            }} />
-                          </div>
-                          <span style={{
-                            fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-ui)', flexShrink: 0,
-                            color: mod.score >= 60 ? '#27AE60' : 'var(--sm-red)',
-                          }}>
-                            {mod.score}%
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-ui)',
+                          color: isLocked ? 'var(--sm-ink-400)' : 'var(--sm-ink)',
+                          marginBottom: 7, lineHeight: 1.3,
+                        }}>
+                          {mod.title}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: mod.score !== null ? 9 : 0 }}>
+                          {!isLocked && (
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-ui)',
+                              color: diff.color, background: diff.bg,
+                              borderRadius: 999, padding: '2px 9px',
+                            }}>
+                              {difficultyLabel(mod.difficulty)}
+                            </span>
+                          )}
+                          <span style={{ fontSize: 12, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
+                            {isLocked ? t('training.locked') : t('training.questions_count').replace('{n}', mod.quiz.length)}
                           </span>
                         </div>
-                      )}
+                        {mod.score !== null && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 5, borderRadius: 999, background: '#F1F2F4', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%', width: mod.score + '%', borderRadius: 999,
+                                background: mod.score >= 60 ? '#27AE60' : 'var(--sm-red)',
+                              }} />
+                            </div>
+                            <span style={{
+                              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-ui)', flexShrink: 0,
+                              color: mod.score >= 60 ? '#27AE60' : 'var(--sm-red)',
+                            }}>
+                              {mod.score}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Vignette photo — fond de secours = couleur du module
+                          (mod.color) tant que l'image charge ou si elle échoue. */}
+                      <FallbackImage
+                        src={mod.image}
+                        fallbackColor={mod.color}
+                        style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0 }}
+                      />
                     </button>
                   </div>
                 </div>

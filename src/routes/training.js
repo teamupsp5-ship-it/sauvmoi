@@ -23,7 +23,7 @@ async function getProgress(userId) {
 function localizeModule(m, lang) {
   const content = lang === 'en' ? m.en : m.fr;
   return {
-    id: m.id, order: m.order, icon: m.icon, color: m.color, difficulty: m.difficulty,
+    id: m.id, order: m.order, icon: m.icon, color: m.color, difficulty: m.difficulty, image: m.image,
     ...content,
   };
 }

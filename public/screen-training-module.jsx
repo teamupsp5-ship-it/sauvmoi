@@ -47,6 +47,16 @@ function StepsPhase({ mod, onStartQuiz }) {
         </div>
       </div>
 
+      {/* Illustration d'en-tête — fond de secours = couleur du module tant
+          que l'image charge ou si elle échoue. */}
+      <div style={{ padding: '0 20px 14px', flexShrink: 0 }}>
+        <FallbackImage
+          src={mod.image}
+          fallbackColor={mod.color}
+          style={{ width: '100%', height: 130, borderRadius: 'var(--sm-radius)' }}
+        />
+      </div>
+
       {/* Contenu étape */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>

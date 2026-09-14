@@ -1,26 +1,37 @@
 // screen-home.jsx — Accueil Sauv'Moi · mobile + desktop
 
+// ── Images réelles (Unsplash/Pexels, licence libre, aucune attribution
+//    requise) partagées entre les 7 conseils du jour ET les 10 modules de
+//    formation (voir data/training-modules.js) — associées par thème plutôt
+//    qu'une image par entrée, pour rester dans le lot fourni. ────────────
+const IMG_PLS = 'https://images.unsplash.com/photo-1649260257572-91bf6f94cff6?fm=jpg&q=80&w=600&auto=format&fit=crop';
+const IMG_RCP = 'https://images.unsplash.com/photo-1755548376576-e045f6e01773?fm=jpg&q=80&w=600&auto=format&fit=crop';
+const IMG_URGENCE = 'https://images.unsplash.com/photo-1734174040265-ef440f9373dc?fm=jpg&q=80&w=600&auto=format&fit=crop';
+const IMG_TROUSSE_ROUGE = 'https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop';
+const IMG_TROUSSE_VERTE = 'https://images.unsplash.com/photo-1564144573017-8dc932e0039e?fm=jpg&q=80&w=600&auto=format&fit=crop';
+const IMG_STETHOSCOPE = 'https://images.pexels.com/photos/20100296/pexels-photo-20100296.jpeg?auto=compress&cs=tinysrgb&w=600';
+
 // ── Conseils PSC1 — rotation sur les 7 jours de la semaine ───────────────
 const DAILY_TIPS = [
-  { icon: 'user-round',
+  { icon: 'user-round', image: IMG_PLS,
     fr: { title: 'Position Latérale de Sécurité', text: 'Pour une personne inconsciente qui respire, placez-la en PLS pour dégager les voies aériennes et éviter l\'étouffement.' },
     en: { title: 'Recovery Position', text: 'For an unconscious person who is breathing, place them in the recovery position to keep the airway clear and prevent choking.' } },
-  { icon: 'wind',
+  { icon: 'wind', image: IMG_URGENCE,
     fr: { title: 'Étouffement — Manœuvre de Heimlich', text: '5 tapes dans le dos puis 5 compressions abdominales. Répétez jusqu\'à dégagement complet de l\'obstruction.' },
     en: { title: 'Choking — Heimlich Maneuver', text: '5 back blows followed by 5 abdominal thrusts. Repeat until the obstruction is fully cleared.' } },
-  { icon: 'heart-pulse',
+  { icon: 'heart-pulse', image: IMG_RCP,
     fr: { title: 'Massage cardiaque', text: '30 compressions (5–6 cm, 100–120/min) alternées avec 2 insufflations. Continuez jusqu\'à l\'arrivée des secours.' },
     en: { title: 'Chest Compressions (CPR)', text: '30 compressions (5–6 cm deep, 100–120/min) alternated with 2 rescue breaths. Continue until help arrives.' } },
-  { icon: 'flame',
+  { icon: 'flame', image: IMG_TROUSSE_VERTE,
     fr: { title: 'Brûlure — réflexe immédiat', text: '15 minutes sous eau tempérée courante. Jamais de glace, de beurre ou de dentifrice sur la brûlure.' },
     en: { title: 'Burns — Immediate Response', text: '15 minutes under cool running water. Never apply ice, butter, or toothpaste to a burn.' } },
-  { icon: 'droplets',
+  { icon: 'droplets', image: IMG_TROUSSE_ROUGE,
     fr: { title: 'Hémorragie — compression directe', text: 'Appuyez fermement avec un linge propre sur la plaie sans relâcher. Appelez le 185 immédiatement.' },
     en: { title: 'Bleeding — Direct Pressure', text: 'Press firmly on the wound with a clean cloth without releasing. Call 185 immediately.' } },
-  { icon: 'brain',
+  { icon: 'brain', image: IMG_STETHOSCOPE,
     fr: { title: 'Reconnaître un AVC (FAST)', text: 'Visage asymétrique · Bras tombant · Parole difficile → Temps = urgence absolue. Appelez le 185.' },
     en: { title: 'Recognizing a Stroke (FAST)', text: 'Face drooping · Arm weakness · Speech difficulty → Time is critical. Call 185.' } },
-  { icon: 'thermometer',
+  { icon: 'thermometer', image: IMG_URGENCE,
     fr: { title: 'Malaise — premiers gestes', text: 'Allongez la victime, surélevez les jambes, desserrez les vêtements. Si inconsciente → mettez en PLS.' },
     en: { title: 'Feeling Faint — First Steps', text: 'Lay the person down, raise their legs, loosen tight clothing. If unconscious → place in the recovery position.' } },
 ];
@@ -119,8 +130,8 @@ function HomeTabBar({ active, nav }) {
 // et de bandeau GPS/erreurs, un style dédié ici évite de dévier ces usages).
 // Couleurs de texte calquées sur BANNER_VARIANTS(_DARK).success dans
 // frames.jsx pour rester cohérentes avec le reste de l'app (contrastes déjà
-// vérifiés WCAG côté Banner).
-const TIP_IMAGE = 'https://images.unsplash.com/photo-1649260257572-91bf6f94cff6?fm=jpg&q=80&w=600&auto=format&fit=crop';
+// vérifiés WCAG côté Banner). Image spécifique par conseil (tip.image, voir
+// DAILY_TIPS) plutôt qu'une image par défaut unique.
 function TipOfDayCard({ tip }) {
   const theme = useTheme();
   const isDark = theme === 'dark';
@@ -141,10 +152,10 @@ function TipOfDayCard({ tip }) {
           {tip.text}
         </div>
       </div>
-      <img
-        src={TIP_IMAGE}
-        alt=""
-        style={{ width: 74, height: 74, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+      <FallbackImage
+        src={tip.image}
+        fallbackColor="var(--sm-soft-green)"
+        style={{ width: 74, height: 74, borderRadius: 12, flexShrink: 0 }}
       />
     </div>
   );
@@ -169,7 +180,7 @@ function HomeMobile({ nav, lang }) {
 
   // Conseil du jour (indexé sur le jour de la semaine)
   const tipEntry = DAILY_TIPS[new Date().getDay()];
-  const tip = { icon: tipEntry.icon, ...(currentLang === 'en' ? tipEntry.en : tipEntry.fr) };
+  const tip = { icon: tipEntry.icon, image: tipEntry.image, ...(currentLang === 'en' ? tipEntry.en : tipEntry.fr) };
 
   // Notifications in-app
   const [notifs, setNotifs] = useState([]);

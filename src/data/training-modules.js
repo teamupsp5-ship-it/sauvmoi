@@ -5,6 +5,7 @@ export const TRAINING_MODULES = [
     "icon": "user-check",
     "color": "#1565C0",
     "difficulty": "Facile",
+    "image": "https://images.unsplash.com/photo-1649260257572-91bf6f94cff6?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Position Latérale de Sécurité",
       "description": "Protéger une personne inconsciente qui respire",
@@ -236,6 +237,7 @@ export const TRAINING_MODULES = [
     "icon": "wind",
     "color": "#C0392B",
     "difficulty": "Facile",
+    "image": "https://images.unsplash.com/photo-1734174040265-ef440f9373dc?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Étouffement (Heimlich)",
       "description": "Dégager des voies respiratoires obstruées",
@@ -499,6 +501,7 @@ export const TRAINING_MODULES = [
     "icon": "droplet",
     "color": "#C0392B",
     "difficulty": "Moyen",
+    "image": "https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Hémorragie",
       "description": "Arrêter un saignement abondant",
@@ -854,6 +857,7 @@ export const TRAINING_MODULES = [
     "icon": "flame",
     "color": "#E67E22",
     "difficulty": "Moyen",
+    "image": "https://images.unsplash.com/photo-1564144573017-8dc932e0039e?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Brûlures",
       "description": "Premiers gestes face à une brûlure",
@@ -1245,6 +1249,7 @@ export const TRAINING_MODULES = [
     "icon": "bone",
     "color": "#7F8C8D",
     "difficulty": "Moyen",
+    "image": "https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Fractures et Entorses",
       "description": "Immobiliser un membre blessé",
@@ -1718,6 +1723,7 @@ export const TRAINING_MODULES = [
     "icon": "heart-pulse",
     "color": "#C0392B",
     "difficulty": "Difficile",
+    "image": "https://images.unsplash.com/photo-1755548376576-e045f6e01773?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Réanimation Cardio-Pulmonaire",
       "description": "Réagir face à un arrêt cardiaque",
@@ -2261,6 +2267,7 @@ export const TRAINING_MODULES = [
     "icon": "brain",
     "color": "#8E44AD",
     "difficulty": "Difficile",
+    "image": "https://images.pexels.com/photos/20100296/pexels-photo-20100296.jpeg?auto=compress&cs=tinysrgb&w=600",
     "fr": {
       "title": "Reconnaître un AVC",
       "description": "Identifier rapidement un accident vasculaire cérébral (méthode FAST)",
@@ -2864,6 +2871,7 @@ export const TRAINING_MODULES = [
     "icon": "heart-crack",
     "color": "#C0392B",
     "difficulty": "Difficile",
+    "image": "https://images.pexels.com/photos/20100296/pexels-photo-20100296.jpeg?auto=compress&cs=tinysrgb&w=600",
     "fr": {
       "title": "Malaise Cardiaque",
       "description": "Réagir face à une douleur thoracique évocatrice",
@@ -3463,6 +3471,7 @@ export const TRAINING_MODULES = [
     "icon": "shield-alert",
     "color": "#E67E22",
     "difficulty": "Très difficile",
+    "image": "https://images.unsplash.com/photo-1564144573017-8dc932e0039e?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Réaction Allergique Grave",
       "description": "Reconnaître et réagir face à un choc anaphylactique",
@@ -4058,6 +4067,7 @@ export const TRAINING_MODULES = [
     "icon": "activity",
     "color": "#1565C0",
     "difficulty": "Très difficile",
+    "image": "https://images.unsplash.com/photo-1734174040265-ef440f9373dc?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Convulsions",
       "description": "Protéger une personne en crise convulsive",

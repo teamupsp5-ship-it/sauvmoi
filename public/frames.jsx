@@ -694,9 +694,38 @@ function FloatingChatButton({ nav }) {
   );
 }
 
+// ── Image avec fond de secours en couleur unie ─────────────────────────────
+// Réutilisée partout où une photo réelle illustre une carte/un en-tête
+// (Conseil du jour, vignette + en-tête de module de formation) : la couleur
+// de fond reste visible tant que l'image n'a pas fini de charger (fondu à
+// l'apparition, pas de flash blanc) et RESTE affichée si l'image échoue
+// (réseau coupé, URL cassée) — jamais d'icône "image cassée" à la place.
+function FallbackImage({ src, alt = '', fallbackColor = 'var(--sm-paper-2)', style, imgStyle }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden', background: fallbackColor, ...style }}>
+      {!failed && (
+        <img
+          src={src}
+          alt={alt}
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            objectFit: 'cover', opacity: loaded ? 1 : 0,
+            transition: 'opacity 250ms ease',
+            ...imgStyle,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
-  IconTile, NumBadge, T, COPY, BirthdateField, Banner,
+  IconTile, NumBadge, T, COPY, BirthdateField, Banner, FallbackImage,
   speakText, stopSpeech, useSpeechActive, useSpeechUnavailable, stripMarkdownForSpeech,
 });
