@@ -117,6 +117,8 @@ window.I18N_FR = {
   'home.qr_scan_title': "Scanner un QR Sauv'Moi",
   'home.qr_scan_subtitle': "Voir la fiche d'urgence d'une victime",
   'home.tip_of_day': 'Conseil du jour',
+  'home.today_badge': "Aujourd'hui",
+  'home.tip_see_more': 'Voir plus',
   'home.notifications_title': 'Alertes reçues',
   'home.no_notifications': 'Aucune alerte pour le moment',
   'home.view_on_map': 'Voir sur la carte',

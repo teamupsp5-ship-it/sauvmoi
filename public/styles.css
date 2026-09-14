@@ -52,6 +52,13 @@
   /* Soft tints supplémentaires */
   --sm-red-soft: #FDEDEC;
   --sm-blue-soft: #EBF5FB;
+
+  /* Bleu marine profond — chrome intentionnellement sombre dans les deux
+     thèmes (nav du bas, voile de la carte "Que se passe-t-il ?"), même
+     traitement que l'écran de démarrage/scanner QR : jamais réécrit sous
+     .sm-dark, une seule valeur pour les deux thèmes. */
+  --sm-navy-deep: #0D1428;
+  --sm-navy-deep-soft: rgba(13, 20, 40, 0.75);
 }
 
 /* ── Mode sombre ──────────────────────────────────────────────────────────
@@ -492,10 +499,44 @@ input, textarea {
    donc le box-shadow inline statique du bouton sert juste d'état de repos
    (0%/100% ci-dessous le reproduit à l'identique, pas de saut au montage). */
 @keyframes sm-card-breathe {
-  0%, 100% { box-shadow: 0 4px 14px rgba(21,101,192,0.25); }
-  50%      { box-shadow: 0 6px 26px rgba(21,101,192,0.45); }
+  0%, 100% { box-shadow: 0 4px 16px rgba(13,20,40,0.30); }
+  50%      { box-shadow: 0 8px 30px rgba(13,20,40,0.48); }
 }
 .sm-card-breathe { animation: sm-card-breathe 2.6s ease-in-out infinite; }
+
+/* ── Petits primitifs réutilisables (design system) ──────────────────────
+   Badge pastille semi-transparente (ex: "Aujourd'hui" sur la carte Chat IA),
+   et tuiles/cercles d'icône pastel (QR, indicateurs d'action) — remplace
+   des styles inline dupliqués à chaque nouvel usage. */
+.sm-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.18);
+  color: white;
+}
+.sm-icon-tile {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sm-icon-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* Indicateur "réflexion" du chat IA — 3 points dont l'opacité culmine l'un
    après l'autre (délais décalés sur la même animation) plutôt qu'un

@@ -238,6 +238,17 @@ function ChatListening({ nav, lang }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Ouverture directe en mode vocal continu — posé par le bouton micro de
+  // l'écran d'accueil (screen-home.jsx) avant nav.go('chat') : le mic de la
+  // carte "Que se passe-t-il ?" doit être fonctionnel (déclencher la vraie
+  // reconnaissance vocale), pas juste un raccourci visuel vers l'écran texte.
+  useEffect(() => {
+    if (window.SM?.autoVoiceMode) {
+      window.SM.autoVoiceMode = false;
+      enterVoiceMode();
+    }
+  }, []);
+
   // Coupe proprement le micro/la voix si l'écran est démonté en plein mode vocal.
   useEffect(() => () => {
     voiceModeRef.current = false;

@@ -38,10 +38,12 @@ function HomeTabBar({ active, nav }) {
 
   return (
     <div style={{
-      background: 'linear-gradient(180deg, #1565C0, #0D47A1)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      borderTop: '1px solid rgba(255,255,255,0.1)',
+      // Fond bleu marine uni (--sm-navy-deep, jamais réécrit sous .sm-dark —
+      // même exemption que le voile de la carte "Que se passe-t-il ?" et
+      // l'écran de démarrage : chrome intentionnellement sombre dans les
+      // deux thèmes) plutôt que le dégradé bleu vif précédent.
+      background: 'var(--sm-navy-deep)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
       display: 'flex',
       alignItems: 'flex-start',
       padding: '10px 0 28px',
@@ -51,34 +53,38 @@ function HomeTabBar({ active, nav }) {
     }}>
       {TABS.map(tab => {
 
-        // ── Bouton SOS central surélevé ──
+        // ── Bouton SOS central surélevé (réduit pour rester proportionné
+        //    face aux autres onglets, tout en restant reconnaissable) ──
         if (tab.special) return (
-          <div key="sos" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -28 }}>
+          <div key="sos" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -26 }}>
             <button
               onClick={() => nav.go('sos')}
-              style={{ position: 'relative', width: 60, height: 60, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              style={{ position: 'relative', width: 54, height: 54, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
               aria-label={t('tabbar.sos_aria')}
             >
-              <div className="sm-halo" style={{ borderColor: 'rgba(229,57,53,0.55)' }} />
-              <div className="sm-halo delay1" style={{ borderColor: 'rgba(229,57,53,0.35)' }} />
+              <div className="sm-halo" style={{ borderColor: 'rgba(229,57,53,0.5)' }} />
+              <div className="sm-halo delay1" style={{ borderColor: 'rgba(229,57,53,0.3)' }} />
               <div style={{
                 position: 'absolute', inset: 0, borderRadius: '50%',
                 background: 'var(--sm-red)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 6px 24px rgba(229,57,53,0.55)',
+                boxShadow: '0 4px 16px rgba(229,57,53,0.45)',
               }}>
-                <Icon name="siren" size={25} color="white" strokeWidth={2} />
+                <Icon name="siren" size={22} color="white" strokeWidth={2} />
               </div>
             </button>
             <span style={{ fontSize: 10.5, color: 'white', fontWeight: 700, fontFamily: 'var(--font-ui)' }}>{t('tabbar.sos')}</span>
           </div>
         );
 
-        // ── Onglets normaux ──
+        // ── Onglets normaux — icône/label blancs, trait vert discret sous
+        //    l'icône pour l'onglet actif (remplace l'ancienne bordure
+        //    blanche en haut). La barre garde sa place (transparente quand
+        //    inactive) pour ne jamais faire varier la hauteur de la tabbar. ──
         const isActive = active === tab.id;
         const iconColor = tab.disabled
           ? 'rgba(255,255,255,0.25)'
-          : isActive ? 'white' : 'rgba(255,255,255,0.5)';
+          : isActive ? 'white' : 'rgba(255,255,255,0.55)';
 
         const GO = { home: () => nav.reset('home'), training: () => nav.go('training'), map: () => nav.go('map'), profile: () => nav.go('profile') };
         return (
@@ -87,22 +93,59 @@ function HomeTabBar({ active, nav }) {
             onClick={() => !tab.disabled && GO[tab.id]?.()}
             style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              paddingTop: isActive && !tab.disabled ? '6px' : '8px',
-              paddingBottom: 0, paddingLeft: '4px', paddingRight: '4px',
-              background: 'none',
-              borderLeft: 'none', borderRight: 'none', borderBottom: 'none',
-              borderTop: isActive && !tab.disabled ? '2px solid white' : '2px solid transparent',
+              paddingTop: 8, paddingBottom: 0, paddingLeft: '4px', paddingRight: '4px',
+              background: 'none', border: 'none',
               cursor: tab.disabled ? 'default' : 'pointer',
               fontFamily: 'var(--font-ui)',
             }}
           >
             <Icon name={tab.icon} size={22} color={iconColor} />
+            <span style={{
+              width: 14, height: 3, borderRadius: 2, margin: '3px 0 1px',
+              background: isActive && !tab.disabled ? 'var(--sm-green)' : 'transparent',
+            }} />
             <span style={{ fontSize: 10.5, color: iconColor, fontWeight: isActive ? 600 : 400 }}>
               {tab.label}
             </span>
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// ── Carte "Conseil du jour" — dégradé vert doux + image illustrative ──────
+// Composant local (pas le Banner partagé — Banner sert aussi de toast profil
+// et de bandeau GPS/erreurs, un style dédié ici évite de dévier ces usages).
+// Couleurs de texte calquées sur BANNER_VARIANTS(_DARK).success dans
+// frames.jsx pour rester cohérentes avec le reste de l'app (contrastes déjà
+// vérifiés WCAG côté Banner).
+const TIP_IMAGE = 'https://images.unsplash.com/photo-1649260257572-91bf6f94cff6?fm=jpg&q=80&w=600&auto=format&fit=crop';
+function TipOfDayCard({ tip }) {
+  const theme = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <div style={{
+      position: 'relative', overflow: 'hidden', display: 'flex', gap: 14, alignItems: 'center',
+      borderRadius: 'var(--sm-radius)', padding: '16px 16px 16px 20px',
+      background: isDark
+        ? 'linear-gradient(120deg, #16281E 0%, var(--sm-paper-2) 75%)'
+        : 'linear-gradient(120deg, #EAF6EE 0%, #FFFFFF 75%)',
+    }}>
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: 'var(--sm-green)' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: isDark ? '#8FDB7A' : '#145A32', marginBottom: 4, fontFamily: 'var(--font-ui)' }}>
+          {tip.title}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', lineHeight: 1.5 }}>
+          {tip.text}
+        </div>
+      </div>
+      <img
+        src={TIP_IMAGE}
+        alt=""
+        style={{ width: 74, height: 74, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+      />
     </div>
   );
 }
@@ -179,9 +222,12 @@ function HomeMobile({ nav, lang }) {
 
         {/* Salutation */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 className="sm-serif" style={{ fontSize: 22, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <h1 className="sm-serif" style={{ fontSize: 21, lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {hour < 13 ? t('home.greeting_morning') : t('home.greeting_evening')} {prenom}
           </h1>
+          <p style={{ fontSize: 12.5, color: 'var(--sm-ink-500)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t('splash.tagline')}
+          </p>
         </div>
 
         {/* Avatar cliquable → profil */}
@@ -211,57 +257,80 @@ function HomeMobile({ nav, lang }) {
       {/* ── Corps scrollable ────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 12px', background: 'var(--sm-paper)' }}>
 
-        {/* Grande carte Chat IA — fond bleu. sm-card-breathe : respiration douce
-            du box-shadow (pas le micro, qui n'a pas d'animation ici) pour
-            attirer l'attention sans agressivité. */}
-        <button
-          onClick={() => nav.go('chat')}
+        {/* Grande carte Chat IA — photo réelle + voile bleu marine pour la
+            lisibilité du texte (blanc, y compris en anglais). Le fond uni
+            --sm-navy-deep sert de repli le temps que l'image charge (pas de
+            flash blanc). sm-card-breathe : respiration douce du box-shadow
+            pour attirer l'attention sans agressivité — recolorée en navy
+            (voir styles.css) pour rester cohérente avec ce nouveau fond. Le
+            bouton photo (tap n'importe où sur la carte) et le micro rond
+            sont deux éléments FRÈRES superposés (pas un bouton imbriqué
+            dans un bouton) : le micro, positionné après dans le DOM,
+            reçoit les clics dans sa zone en priorité. */}
+        <div
           className="sm-card-breathe"
           style={{
-            display: 'flex', width: '100%', alignItems: 'flex-start', gap: 14,
-            padding: 18, borderRadius: 16, marginBottom: 14,
-            minHeight: 120,
-            background: 'linear-gradient(135deg, #1565C0, #0D47A1)',
-            border: 'none', cursor: 'pointer', textAlign: 'left',
-            boxShadow: '0 4px 14px rgba(21,101,192,0.25)',
+            position: 'relative', width: '100%', minHeight: 148,
+            borderRadius: 'var(--sm-radius)', marginBottom: 14,
+            overflow: 'hidden', background: 'var(--sm-navy-deep)',
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 className="sm-serif" style={{ fontSize: 22, fontWeight: 700, color: 'white', marginBottom: 10, lineHeight: 1.15 }}>
-              {t('home.chat_card_title')}
-            </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-              {t('home.chat_card_subtitle')}
-            </p>
-          </div>
-          {/* Micro rouge */}
-          <div style={{
-            width: 58, height: 58, borderRadius: '50%', flexShrink: 0,
-            background: 'var(--sm-red)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 18px rgba(229,57,53,0.5)',
-          }}>
-            <Icon name="mic" size={26} color="white" strokeWidth={2} />
-          </div>
-        </button>
+          <button
+            onClick={() => nav.go('chat')}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              border: 'none', cursor: 'pointer', textAlign: 'left', padding: 18,
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10,
+              backgroundImage: 'linear-gradient(var(--sm-navy-deep-soft), var(--sm-navy-deep-soft)), url(\'https://images.pexels.com/photos/20100296/pexels-photo-20100296.jpeg?auto=compress&cs=tinysrgb&w=1200\')',
+              backgroundSize: 'cover', backgroundPosition: 'center',
+            }}
+          >
+            <span className="sm-pill-badge">{t('home.today_badge')}</span>
+            <div style={{ maxWidth: '78%' }}>
+              <h2 className="sm-serif" style={{ fontSize: 21, fontWeight: 700, color: 'white', marginBottom: 8, lineHeight: 1.2 }}>
+                {t('home.chat_card_title')}
+              </h2>
+              <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                {t('home.chat_card_subtitle')}
+              </p>
+            </div>
+          </button>
 
-        {/* Carte Scanner QR — fond blanc */}
+          {/* Trait vert discret */}
+          <div style={{ position: 'absolute', bottom: 16, left: 18, width: 26, height: 3, borderRadius: 2, background: 'var(--sm-green)' }} />
+
+          {/* Micro rouge — fonctionnel : ouvre le chat directement en mode
+              vocal continu (enterVoiceMode existant dans live-chat.jsx),
+              plutôt qu'un simple raccourci visuel vers l'écran texte. */}
+          <button
+            onClick={(e) => { e.stopPropagation(); window.SM.autoVoiceMode = true; nav.go('chat'); }}
+            aria-label={t('chat.mic_voice_input_title')}
+            style={{
+              position: 'absolute', right: 16, bottom: 14, zIndex: 1,
+              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              background: 'var(--sm-red)', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 16px rgba(229,57,53,0.45)',
+            }}
+          >
+            <Icon name="mic" size={23} color="white" strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Carte Scanner QR — fond blanc (gris clair en sombre, via la
+            règle .sm-dark [style*="background: white"] déjà en place) */}
         <button
           onClick={() => nav.go('qr_scanner')}
           style={{
             display: 'flex', width: '100%', alignItems: 'center', gap: 14,
-            padding: '15px 16px', borderRadius: 16, marginBottom: 22,
+            padding: '15px 16px', borderRadius: 'var(--sm-radius)', marginBottom: 22,
             background: 'white', border: '1.5px solid var(--sm-line)',
             cursor: 'pointer', textAlign: 'left',
             boxShadow: '0 2px 8px rgba(10,22,40,0.06)',
           }}
         >
-          <div style={{
-            width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-            background: '#F1F2F4',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon name="camera" size={22} color="#1a1a1a" strokeWidth={1.9} />
+          <div className="sm-icon-tile" style={{ background: 'var(--sm-blue-soft)' }}>
+            <Icon name="qr-code" size={22} color="var(--sm-blue)" strokeWidth={1.9} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="sm-serif" style={{ fontSize: 16, color: 'var(--sm-ink)', marginBottom: 3 }}>
@@ -271,11 +340,17 @@ function HomeMobile({ nav, lang }) {
               {t('home.qr_scan_subtitle')}
             </div>
           </div>
-          <Icon name="chevron-right" size={18} color="var(--sm-ink-400)" style={{ flexShrink: 0 }} />
+          <div className="sm-icon-circle" style={{ background: 'var(--sm-blue-soft)' }}>
+            <Icon name="arrow-right" size={16} color="var(--sm-blue)" strokeWidth={2} />
+          </div>
         </button>
 
-        <h3 className="sm-serif" style={{ fontSize: 18, marginBottom: 12 }}>{t('home.tip_of_day')}</h3>
-        <Banner variant="success" icon={tip.icon} title={tip.title} text={tip.text} stacked style={{ minHeight: 120, alignItems: 'center' }} />
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+          <Icon name="lightbulb" size={17} color="var(--sm-ink)" strokeWidth={2} style={{ marginRight: 8 }} />
+          <h3 className="sm-serif" style={{ fontSize: 18, flex: 1 }}>{t('home.tip_of_day')}</h3>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-blue)' }}>{t('home.tip_see_more')}</span>
+        </div>
+        <TipOfDayCard tip={tip} />
       </div>
 
       <FloatingChatButton nav={nav} />
