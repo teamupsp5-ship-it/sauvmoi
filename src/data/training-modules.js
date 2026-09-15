@@ -501,7 +501,7 @@ export const TRAINING_MODULES = [
     "icon": "droplet",
     "color": "#C0392B",
     "difficulty": "Moyen",
-    "image": "https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop",
+    "image": "https://images.pexels.com/photos/6519904/pexels-photo-6519904.jpeg?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Hémorragie",
       "description": "Arrêter un saignement abondant",
@@ -857,7 +857,7 @@ export const TRAINING_MODULES = [
     "icon": "flame",
     "color": "#E67E22",
     "difficulty": "Moyen",
-    "image": "https://images.unsplash.com/photo-1564144573017-8dc932e0039e?fm=jpg&q=80&w=600&auto=format&fit=crop",
+    "image": "https://images.pexels.com/photos/68262/pexels-photo-68262.jpeg?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Brûlures",
       "description": "Premiers gestes face à une brûlure",
@@ -1249,7 +1249,7 @@ export const TRAINING_MODULES = [
     "icon": "bone",
     "color": "#7F8C8D",
     "difficulty": "Moyen",
-    "image": "https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop",
+    "image": "https://images.pexels.com/photos/6191918/pexels-photo-6191918.jpeg?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Fractures et Entorses",
       "description": "Immobiliser un membre blessé",
@@ -2871,7 +2871,7 @@ export const TRAINING_MODULES = [
     "icon": "heart-crack",
     "color": "#C0392B",
     "difficulty": "Difficile",
-    "image": "https://images.pexels.com/photos/20100296/pexels-photo-20100296.jpeg?auto=compress&cs=tinysrgb&w=600",
+    "image": "https://images.unsplash.com/photo-1624638760852-8ede1666ab07?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Malaise Cardiaque",
       "description": "Réagir face à une douleur thoracique évocatrice",
