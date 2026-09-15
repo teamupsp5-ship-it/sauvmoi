@@ -237,7 +237,7 @@ export const TRAINING_MODULES = [
     "icon": "wind",
     "color": "#C0392B",
     "difficulty": "Facile",
-    "image": "https://images.unsplash.com/photo-1734174040265-ef440f9373dc?fm=jpg&q=80&w=600&auto=format&fit=crop",
+    "image": "https://images.pexels.com/photos/11352535/pexels-photo-11352535.jpeg?fm=jpg&q=80&w=600&auto=format&fit=crop",
     "fr": {
       "title": "Étouffement (Heimlich)",
       "description": "Dégager des voies respiratoires obstruées",
