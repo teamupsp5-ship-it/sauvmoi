@@ -21,6 +21,7 @@ couvrent San Pédro (20 centres de santé, liste vérifiée le 31/07/2026).
 | Couche | Technologie |
 |---|---|
 | Backend | Node.js (ES modules) + Express 4 + WebSocket (`ws`) |
+| Sécurité backend | `helmet` (headers de sécurité + CSP) + `express-rate-limit` (login/register) — voir `src/server.js` et `src/validate.js`, section Sécurité ci-dessous |
 | Frontend | React 18 + JSX transpilé par Babel Standalone (pas de build) |
 | Icônes | Lucide (UMD, chargé via CDN) |
 | Cartes | Leaflet.js (CDN) + tuiles OpenStreetMap — carte SOS et carte Localisation |
@@ -166,15 +167,16 @@ charger le fichier dans `index.html`, l'ajouter ici.
 
 | Fichier | Rôle |
 |---|---|
-| `server.js` | Express + WebSocket. Monte : `authRoutes` → `apiRoutes` → `chatRoutes` → `sosRoutes` → `trainingRoutes` |
+| `server.js` | Express + WebSocket. Monte : `authRoutes` → `apiRoutes` → `chatRoutes` → `sosRoutes` → `trainingRoutes`. `app.set('trust proxy', 1)` (déployé derrière le proxy Render — sans ça `req.ip` renvoie l'IP du proxy pour tout le monde, ce qui casse le rate limiting par IP). `helmet()` avec CSP explicite (voir section Sécurité) appliqué globalement avant les routes ; `express.json({limit:'8mb'})` inchangé. |
+| `validate.js` | Validation manuelle légère des entrées utilisateur (pas de zod/joi — dépendances backend minimales par convention, besoin borné à quelques routes) : `isNonEmptyString`/`isOptionalString` (+ longueur max), `isValidEmail`, `isValidPhone`, `isValidIsoDate`, `isValidLatLng`, `validateImageDataUrl` (MIME jpeg/png/webp strict + taille max décodée depuis la longueur base64), `rejectUnknownFields` (whitelist explicite). Utilisé par `routes/auth.js`, `routes/chat.js`, `routes/sos.js`. |
 | `supabase.js` | Client Supabase principal (`supabase`, clé `service_role` — contourne RLS, jamais de session dessus) + `createAuthClient()` (fabrique de clients jetables clé `anon`, un par appel, pour `signInWithPassword`/`refreshSession`). **Ne jamais appeler une méthode qui gère une session (`signIn*`, `signOut`, `refreshSession`) sur le client `supabase` partagé** — ça fait basculer l'en-tête `Authorization` de toutes les requêtes PostgREST suivantes (y compris pour d'autres requêtes concurrentes) du `service_role` vers le JWT de l'utilisateur connecté → erreurs RLS aléatoires en prod. Toujours passer par `createAuthClient()` pour ça. |
 | `store.js` | Store en mémoire + persistance JSON (`.data/db.json`). API : `get()`, `save()`, `uid(prefix)`. Ne gère plus les comptes/profils (→ Supabase) ; reste utilisé pour les alertes SOS actives et les conversations chat |
 | `ai.js` | Claude via Anthropic API (premiers secours + santé générale, garde-fous stricts). Fallback déterministe si `ANTHROPIC_API_KEY` absent ou appel échoué — log explicite dans les deux cas (`[ai] Utilisation Claude API` / `[ai] Utilisation fallback PSC1 (raison: ...)`). Réponse normalisée : `{ reply, suggestedActions, protocolRef, source }`. Section système `LANGUE` : consigne stricte et non ambiguë de toujours répondre entièrement en français (aucun mot anglais), quelle que soit la langue du message de l'utilisateur, sauf instruction contraire explicite de sa part — remplace une ancienne ligne "réponds dans la langue de l'utilisateur" qui poussait légitimement Claude à répondre en anglais si l'utilisateur écrivait en anglais. Même section : phrases courtes, vocabulaire courant (pas de jargon médical complexe, terme technique expliqué entre parenthèses si nécessaire), instructions actionables directes plutôt que des explications longues. Aucun paramètre de langue n'est envoyé dans le corps de la requête `/v1/messages` (seulement `model`, `max_tokens`, `system`, `messages`) — la langue de réponse est intégralement pilotée par le texte du system prompt. |
-| `routes/auth.js` | `POST /auth/register` (Supabase `admin.createUser` + upsert `profiles` + insert `emergency_contacts` + connexion immédiate) · `POST /auth/login` (`signInWithPassword`) · `POST /auth/refresh` (`{refreshToken}` → nouveau `{token, refreshToken, expiresAt}`) · `POST /auth/change-password` · `POST /auth/google-sync` (`requireAuth` — backfille `profiles.name`/`photo` depuis `user_metadata` Google si vides, via `upsert` ; idempotent une fois les champs remplis) · `GET /me` · `PUT /me` (profil + carnet médical + remplacement complet des contacts). Exporte le middleware `requireAuth` (vérifie le Bearer token via `supabase.auth.getUser(token)`, attache `req.user`), réutilisé par `api.js`/`training.js`/`sos.js`. |
+| `routes/auth.js` | `POST /auth/register` (Supabase `admin.createUser` + upsert `profiles` + insert `emergency_contacts` + connexion immédiate — `express-rate-limit` 3/heure/IP, honeypot `website` invisible côté frontend rejeté silencieusement avant tout appel Supabase, validation des champs via `validate.js`) · `POST /auth/login` (`signInWithPassword` — rate limit 5/15min/IP) · `POST /auth/refresh` (`{refreshToken}` → nouveau `{token, refreshToken, expiresAt}`) · `POST /auth/change-password` · `POST /auth/google-sync` (`requireAuth` — backfille `profiles.name`/`photo` depuis `user_metadata` Google si vides, via `upsert` ; idempotent une fois les champs remplis) · `GET /me` · `PUT /me` (profil + carnet médical + remplacement complet des contacts — whitelist explicite des champs top-level et `medicalRecord.*` via `rejectUnknownFields`, 400 si un champ non prévu est présent (`role`/`id`/`email` notamment) ; `photo` validée via `validateImageDataUrl` (jpeg/png/webp, 5 Mo max)). Exporte le middleware `requireAuth` (vérifie le Bearer token via `supabase.auth.getUser(token)`, attache `req.user`), réutilisé par `api.js`/`training.js`/`sos.js`. |
 | `routes/api.js` | Home, urgences, protocoles, vision IA, paiements (legacy, `DEMO_USER`/seed) + `/medical-record/qr` et `/notifications` (Supabase, `requireAuth`) + `/public/medical-card/:id.png`/`.json` (public, sans auth — voir `medical-card.js`) + `GET /config` (public — expose `SUPABASE_URL`/`SUPABASE_ANON_KEY` au frontend pour l'OAuth Google côté navigateur ; `SUPABASE_SERVICE_ROLE_KEY` n'y transite jamais). `/auth/request-otp` et `/auth/verify` legacy encore présents mais inutilisés par le frontend. |
 | `medical-card.js` | Génère la "Fiche d'urgence" visuelle : template SVG (police système `Arial, Helvetica, sans-serif` — le rendu SVG serveur ne charge pas Poppins) rasterisé en PNG par `sharp`, sections à positions Y fixes (pas de cascade dynamique) pour garantir qu'aucun profil ne peut faire déborder une section sur la suivante. `buildMedicalCardSvg()` (carte réelle) et `buildUnavailableCardSvg()` (fiche introuvable/expirée) — utilisées par `/api/public/medical-card/:id.png` dans `routes/api.js`. |
-| `routes/chat.js` | `POST /chat` (Claude ou fallback) · `GET /conversations` |
-| `routes/sos.js` | `POST /sos/trigger` (`requireAuth` — vérifie `hasAccount` via la table `profiles` par téléphone, insère dans `notifications` Supabase) · `GET /sos/:id/status` · `POST /sos/:id/cancel` (en mémoire, non protégés) — pas de WebSocket ni de simulation, la position vient du GPS réel du téléphone |
+| `routes/chat.js` | `POST /chat` (Claude ou fallback — message limité à 2000 caractères, `lang` normalisée à `FR`/`EN`) · `GET /conversations` |
+| `routes/sos.js` | `POST /sos/trigger` (`requireAuth` — vérifie `hasAccount` via la table `profiles` par téléphone, insère dans `notifications` Supabase ; `lat`/`lng` rejetés (400) plutôt que silencieusement remplacés par défaut si fournis mais invalides — safety-critical, mieux vaut échouer clairement qu'envoyer une position erronée aux secours/contacts) · `GET /sos/:id/status` · `POST /sos/:id/cancel` (en mémoire, non protégés) — pas de WebSocket ni de simulation, la position vient du GPS réel du téléphone |
 | `routes/training.js` | `GET /training/modules` (`requireAuth` — lit `training_progress`, statut `locked`/`unlocked`/`completed`, score clampé `[0,100]`) · `POST /training/:moduleId/complete` (`requireAuth` — upsert `training_progress`, déverrouille le module suivant si ≥ 60%) |
 | `data/seed.js` | `DEMO_USER`, `EMERGENCY_LIST`, `RESCUERS`, `PAYMENT_METHODS`, `TIPS` — données statiques, plus la source de vérité des comptes (→ Supabase) |
 | `data/protocols.js` | Protocoles PSC1 validés (hémorragie, étouffement, RCP, brûlure, AVC…) |
@@ -187,7 +189,7 @@ charger le fichier dans `index.html`, l'ajouter ici.
 |---|---|
 | `frames.jsx` | Primitives partagées : `Icon`, `PhoneFrame`, `DesktopFrame`, `TabBar`, `PulseCircle`, `Waveform`, `FloatingChatButton`, `BirthdateField`, `Banner`. `StatusBar()` et `HomeIndicator()` retournent `null`. Définit `goBack(nav)` (helper global) et `nav.canBack()`. `PhoneFrame` accepte un prop optionnel `onNavReady(nav)` (no-op si absent, `canvas.html` inchangé) pour exposer `nav` à un composant parent — utilisé par `app-live.jsx` pour piloter la navigation depuis l'extérieur (déconnexion forcée). `FloatingChatButton` : cercle rouge dégradé 52px, icône `message-circle-heart`, `position: fixed; bottom: calc(92px + env(safe-area-inset-bottom, 0px))` (92px = hauteur mesurée de `HomeTabBar` hors safe-area, +env() pour les appareils à barre d'accueil — sans le calc(), le bouton restait à distance fixe du bord et chevauchait l'onglet Profil sur ces appareils), `nav.go('chat')` — affiché sur `HomeMobile`, `TrainingMobile`, `MapScreen`, `ProfileScreen` (écran principal) et `SOSCountdown` (phase `idle` uniquement). `Icon` a une `key={safeName}` sur son `<span>` racine (pas sur le `<i>` interne) : lucide ne convertit un `<i data-lucide>` en `<svg>` qu'une seule fois, donc sans cette clé changer dynamiquement le prop `name` d'une icône déjà montée (mic/mic-off, pause/play…) restait bloqué sur le premier glyphe — voir la Décision technique dédiée. `Banner({variant, icon, title, text, stacked, children, style})` : bandeau réutilisable 4 variantes pastel (`success`/`warning`/`danger`/`info`, contraste texte/fond vérifié WCAG AA), barre d'accent 5px + icône en cercle 15% opacité ; mode par défaut texte inline (titre gras suivi du texte dans la même phrase, pour les messages courts : erreurs, toasts) ou `stacked` (titre et description sur deux lignes distinctes, pour un contenu plus long comme Conseil du jour). `speakText(id, text, lang, onEnd)` (async — voir ci-dessous) / `stopSpeech()` / `useSpeechActive(id)` / `useSpeechUnavailable(id)` : coordination partagée (`window.SM_SPEECH`) pour qu'une seule lecture Speech Synthesis soit active à la fois, quel que soit l'appelant (bulle de chat, mode vocal). `speakText` attend `waitForVoices()` (timeout 2s) avant `speak()` — `speechSynthesis.getVoices()` renvoie souvent un tableau vide au premier appel sur Android (chargement asynchrone, événement `voiceschanged`) ; un watchdog de 3s après `speak()` détecte l'absence totale d'`onstart`/`onerror` (synthèse probablement indisponible sur l'appareil) et expose ça via `useSpeechUnavailable(id)`, consommé par `ChatAIBubble` et `VoiceModeOverlay` pour afficher "La lecture vocale n'est pas disponible sur cet appareil". `stripMarkdownForSpeech` (nettoyage markdown → texte brut avant lecture) couvre gras/italique (`**`/`__`/`*`/`_`), titres, listes à puces et numérotées, citations, liens (garde le texte, jette l'URL), barré, code inline/bloc, lignes horizontales. `BirthdateField` : bascule calendrier natif / saisie texte JJ/MM/AAAA, valeur toujours exposée en ISO `YYYY-MM-DD` au parent. `FallbackImage({src, alt, fallbackColor, style, imgStyle})` : image avec fond de secours en couleur unie — le fond reste visible (fondu en opacité) tant que l'image charge, et RESTE affiché si elle échoue (`onError`), jamais d'icône "image cassée" ; utilisé pour toutes les photos réelles ajoutées aux conseils du jour et modules de formation (voir `screen-home.jsx`/`screen-training.jsx`/`screen-training-module.jsx`). |
 | `screen-splash.jsx` | Animation "Révélation Vitale" 6.5s : fond rouge → cercle blanc (1.5s) → logo pop-in + pulsation infinie (2.8s) → tracé ECG SVG + titre Poppins (2.8s→4.5s) → sous-titre (4.5s→5.5s) → redirection auth ou home. Si le token restauré expire bientôt, attend un `window.API.refreshSession()` avant de décider (sinon atterrissage sur `home` avec un token déjà mort). |
-| `screen-auth.jsx` | `AuthScreen` (logo + tagline, email + mdp, bouton "Continuer avec Google" **fonctionnel** — `handleGoogleLogin()` appelle `getSupabaseClient()` puis `signInWithOAuth({provider:'google'})`, redirige immédiatement vers Google ; état `googleLoading` pendant la redirection, message clair si le SDK Supabase (CDN) est inaccessible plutôt qu'une exception JS. Bouton Apple resté purement visuel, sans `onClick`) · `RegisterScreen` (2 étapes : infos perso + profil médical, date de naissance via `BirthdateField`). Messages d'erreur (connexion et les 2 étapes d'inscription) via `<Banner variant="danger" icon="alert-circle">`. `applySession()` sauvegarde `sm_token`/`sm_refresh_token`/`sm_expires_at`/`sm_user` en localStorage. |
+| `screen-auth.jsx` | `AuthScreen` (logo + tagline, email + mdp, bouton "Continuer avec Google" **fonctionnel** — `handleGoogleLogin()` appelle `getSupabaseClient()` puis `signInWithOAuth({provider:'google'})`, redirige immédiatement vers Google ; état `googleLoading` pendant la redirection, message clair si le SDK Supabase (CDN) est inaccessible plutôt qu'une exception JS. Bouton Apple resté purement visuel, sans `onClick`) · `RegisterScreen` (2 étapes : infos perso + profil médical, date de naissance via `BirthdateField`) — champ honeypot `website` invisible (hors écran, `aria-hidden`, `tabIndex -1`, jamais `display:none` pour ne pas être détecté comme tel par un bot) dans le formulaire de l'étape 1, envoyé tel quel à `POST /auth/register` qui rejette silencieusement si rempli. Messages d'erreur (connexion et les 2 étapes d'inscription) via `<Banner variant="danger" icon="alert-circle">`. `applySession()` sauvegarde `sm_token`/`sm_refresh_token`/`sm_expires_at`/`sm_user` en localStorage. |
 | `supabase-client.js` | Client Supabase **côté navigateur** (clé `anon`, publique), créé à la demande via `getSupabaseClient()`/`window.SM_GOOGLE_SYNC` — sert **uniquement** à l'OAuth Google (`signInWithOAuth` pour déclencher la redirection, `detectSessionInUrl`+`getSession()` pour récupérer la session au retour). `persistSession`/`autoRefreshToken` désactivés : ce client ne gère pas de session dans la durée, ce rôle reste à `sm_token`/`sm_refresh_token`/`api-client.js` — deux gestionnaires de session en parallèle risqueraient de diverger. `SM_GOOGLE_SYNC` (IIFE auto-exécutée au chargement de chaque page) : si l'URL contient un callback OAuth fraîchement reçu, synchronise la session vers le modèle applicatif habituel (`POST /api/auth/google-sync`, écrit `sm_token`/`sm_user` en localStorage) puis nettoie le fragment `#access_token=...` de l'URL. Se dégrade proprement (aucune exception) si le SDK CDN est absent. |
 | `screen-home.jsx` | `HomeMobile` : logo `logo_80.png` en haut à gauche (cliquable → notifications) + salutation (nom en gras, sous-titre discret `splash.tagline` en dessous) + avatar cliquable → profil. Carte "Que se passe-t-il ?" : photo réelle (Pexels, `background-image`) + voile `var(--sm-navy-deep-soft)` pour la lisibilité du texte blanc dans les deux langues, fond de repli `var(--sm-navy-deep)` (évite un flash blanc au chargement), badge `sm-pill-badge` "Aujourd'hui", trait vert discret en bas à gauche, `sm-card-breathe` recolorée en navy (voir styles.css). Le bouton photo (tap carte → chat texte) et le bouton micro rond rouge sont deux `<button>` FRÈRES superposés en position absolue (jamais un bouton imbriqué dans un bouton) : le micro pose `window.SM.autoVoiceMode = true` avant `nav.go('chat')`, flag consommé une seule fois par un `useEffect` au montage de `ChatListening` (`live-chat.jsx`) qui appelle alors `enterVoiceMode()` — le micro déclenche donc la vraie reconnaissance vocale continue, pas juste un raccourci visuel vers l'écran texte. Carte QR : icône `qr-code` dans `sm-icon-tile` bleu pastel + indicateur `sm-icon-circle` bleu pastel à droite. Section Conseil du jour : en-tête icône ampoule + titre + lien décoratif "Voir plus" (`home.tip_see_more`, aucune fonctionnalité derrière — juste l'affordance visuelle demandée), `TipOfDayCard` (composant LOCAL à ce fichier, pas le `Banner` partagé — Banner sert aussi de toast profil/bandeau GPS, un style dédié ici évite de dévier ces usages) : dégradé vert doux → blanc (adapté en sombre via `useTheme()`, couleurs de texte calquées sur `BANNER_VARIANTS(_DARK).success` de `frames.jsx`), image Unsplash par défaut identique pour les 7 conseils. `HomeTabBar` (aussi utilisée par Formation/Localisation/Profil/SOS) : fond `var(--sm-navy-deep)` uni (remplace l'ancien dégradé bleu), icônes/labels blancs, trait vert `var(--sm-green)` sous l'icône de l'onglet actif (remplace l'ancienne bordure blanche en haut) — la barre garde sa place quand inactive pour ne jamais faire varier la hauteur de la tabbar (mesure dont dépend `FloatingChatButton`, voir `frames.jsx`). Bouton SOS central réduit (54px, était 60px) pour rester proportionné. Racine `<div position:absolute;inset:0>` (pas un Fragment — nécessaire pour que le safe-area CSS centralisé s'applique, voir Décisions techniques). `HomeDesktop` · `Sidebar` (canvas uniquement, inchangés). |
 | `screen-emergency.jsx` | `EmergencyMobile` (racine `<div position:absolute;inset:0>`, idem `HomeMobile`) · `EmergencyCamera` · `EmergencyGuide` (version canvas — la version live vient de `live-emergency.jsx`) |
@@ -228,7 +230,7 @@ charger le fichier dans `index.html`, l'ajouter ici.
 |---|---|
 | `capacitor.config.json` | `appId: ci.sauvmoi.app` · `appName: Sauv'Moi` · `webDir: public` · `androidScheme: https` |
 | `package.json` | Scripts `start`, `dev`, `android:add`, `build:mobile`, `android:open`, `android:run` |
-| `index.html` | `viewport-fit=cover` (nécessaire pour `env(safe-area-inset-*)`), `apple-touch-icon`, `apple-mobile-web-app-capable`/`-status-bar-style`/`-title` pour l'expérience iOS "app" |
+| `index.html` | `viewport-fit=cover` (nécessaire pour `env(safe-area-inset-*)`), `apple-touch-icon`, `apple-mobile-web-app-capable`/`-status-bar-style`/`-title` pour l'expérience iOS "app". Charge `tweak-defaults.js` (externalisé, ex-`<script>` inline) plutôt qu'un bloc inline — permet de ne pas ajouter `'unsafe-inline'` à script-src pour CE fichier (nécessaire quand même globalement à cause de Babel Standalone, voir Sécurité ci-dessous). |
 
 ---
 
@@ -325,6 +327,109 @@ crée automatiquement une ligne `profiles` (name, phone) à l'inscription. `POST
 
 ---
 
+## Sécurité
+
+Renforcement effectué avant le lancement pilote (checklist priorisée par
+criticité réelle plutôt qu'exhaustive).
+
+**En place :**
+- **Rate limiting** (`express-rate-limit`, `src/routes/auth.js`) : 5/15min/IP
+  sur `/auth/login`, 3/heure/IP sur `/auth/register`, réponse 429 avec message
+  bilingue FR/EN (seul message de cette route à l'être — voir plus bas).
+  `app.set('trust proxy', 1)` dans `server.js` est **nécessaire** pour que
+  `req.ip` reflète le vrai client derrière le proxy Render, sans quoi tout le
+  monde partage la même IP apparente et le rate limit devient inopérant.
+- **Headers de sécurité** (`helmet`, `src/server.js`) : CSP explicite (voir
+  encadré ci-dessous), HSTS, `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`. Vérifié en conditions réelles (Playwright) :
+  l'app se rend sans erreur CSP, carte Leaflet + tuiles OpenStreetMap +
+  images Unsplash/Pexels chargent normalement.
+- **`npm audit`** : 7 vulnérabilités (dont 1 critique, `node-tar`) corrigées
+  via `npm audit fix` — uniquement des montées de version mineures/patch
+  (`sharp` 0.35.3→0.35.4, `express` 4.22.2→4.22.3, etc.), aucune majeure,
+  `0 vulnerabilities` après coup. Revalidé (`sharp` re-testé manuellement,
+  génération de fiche médicale toujours fonctionnelle).
+- **Whitelist des champs modifiables** (`PUT /me`, `routes/auth.js`) :
+  `rejectUnknownFields()` rejette (400) tout champ de premier niveau — ou
+  nichés sous `medicalRecord`/`medical` — absent d'une liste explicite,
+  avant même de lire les valeurs. `role`/`id`/`email` ne peuvent donc plus
+  transiter par cette route, whitelist auditable plutôt que dépendre du fait
+  qu'une route ne LIT jamais un champ non prévu (fragile si un futur
+  `...body` était ajouté par erreur).
+- **Validation des entrées** (`src/validate.js`, manuelle — pas de zod/joi,
+  cohérent avec les dépendances backend minimales du projet) : types,
+  longueurs (nom < 100, message chat < 2000, etc.), formats (email,
+  téléphone, date ISO, coordonnées GPS) sur `/auth/register`, `PUT /me`,
+  `/chat`, `/sos/trigger`.
+- **Parseur markdown du chat** (`screen-chat.jsx`) : audité — aucun
+  `dangerouslySetInnerHTML` dans tout le frontend (`grep` sur `public/`),
+  `parseInlineMarkdown`/`renderMarkdown` ne produisent que des éléments React
+  (texte + `<strong>`), jamais du HTML brut injecté. Testé en conditions
+  réelles avec un message contenant `<script>alert(1)</script><img src=x
+  onerror=alert(2)>` : rendu en texte échappé (`&lt;script&gt;...`), zéro
+  `<script>`/`<img>` dans le DOM final, aucune exécution.
+- **Upload photo de profil** (`PUT /me`) : `validateImageDataUrl()` limite
+  strictement le type MIME à `image/jpeg`/`image/png`/`image/webp` (rejette
+  explicitement `image/svg+xml`, qui peut embarquer du script) et la taille
+  décodée à 5 Mo, avant tout `update` Supabase.
+- **Honeypot anti-bot** (`POST /auth/register`) : champ `website` invisible
+  (hors écran, pas `display:none`) ajouté au formulaire d'inscription
+  (`screen-auth.jsx`) — rejeté silencieusement (400 générique, aucun détail
+  sur la détection) avant tout appel Supabase si rempli. Protection simple
+  contre les bots qui scrapent/remplissent le formulaire à l'aveugle ; n'a
+  pas d'effet contre un bot qui appelle l'API JSON directement sans jamais
+  charger la page — le rate limiting reste la défense principale contre ce
+  cas-là.
+
+**Content-Security-Policy — compromis assumé et documenté :** l'app n'a pas
+de bundler (voir Stack technique) : tout le JSX est transpilé et exécuté EN
+DIRECT dans le navigateur par Babel Standalone. Vérifié empiriquement
+(testé, cassait tout l'écran) : Babel Standalone n'utilise pas
+eval()/Function() pour exécuter le code transpilé, il l'injecte comme un
+nouvel élément `<script>` avec le code en texte — traité par le navigateur
+comme du script inline, quel que soit le `<script src="...">` d'origine.
+`script-src` a donc besoin à la fois de `'unsafe-inline'` ET `'unsafe-eval'`
+(regenerator-runtime utilise aussi `Function()`), ce qui limite fortement ce
+que la CSP protège réellement contre une injection de script. C'est un
+compromis inhérent à l'architecture "sans bundler" de ce projet, pas un
+oubli — voir le point suivant pour la mitigation qui en tient compte.
+Les autres directives restent une vraie protection indépendante de cette
+limite : `connect-src` (uniquement `'self'`, l'API Sauv'Moi et
+`*.supabase.co`) empêche qu'un script injecté exfiltre des données vers un
+domaine arbitraire, `object-src 'none'` bloque les plugins, `frame-ancestors`
++ `X-Frame-Options: DENY` bloquent le clickjacking. `canvas.html` (outil de
+design, données synthétiques uniquement) partage la même CSP — son
+`<script>` inline (bloc EDITMODE réécrit par l'éditeur visuel, voir
+`tweaks-panel.jsx`) fonctionne déjà avec `'unsafe-inline'` puisqu'il est
+nécessaire de toute façon pour l'app réelle.
+
+**Stockage des tokens (localStorage) — risque connu, mitigation sans
+refonte :** `sm_token`/`sm_refresh_token` restent en `localStorage`
+(`api-client.js`), un vecteur classique de vol de session en cas de faille
+XSS — une migration vers des cookies `httpOnly` supprimerait ce risque mais
+représente une refonte du flux d'auth (cookies cross-origin entre le
+frontend statique et l'API, gestion CSRF, `sameSite`) trop risquée juste
+avant un lancement pilote. Décision : ne pas migrer maintenant, réduire le
+risque autrement, et **reconsidérer après le pilote** avec plus de temps
+pour une migration testée correctement :
+- La CSP ci-dessus (`connect-src` restreint) limite déjà où un script
+  injecté pourrait exfiltrer un token volé, même si elle ne peut pas
+  empêcher l'injection elle-même (voir compromis ci-dessus).
+- Durée de vie du token d'accès : contrôlée par la configuration du projet
+  Supabase (Dashboard → Authentication → Settings → JWT expiry), pas par ce
+  code — actuellement ~1h (voir `sessionExpiresAtMs()` dans
+  `routes/auth.js`), déjà raisonnablement courte plutôt que "longue". Le
+  refresh automatique et transparent (`api-client.js`, avant chaque appel si
+  expiration < 2 min) rend déjà une durée courte invisible pour
+  l'utilisateur — aucune régression UX à réduire encore ce paramètre côté
+  Supabase si souhaité, mais ce n'est pas un changement que ce code peut
+  faire lui-même.
+- **À faire après le pilote** : migration complète vers des cookies
+  `httpOnly`/`secure`/`sameSite` pour `sm_token`/`sm_refresh_token`, avec le
+  temps nécessaire pour traiter CSRF et le flux cross-origin proprement.
+
+---
+
 ## Décisions techniques prises
 
 | Sujet | Décision | Raison |
@@ -347,6 +452,9 @@ crée automatiquement une ligne `profiles` (name, phone) à l'inscription. `POST
 | Refonte UI/UX Phase 2 : SOS/Formation/Localisation/Profil | Réutilisation stricte des primitives Phase 1 plutôt que de nouveaux styles par écran : `Banner` (succès pour "Alerte déclenchée" dans `live-sos.jsx` et le bloc de résultat de quiz dans `screen-training-module.jsx`, danger pour l'échec), `.sm-icon-tile`/`.sm-icon-circle` (numéros rapides SOS, même structure que la carte QR de l'accueil), `var(--sm-navy-deep)` (chip de filtre actif dans `screen-map.jsx`, cohérent avec la tabbar) | Objectif explicite : un seul design system centralisé plutôt que des variantes locales par écran — toute nouvelle carte/bandeau doit d'abord chercher si `Banner`/un token/une classe existants couvrent déjà le besoin avant d'en écrire un nouveau |
 | Chat unifié | `ChatListening = ChatResponse` dans `live-chat.jsx` | Un seul écran gère tout le fil de conversation |
 | Fallback chat hors-ligne | 6 protocoles PSC1 embarqués dans `live-chat.jsx` (`_PSC1`), déclenché uniquement sur vraie panne réseau (`isNetworkError`) | Indépendant du backend — fonctionne même si le serveur est coupé, mais ne doit pas masquer une vraie erreur serveur en la faisant passer pour du hors-ligne |
+| Sécurité pilote : CSP avec `'unsafe-inline'`+`'unsafe-eval'` en script-src | Gardés tous les deux malgré l'affaiblissement de la CSP contre l'injection de script | Sans bundler, Babel Standalone exécute le JSX en injectant le code transpilé comme un nouvel élément `<script>` (pas via eval/Function) — retirer `'unsafe-inline'` casse le rendu de toute l'app, vérifié empiriquement. Voir section Sécurité pour la mitigation (connect-src restreint) |
+| Sécurité pilote : validation manuelle plutôt que zod/joi | `src/validate.js`, fonctions pures simples | Cohérent avec les dépendances backend minimales du projet ; le besoin (types/longueurs/formats sur un nombre borné de routes) ne justifie pas une librairie de schémas complète |
+| Sécurité pilote : tokens localStorage non migrés vers httpOnly | Risque documenté et mitigé (CSP connect-src, JWT ~1h + refresh) plutôt que refonte immédiate | Migration cookies httpOnly = refonte du flux d'auth (CSRF, cross-origin, sameSite) trop risquée juste avant un lancement pilote — à reconsidérer après, voir section Sécurité |
 | Chat IA : périmètre élargi | System prompt couvre premiers secours **et** santé générale, avec garde-fous stricts (jamais de diagnostic affirmatif, jamais de posologie, toujours renvoyer vers un pro en cas de doute) | L'app doit rester utile au-delà de la seule urgence vitale, sans jamais se substituer à un avis médical |
 | Chat IA : images | Pas d'analyse visuelle prétendue — le system prompt demande une description écrite | Aucun modèle de vision fiable branché ; mieux vaut le dire clairement que de bluffer une analyse |
 | Bouton flottant Chat IA | `FloatingChatButton` dans `frames.jsx`, affiché sur les écrans principaux (pas pendant un quiz/étape de formation, pas sur les sous-écrans profil) | Accès rapide au chat depuis n'importe où sans surcharger les écrans à fort enjeu (formation en cours, etc.) |
@@ -430,6 +538,7 @@ crée automatiquement une ligne `profiles` (name, phone) à l'inscription. `POST
 - Dépôt GitHub : `https://github.com/teamupsp5-ship-it/sauvmoi` (branche `main`)
 - Capacitor configuré pour Android (`ci.sauvmoi.app`) + permission CAMERA dans AndroidManifest
 - Mode plein écran natif (`.sm-live`, `viewport-fit=cover`)
+- **Renforcement sécurité pilote** : rate limiting login/register (`express-rate-limit`), headers de sécurité + CSP (`helmet`), `npm audit fix` (0 vulnérabilité restante), whitelist explicite des champs modifiables sur `PUT /me`, validation des entrées (`src/validate.js`) sur register/`PUT /me`/chat/SOS, audit anti-XSS du parseur markdown du chat (testé en conditions réelles), restriction MIME/taille de l'upload photo de profil, honeypot anti-bot sur l'inscription. Voir section Sécurité pour le détail et les compromis documentés (CSP limitée par l'absence de bundler, tokens localStorage non migrés vers httpOnly).
 
 ---
 
@@ -447,6 +556,7 @@ crée automatiquement une ligne `profiles` (name, phone) à l'inscription. `POST
 - [ ] Vraie authentification Apple Sign-In — le bouton "Continuer avec Apple" est actuellement décoratif, sans `onClick`
 - [ ] Notifications push (`@capacitor/push-notifications`) — distinct des notifications in-app SOS déjà en place
 - [ ] Mode hors-ligne partiel (`@capacitor/preferences` ou cache local)
+- [ ] **Après le pilote** : migration `sm_token`/`sm_refresh_token` de `localStorage` vers des cookies `httpOnly`/`secure`/`sameSite` (reportée volontairement avant le lancement pilote, voir section Sécurité — nécessite de traiter CSRF et le flux cross-origin proprement, pas un correctif rapide)
 
 ### Priorité basse
 - [ ] Paiement Mobile Money réel (CinetPay, PayDunya, Wave Business)

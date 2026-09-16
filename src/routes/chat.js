@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { get, save, uid } from '../store.js';
 import { generateReply } from '../ai.js';
+import { isNonEmptyString, isOptionalString } from '../validate.js';
 
 const router = Router();
+
+const MAX_MESSAGE_LEN = 2000;
 
 // Historique : seed de conversations pour la sidebar desktop
 function seedConversations() {
@@ -39,17 +42,24 @@ router.get('/conversations/:id', (req, res) => {
 router.post('/chat', async (req, res) => {
   const { message, lang = 'FR', conversationId } = req.body || {};
   if (!message) return res.status(400).json({ error: 'message requis' });
+  if (!isNonEmptyString(message, MAX_MESSAGE_LEN)) {
+    return res.status(400).json({ error: `Message trop long (${MAX_MESSAGE_LEN} caractères maximum)` });
+  }
+  if (!isOptionalString(conversationId, 100)) {
+    return res.status(400).json({ error: 'Identifiant de conversation invalide' });
+  }
+  const safeLang = lang === 'EN' ? 'EN' : 'FR';
 
   const db = get();
   let conv = conversationId && db.conversations[conversationId];
   if (!conv) {
     const id = uid('conv');
-    conv = { id, title: message.slice(0, 40), lang, messages: [], updatedAt: Date.now() };
+    conv = { id, title: message.slice(0, 40), lang: safeLang, messages: [], updatedAt: Date.now() };
     db.conversations[id] = conv;
   }
 
   conv.messages.push({ role: 'user', content: message, at: Date.now() });
-  const ai = await generateReply(conv.messages, lang);
+  const ai = await generateReply(conv.messages, safeLang);
   conv.messages.push({ role: 'assistant', content: ai.reply, at: Date.now(), meta: ai });
   conv.updatedAt = Date.now();
   save();

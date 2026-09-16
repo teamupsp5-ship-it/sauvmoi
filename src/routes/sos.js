@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get, save, uid } from '../store.js';
 import { supabase } from '../supabase.js';
 import { requireAuth } from './auth.js';
+import { isValidLatLng, isOptionalString } from '../validate.js';
 
 const router = Router();
 
@@ -10,6 +11,17 @@ const router = Router();
 // notification in-app pour chaque contact qui en a un.
 router.post('/sos/trigger', requireAuth, async (req, res) => {
   const { lat = 5.354, lng = -3.987, label = 'Abidjan' } = req.body || {};
+  // Contrairement aux autres validations de l'app (qui retombent sur une
+  // valeur par défaut), une position GPS invalide est rejetée plutôt
+  // qu'silencieusement remplacée par Abidjan par défaut — ce module est
+  // safety-critical, mieux vaut un 400 explicite qu'une position erronée
+  // envoyée aux secours/contacts sans que personne ne le remarque.
+  if (!isValidLatLng(lat, lng)) {
+    return res.status(400).json({ error: 'Position GPS invalide' });
+  }
+  if (!isOptionalString(label, 100)) {
+    return res.status(400).json({ error: 'Libellé de position invalide' });
+  }
   const userId = req.user.id;
 
   try {

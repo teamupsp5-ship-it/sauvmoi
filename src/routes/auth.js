@@ -1,7 +1,34 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { supabase, createAuthClient } from '../supabase.js';
+import {
+  isNonEmptyString, isOptionalString, isValidEmail, isValidPhone, isValidIsoDate,
+  validateImageDataUrl, rejectUnknownFields,
+} from '../validate.js';
 
 const router = Router();
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 Mo
+
+// Messages bilingues en dur (pas de paramètre `lang` sur ces routes, et
+// screen-auth.jsx affiche `data.error` tel quel) — seul ce message 429 a
+// besoin d'être compréhensible dans les deux langues, contrairement aux
+// autres erreurs de cette route (toutes en français, convention existante).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives de connexion. Réessayez dans 15 minutes. / Too many login attempts. Please try again in 15 minutes.' },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives d'inscription. Réessayez dans 1 heure. / Too many registration attempts. Please try again in 1 hour." },
+});
 
 // ─── Aides : conversion texte ↔ liste (allergies / antécédents) ────────────
 // La table profiles stocke allergies/conditions en texte simple (colonnes
@@ -86,16 +113,60 @@ export async function requireAuth(req, res, next) {
 }
 
 // ─── Inscription complète (email + mot de passe + données médicales) ───────
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', registerLimiter, async (req, res) => {
   const {
     name, email, phone, password,
     birthdate, gender,
     emergencyContact, emergencyContacts,
+    website, // honeypot — voir plus bas, jamais utilisé pour autre chose
   } = req.body || {};
   const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(req.body || {});
 
+  // Honeypot anti-bot : champ absent du formulaire visible (posé masqué côté
+  // frontend, voir screen-auth.jsx), donc toujours vide pour un humain — un
+  // bot qui remplit aveuglément tous les champs le remplit, lui. Rejet
+  // silencieux (pas de détail sur la raison réelle) avant tout appel
+  // Supabase, pour ne pas gaspiller de quota ni révéler la détection.
+  if (website) {
+    console.warn('[auth] inscription bloquée (honeypot rempli)');
+    return res.status(400).json({ error: 'Requête invalide' });
+  }
+
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'nom, email et mot de passe requis' });
+  }
+  if (!isNonEmptyString(name, 100)) {
+    return res.status(400).json({ error: 'Nom invalide (100 caractères maximum)' });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: 'Adresse email invalide' });
+  }
+  if (typeof password !== 'string' || password.length < 6 || password.length > 200) {
+    return res.status(400).json({ error: 'Mot de passe : 6 caractères minimum' });
+  }
+  if (!isOptionalString(phone, 30) || (phone && !isValidPhone(phone))) {
+    return res.status(400).json({ error: 'Numéro de téléphone invalide' });
+  }
+  if (birthdate && !isValidIsoDate(birthdate)) {
+    return res.status(400).json({ error: 'Date de naissance invalide' });
+  }
+  if (!isOptionalString(gender, 30) || !isOptionalString(bloodType, 10)
+    || !isOptionalString(conditions, 1000) || !isOptionalString(allergies, 1000)) {
+    return res.status(400).json({ error: 'Champ du profil médical invalide' });
+  }
+  if (height !== undefined && height !== null && height !== '' && !(Number(height) >= 30 && Number(height) <= 250)) {
+    return res.status(400).json({ error: 'Taille invalide (30 à 250 cm)' });
+  }
+  if (weight !== undefined && weight !== null && weight !== '' && !(Number(weight) >= 1 && Number(weight) <= 400)) {
+    return res.status(400).json({ error: 'Poids invalide (1 à 400 kg)' });
+  }
+  const contactsToValidate = Array.isArray(emergencyContacts) ? emergencyContacts
+    : (emergencyContact?.name ? [emergencyContact] : []);
+  if (contactsToValidate.some((c) => c && (
+    !isOptionalString(c.name, 100) || !isOptionalString(c.phone, 30) || !isOptionalString(c.relation, 50)
+    || (c.phone && !isValidPhone(c.phone))
+  ))) {
+    return res.status(400).json({ error: 'Contact d\'urgence invalide' });
   }
 
   const { data: created, error: createErr } = await supabase.auth.admin.createUser({
@@ -195,9 +266,12 @@ router.post('/auth/register', async (req, res) => {
 });
 
 // ─── Connexion email + mot de passe ─────────────────────────────────────────
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email et mot de passe requis' });
+  if (!isValidEmail(email) || typeof password !== 'string' || password.length > 200) {
+    return res.status(401).json({ error: 'Identifiants incorrects' });
+  }
 
   // Client jetable dédié : ne jamais faire ce signIn sur le client
   // service_role partagé (voir avertissement dans supabase.js).
@@ -303,13 +377,55 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
+// Whitelist explicite des champs modifiables via cette route — un futur
+// `...body` ajouté par erreur ne pourrait plus faire fuiter un champ non
+// prévu (role, id, email...) : rejeté ici avant même d'atteindre la logique
+// de patch. `medical`/`emergencyContact` restent acceptés au singulier pour
+// les mêmes raisons de compatibilité que extractMedicalFields ci-dessus.
+const ME_TOP_FIELDS = ['name', 'phone', 'birthdate', 'gender', 'photo', 'medicalRecord', 'medical', 'emergencyContacts', 'emergencyContact'];
+const ME_MEDICAL_FIELDS = ['bloodType', 'height', 'weight', 'conditions', 'allergies', 'emergencyContacts', 'emergencyContact'];
+
 // ─── Profil : mise à jour (infos perso, photo, carnet médical, contacts) ───
 router.put('/me', requireAuth, async (req, res) => {
   const body = req.body || {};
+
+  const unknownTop = rejectUnknownFields(body, ME_TOP_FIELDS);
+  if (unknownTop) {
+    return res.status(400).json({ error: `Champ(s) non autorisé(s) : ${unknownTop.join(', ')}` });
+  }
+  const nestedMedical = body.medicalRecord || body.medical;
+  if (nestedMedical && typeof nestedMedical === 'object') {
+    const unknownMed = rejectUnknownFields(nestedMedical, ME_MEDICAL_FIELDS);
+    if (unknownMed) {
+      return res.status(400).json({ error: `Champ(s) médical(aux) non autorisé(s) : ${unknownMed.join(', ')}` });
+    }
+  }
+
   const { name, phone, birthdate, gender, photo, medicalRecord } = body;
   // extractMedicalFields lit medicalRecord.* (contrat réel du frontend) mais
   // retombe aussi sur medical.* ou des champs à plat si jamais envoyés ainsi.
   const { bloodType, height, weight, conditions, allergies } = extractMedicalFields(body);
+
+  if (!isOptionalString(name, 100)) return res.status(400).json({ error: 'Nom invalide (100 caractères maximum)' });
+  if (!isOptionalString(phone, 30) || (phone && !isValidPhone(phone))) {
+    return res.status(400).json({ error: 'Numéro de téléphone invalide' });
+  }
+  if (birthdate && !isValidIsoDate(birthdate)) return res.status(400).json({ error: 'Date de naissance invalide' });
+  if (!isOptionalString(gender, 30)) return res.status(400).json({ error: 'Genre invalide' });
+  if (!isOptionalString(bloodType, 10)) return res.status(400).json({ error: 'Groupe sanguin invalide' });
+  if (!isOptionalString(conditions, 1000) || !isOptionalString(allergies, 1000)) {
+    return res.status(400).json({ error: 'Champ médical trop long' });
+  }
+  if (height !== undefined && height !== null && height !== '' && !(Number(height) >= 30 && Number(height) <= 250)) {
+    return res.status(400).json({ error: 'Taille invalide (30 à 250 cm)' });
+  }
+  if (weight !== undefined && weight !== null && weight !== '' && !(Number(weight) >= 1 && Number(weight) <= 400)) {
+    return res.status(400).json({ error: 'Poids invalide (1 à 400 kg)' });
+  }
+  if (photo !== undefined && photo !== null && photo !== '') {
+    const check = validateImageDataUrl(photo, MAX_PHOTO_BYTES);
+    if (!check.ok) return res.status(400).json({ error: check.error });
+  }
 
   // Contacts d'urgence : accepte emergencyContacts (tableau) ou
   // emergencyContact (objet unique), à plat OU nichés sous medicalRecord —
@@ -325,6 +441,12 @@ router.put('/me', requireAuth, async (req, res) => {
 
   if (rawContacts !== null && rawContacts.length > 5) {
     return res.status(400).json({ error: 'Maximum 5 contacts d\'urgence' });
+  }
+  if (rawContacts !== null && rawContacts.some((c) => c && (
+    !isOptionalString(c.name, 100) || !isOptionalString(c.phone, 30) || !isOptionalString(c.relation, 50)
+    || (c.phone && !isValidPhone(c.phone))
+  ))) {
+    return res.status(400).json({ error: 'Contact d\'urgence invalide' });
   }
 
   const patch = { updated_at: new Date().toISOString() };

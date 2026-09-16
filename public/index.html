@@ -45,15 +45,9 @@
 <body style="margin:0; background:#f0eee9;">
   <div id="root"></div>
 
-  <script>
-    window.TWEAK_DEFAULTS = {
-      "accent": "#E53935",
-      "density": "standard",
-      "animations": "standard",
-      "lang": "FR",
-      "dark": false
-    };
-  </script>
+  <!-- Externalisé (tweak-defaults.js) plutôt qu'inline : permet une CSP
+       script-src sans 'unsafe-inline' — voir helmet dans src/server.js. -->
+  <script src="tweak-defaults.js"></script>
 
   <!-- Client API + état partagé (chargés avant les écrans) -->
   <script src="api-client.js"></script>

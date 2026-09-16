@@ -268,6 +268,7 @@ function RegisterScreen({ nav }) {
     bloodType: '', height: '', weight: '',
     conditions: '', allergies: '',
     ecName: '', ecPhone: '',
+    website: '', // honeypot anti-bot — jamais rempli par un humain, voir plus bas
   });
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -308,6 +309,7 @@ function RegisterScreen({ nav }) {
         conditions: form.conditions,
         allergies:  form.allergies,
         emergencyContact: form.ecName ? { name: form.ecName, phone: form.ecPhone } : null,
+        website: form.website, // honeypot — doit toujours être vide
       });
       if (!ok) { setError(data.error || t('auth.error_register_generic')); return; }
       applySession(data, nav);
@@ -363,6 +365,23 @@ function RegisterScreen({ nav }) {
         {/* ════ ÉTAPE 1 ════ */}
         {step === 1 && (
           <form onSubmit={goStep2} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Honeypot anti-bot : masqué visuellement (pas display:none —
+                certains robots l'évitent spécifiquement) plutôt que retiré
+                du DOM, pour qu'un remplissage automatique aveugle des champs
+                du formulaire le renseigne. Invisible et inaccessible au
+                clavier pour un humain (aria-hidden + tabIndex -1 + hors
+                écran), donc jamais rempli en usage normal. */}
+            <input
+              type="text"
+              name="website"
+              value={form.website}
+              onChange={set('website')}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              style={{ position: 'absolute', left: -9999, top: -9999, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+            />
 
             <FieldWrap label={t('auth.fullname_label')}>
               <input
