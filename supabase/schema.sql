@@ -26,6 +26,15 @@ create table profiles (
   weight numeric,
   allergies text,
   conditions text,
+  -- Révocation de la fiche médicale publique (QR) : horodatage de la
+  -- dernière génération réelle d'un QR pour ce profil, mis à jour à chaque
+  -- appel de GET /medical-record/qr. La route publique
+  -- /public/medical-card/:file refuse toute URL (même valablement signée,
+  -- voir MEDICAL_CARD_SECRET) dont le gen est antérieur à cette valeur —
+  -- c'est ce qui invalide réellement un ancien QR dès qu'un nouveau est
+  -- généré, une signature seule ne faisant qu'empêcher la falsification de
+  -- l'URL, pas la réutilisation d'une ancienne URL toujours signée.
+  qr_generated_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -92,3 +101,14 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ============================================================================
+-- MIGRATION — base de production existante
+--
+-- Ce fichier sert de script de démarrage pour une base NEUVE (create table
+-- échoue si les tables existent déjà). Sur un projet Supabase déjà en
+-- production (table profiles déjà créée), exécutez UNIQUEMENT le bloc
+-- ci-dessous dans l'éditeur SQL — pas le fichier en entier. Idempotent
+-- (if not exists), sans risque à rejouer.
+-- ============================================================================
+alter table profiles add column if not exists qr_generated_at timestamptz;

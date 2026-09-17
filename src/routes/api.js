@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { get, save, uid } from '../store.js';
 import {
   EMERGENCY_LIST, COURSES, TRAINING_PATH, RESCUERS,
@@ -19,9 +20,50 @@ import { buildMedicalCardSvg, buildUnavailableCardSvg } from '../medical-card.js
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://sauvmoi.onrender.com';
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
+// ─── Signature HMAC de la fiche médicale publique ──────────────────────────
+// gen/exp voyagent en clair dans l'URL (route publique sans session, voir
+// Décisions techniques dans CLAUDE.md) — sans signature, n'importe qui peut
+// appeler /public/medical-card/<id>.png sans le paramètre exp et la fiche ne
+// périme jamais, avec les données Supabase toujours à jour (la route relit
+// la base à chaque appel). La signature garantit que gen/exp n'ont pas été
+// altérés ou retirés par le client ; la révocation (qr_generated_at,
+// vérifiée plus bas) garantit en plus qu'une URL signée mais périmée par une
+// régénération plus récente ne reste pas valable jusqu'à son exp d'origine.
+//
+// Échec fermé : sans MEDICAL_CARD_SECRET, ni la génération ni la lecture ne
+// doivent fonctionner — jamais de repli silencieux sur un fonctionnement non
+// signé, ce serait revenir exactement à la faille corrigée ici.
+function getMedicalCardSecret() {
+  return process.env.MEDICAL_CARD_SECRET || null;
+}
+
+function signMedicalCard(id, gen, exp) {
+  const secret = getMedicalCardSecret();
+  if (!secret) throw new Error('MEDICAL_CARD_SECRET manquant');
+  return createHmac('sha256', secret).update(`${id}:${gen}:${exp}`).digest('hex');
+}
+
+const SIG_RE = /^[0-9a-f]{64}$/i;
+
+// Comparaison en temps constant (timingSafeEqual) plutôt que === : une
+// comparaison de chaîne naïve sort dès le premier caractère différent, ce
+// qui fuit un peu d'information temporelle sur le nombre de caractères
+// corrects — sans intérêt pratique ici vu le volume de trafic attendu, mais
+// c'est la façon correcte de comparer un HMAC et ça ne coûte rien.
+function verifyMedicalCardSignature(id, gen, exp, sig) {
+  const secret = getMedicalCardSecret();
+  if (!secret || typeof sig !== 'string' || !SIG_RE.test(sig)) return false;
+  const expected = createHmac('sha256', secret).update(`${id}:${gen}:${exp}`).digest('hex');
+  return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig.toLowerCase(), 'hex'));
+}
+
 // Charge le profil + contacts Supabase pour un id donné et les met en forme
 // pour la carte médicale (PNG publique) et la fiche victime (JSON interne à
 // l'app) — partagé par les deux routes /public/medical-card/:file ci-dessous.
+// qrGeneratedAt (colonne profiles.qr_generated_at, voir supabase/schema.sql)
+// sert à la vérification de révocation dans la route publique : mémorise la
+// dernière génération réelle de QR pour ce profil, indépendamment de la
+// signature de l'URL présentée.
 async function loadMedicalCardData(id) {
   const [{ data: profile, error: profileErr }, { data: contactsRows, error: contactsErr }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).maybeSingle(),
@@ -43,6 +85,7 @@ async function loadMedicalCardData(id) {
     allergies,
     conditions,
     contacts: (contactsRows || []).map((c) => ({ name: c.name, phone: c.phone, relation: c.relation })),
+    qrGeneratedAt: profile.qr_generated_at ? new Date(profile.qr_generated_at).getTime() : null,
   };
 }
 
@@ -191,19 +234,38 @@ router.put('/medical-record', (req, res) => {
 });
 
 router.get('/medical-record/qr', requireAuth, async (req, res) => {
+  // Échec fermé : jamais de QR non signé émis, quoi qu'il arrive.
+  if (!getMedicalCardSecret()) {
+    console.error('[medical-card] MEDICAL_CARD_SECRET absent — génération de QR refusée (échec fermé)');
+    return res.status(500).json({ error: 'Configuration serveur invalide — QR médical indisponible' });
+  }
   try {
     const data = await loadMedicalCardData(req.user.id);
     const now = Date.now();
     const expiresAt = now + SIX_MONTHS_MS;
     const payload = { ...(data || { id: req.user.id, nom: '', age: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: now, expiresAt };
 
-    // Le QR encode désormais une URL vers l'image PNG publique (chargement
-    // instantané, aucune app tierce requise pour lire du JSON brut — un
-    // scanner d'appareil photo standard ouvre directement l'image) plutôt
-    // que le JSON brut encodé auparavant. gen/exp voyagent en query string
-    // car cette route publique ne peut pas dépendre d'une session pour
-    // retrouver la date de génération du QR.
-    const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${req.user.id}.png?gen=${now}&exp=${expiresAt}`;
+    // Révocation réelle : mémorise l'horodatage de CETTE génération sur le
+    // profil. La route publique refuse toute URL (même valablement signée)
+    // dont le gen est antérieur à cette valeur — c'est ce qui invalide
+    // vraiment un ancien QR dès qu'un nouveau est généré. La signature seule
+    // ne suffit pas : une URL signée volée resterait valide jusqu'à son exp
+    // d'origine sans ce contrôle.
+    const { error: revokeErr } = await supabase
+      .from('profiles')
+      .update({ qr_generated_at: new Date(now).toISOString() })
+      .eq('id', req.user.id);
+    if (revokeErr) throw revokeErr;
+
+    // Le QR encode une URL vers l'image PNG publique (chargement instantané,
+    // aucune app tierce requise pour lire du JSON brut — un scanner
+    // d'appareil photo standard ouvre directement l'image) plutôt que du
+    // JSON brut. gen/exp voyagent en query string car cette route publique
+    // ne peut pas dépendre d'une session pour retrouver la date de
+    // génération du QR — sig (HMAC de id:gen:exp) garantit qu'ils n'ont pas
+    // été altérés ou retirés côté client (voir signMedicalCard ci-dessus).
+    const sig = signMedicalCard(req.user.id, now, expiresAt);
+    const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${req.user.id}.png?gen=${now}&exp=${expiresAt}&sig=${sig}`;
     const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
     res.json({ payload, qrDataUrl, url });
   } catch (e) {
@@ -218,30 +280,62 @@ router.get('/medical-record/qr', requireAuth, async (req, res) => {
 //   .png  → image rasterisée (usage principal, scan externe)
 //   .json → mêmes données en JSON (utilisé par screen-qr-scanner.jsx pour
 //           afficher la fiche riche EN INTERNE sans réanalyser une image)
+//
+// Quatre motifs de refus (signature absente/invalide, expirée, révoquée)
+// plus le cas profil introuvable partagent tous la MÊME réponse générique
+// (voir sendUnavailable) : ne jamais laisser un appelant distinguer lequel
+// s'applique en sondant l'URL. Le détail exact part uniquement dans les logs
+// serveur (console.warn/error), jamais dans la réponse HTTP.
 router.get('/public/medical-card/:file', async (req, res) => {
   const m = /^([^.]+)\.(png|json)$/.exec(req.params.file);
   if (!m) return res.status(400).json({ error: 'Format invalide' });
   const [, id, format] = m;
 
-  const gen = req.query.gen ? Number(req.query.gen) : null;
-  const exp = req.query.exp ? Number(req.query.exp) : null;
-  const expired = exp != null && Date.now() > exp;
-
-  let data = null;
-  try {
-    if (!expired) data = await loadMedicalCardData(id);
-  } catch (e) {
-    return res.status(500).json({ error: 'Chargement de la fiche échoué', detail: e.message });
-  }
-
-  if (expired || !data) {
-    const message = expired ? 'Fiche expirée' : 'Fiche introuvable';
-    if (format === 'json') return res.status(404).json({ error: message });
-    const svg = buildUnavailableCardSvg(message);
+  const sendUnavailable = async (reason) => {
+    console.warn(`[medical-card] fiche refusée (${reason}) — id: ${id}`);
+    if (format === 'json') return res.status(404).json({ error: 'Fiche indisponible' });
+    const svg = buildUnavailableCardSvg('Fiche indisponible');
     const png = await sharp(Buffer.from(svg)).png().toBuffer();
     res.type('image/png');
     return res.send(png);
+  };
+
+  // Échec fermé : sans secret, impossible de vérifier quoi que ce soit —
+  // refuse tout plutôt que de servir une fiche non authentifiée.
+  if (!getMedicalCardSecret()) {
+    console.error('[medical-card] MEDICAL_CARD_SECRET absent — lecture refusée (échec fermé)');
+    return sendUnavailable('secret serveur non configuré');
   }
+
+  const { gen: genRaw, exp: expRaw, sig } = req.query;
+  if (!genRaw || !expRaw || !sig) return sendUnavailable('gen/exp/sig manquants');
+
+  const gen = Number(genRaw);
+  const exp = Number(expRaw);
+  if (!Number.isFinite(gen) || !Number.isFinite(exp)) return sendUnavailable('gen/exp non numériques');
+
+  // Signature vérifiée AVANT toute autre décision : gen/exp ne sont dignes
+  // de confiance qu'une fois authentifiés — les utiliser pour la vérif
+  // d'expiration avant la signature reviendrait à faire confiance à des
+  // valeurs qu'un client peut fabriquer librement (exactement le bug corrigé
+  // ici : un exp retiré ou falsifié ne doit jamais être exploitable).
+  if (!verifyMedicalCardSignature(id, gen, exp, sig)) return sendUnavailable('signature invalide ou absente');
+
+  if (Date.now() > exp) return sendUnavailable('expirée');
+
+  let data = null;
+  try {
+    data = await loadMedicalCardData(id);
+  } catch (e) {
+    console.error('[medical-card] chargement échoué pour', id, ':', e.message);
+    return sendUnavailable('erreur de chargement');
+  }
+  if (!data) return sendUnavailable('profil introuvable');
+
+  // Révocation : un QR régénéré depuis (qr_generated_at plus récent que le
+  // gen de cette URL) invalide toute ancienne URL, même signée et non
+  // expirée — voir le commentaire sur GET /medical-record/qr ci-dessus.
+  if (data.qrGeneratedAt != null && gen < data.qrGeneratedAt) return sendUnavailable('révoquée par une régénération plus récente');
 
   if (format === 'json') {
     return res.json({ ...data, generatedAt: gen, expiresAt: exp });
