@@ -110,6 +110,8 @@
     return res.json();
   }
 
+  let emergencyNumbersCache = null;
+
   window.API = {
     base: BASE,
     refreshSession,
@@ -166,5 +168,13 @@
 
     // Centres de santé
     healthCenters: (lat, lng) => req('/api/health-centers' + (lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : '')),
+
+    // Numéros d'urgence — source unique (src/data/emergency-numbers.js),
+    // mis en cache après le premier appel : ces valeurs ne changent jamais
+    // en cours de session, inutile de les redemander à chaque écran qui en
+    // a besoin (SOS, fiche victime, CGU, accueil).
+    emergencyNumbers: () => emergencyNumbersCache
+      ? Promise.resolve(emergencyNumbersCache)
+      : req('/api/emergency-numbers').then((n) => { emergencyNumbersCache = n; return n; }),
   };
 })();

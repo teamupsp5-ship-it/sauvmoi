@@ -161,6 +161,70 @@ function TipOfDayCard({ tip }) {
   );
 }
 
+// ── Carte "Reprise de formation" — même structure que la carte Scanner QR
+// (sm-icon-tile + texte + sm-icon-circle), pas un nouveau style local. Charge
+// les modules déjà exposés par l'API formation (screen-training.jsx utilise
+// la même route) plutôt que de dupliquer une source de progression. Rendu en
+// 3 temps, sans jamais retomber à une hauteur nulle entre chaque (pas de
+// nouveau "vide" pendant le chargement) :
+//   - chargement  : même carte, sous-titre "Chargement…"
+//   - échec réseau: rien affiché (mieux qu'une carte cassée ou une donnée
+//     de progression potentiellement fausse)
+//   - chargé      : progression + module suivant si un module est
+//     déverrouillé, message de parcours terminé sinon.
+function TrainingResumeCard({ nav, t, lang }) {
+  const [modules, setModules] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    window.API.trainingModules(lang).then(setModules).catch(() => setFailed(true));
+  }, [lang]);
+
+  if (failed) return null;
+
+  const completed = modules ? modules.filter(m => m.status === 'completed').length : 0;
+  const total = modules ? modules.length : 10;
+  const next = modules ? modules.find(m => m.status === 'unlocked') : null;
+
+  const subtitle = !modules
+    ? t('home.training_loading')
+    : next
+      ? t('home.training_progress').replace('{done}', completed).replace('{total}', total).replace('{module}', next.title)
+      : t('home.training_all_done').replace('{total}', total);
+
+  return (
+    <button
+      onClick={() => {
+        if (!modules) return;
+        if (next) { window.SM.trainingModule = next; nav.go('training_module'); }
+        else nav.go('training');
+      }}
+      style={{
+        display: 'flex', width: '100%', alignItems: 'center', gap: 14, flexShrink: 0,
+        padding: '15px 16px', borderRadius: 'var(--sm-radius)',
+        background: 'white', border: '1.5px solid var(--sm-line)',
+        cursor: modules ? 'pointer' : 'default', textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(10,22,40,0.06)',
+      }}
+    >
+      <div className="sm-icon-tile" style={{ background: 'var(--sm-soft-green)' }}>
+        <Icon name="graduation-cap" size={22} color="var(--sm-green)" strokeWidth={1.9} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="sm-serif" style={{ fontSize: 16, color: 'var(--sm-ink)', marginBottom: 3 }}>
+          {t('home.training_resume_title')}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {subtitle}
+        </div>
+      </div>
+      <div className="sm-icon-circle" style={{ background: 'var(--sm-soft-green)' }}>
+        <Icon name="arrow-right" size={16} color="var(--sm-green)" strokeWidth={2} />
+      </div>
+    </button>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // ACCUEIL MOBILE
 // ════════════════════════════════════════════════════════════════════════════
@@ -266,18 +330,17 @@ function HomeMobile({ nav, lang }) {
       </div>
 
       {/* ── Corps scrollable ────────────────────────────────────────────── */}
-      {/* display:flex + justifyContent:'space-between' plutôt qu'un simple
-          empilement de blocs à hauteur fixe : sur un écran haut, la somme des
-          3 blocs (carte Chat IA, bouton Scanner QR, Conseil du jour) laissait
-          jusqu'à la moitié de la hauteur d'écran vide SOUS le dernier bloc,
-          personne ne réclamant l'espace restant. `gap` fixe la rythmique
-          minimale (identique au comportement précédent sur un petit écran où
-          le contenu remplit déjà tout l'espace) ; space-between distribue
-          l'espace EN TROP entre les blocs plutôt que de le laisser en zone
-          morte en bas — aucune carte n'est étirée, seuls les intervalles
-          grandissent. Sans effet si le contenu déborde (espace négatif) :
-          dégénère alors en simple pile scrollable, comportement inchangé. */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 12px', background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 18 }}>
+      {/* Lot 6 avait comblé le vide du bas avec justifyContent:'space-between',
+          ce qui écartait les blocs les uns des autres au lieu de se contenter
+          d'agrandir la marge finale — des trous irréguliers ENTRE les cartes,
+          plus relâché qu'organisé. Rythme constant (`gap`) entre des blocs
+          ancrés en haut ; l'espace qui reste après le dernier bloc devient
+          une marge basse (padding-bottom du conteneur), délibérée plutôt que
+          subie. Les deux nouveaux blocs ci-dessous (numéros d'urgence,
+          reprise de formation) réduisent d'eux-mêmes cet espace résiduel en
+          donnant un contenu utile à afficher plutôt que de le combler
+          artificiellement. */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 28px', background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Grande carte Chat IA — photo réelle + voile bleu marine pour la
             lisibilité du texte (blanc, y compris en anglais). Le fond uni
@@ -367,11 +430,24 @@ function HomeMobile({ nav, lang }) {
           </div>
         </button>
 
-        {/* Titre + carte groupés dans un seul bloc flex : space-between
-            (ci-dessus) répartit l'espace EN TROP entre les 3 blocs de haut
-            niveau, jamais À L'INTÉRIEUR de l'un d'eux — sans ce wrapper, le
-            titre resterait collé au bouton QR pendant que la carte partirait
-            seule vers le bas. */}
+        {/* Numéros d'urgence en appel direct — réutilise EmergencyQuickNumbers
+            (live-sos.jsx, même composant que l'écran SOS, pas de copie avec
+            ses propres numéros) : l'action la plus urgente que l'app puisse
+            offrir ne doit pas demander de passer par SOS d'abord. */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Icon name="phone-call" size={17} color="var(--sm-red)" strokeWidth={2} style={{ marginRight: 8 }} />
+            <h3 className="sm-serif" style={{ fontSize: 18 }}>{t('sos.emergency_numbers')}</h3>
+          </div>
+          <EmergencyQuickNumbers t={t} />
+        </div>
+
+        {/* Reprise de formation — module suivant + progression, données déjà
+            disponibles via l'API formation (même source que screen-training.jsx). */}
+        <TrainingResumeCard nav={nav} t={t} lang={currentLang} />
+
+        {/* Titre + carte groupés dans un seul bloc flex pour que le titre
+            reste toujours collé à sa carte quel que soit l'espace disponible. */}
         <div style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
             <Icon name="lightbulb" size={17} color="var(--sm-ink)" strokeWidth={2} style={{ marginRight: 8 }} />

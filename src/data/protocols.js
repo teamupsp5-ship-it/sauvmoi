@@ -3,9 +3,11 @@
 // quand la clé est présente. Chaque protocole se termine TOUJOURS par l'appel aux secours.
 // ⚠️ À faire relire par un formateur PSC1 / professionnel de santé avant tout usage réel.
 
-export const SAMU = '185';
-export const POMPIERS = '180';
-export const POLICE = '170';
+import { EMERGENCY_NUMBERS } from './emergency-numbers.js';
+
+export const SAMU = EMERGENCY_NUMBERS.samu;
+export const POMPIERS = EMERGENCY_NUMBERS.pompiers;
+export const POLICE = EMERGENCY_NUMBERS.police;
 
 export const PROTOCOLS = {
   hemo: {

@@ -7,6 +7,7 @@ import {
 } from '../data/seed.js';
 import { PROTOCOLS } from '../data/protocols.js';
 import { HEALTH_CENTERS } from '../data/health-centers.js';
+import { EMERGENCY_NUMBERS } from '../data/emergency-numbers.js';
 import { analyzeImage } from '../ai.js';
 import { supabase } from '../supabase.js';
 import { requireAuth } from './auth.js';
@@ -79,16 +80,27 @@ async function loadMedicalCardData(id) {
   // un objet Date "Invalid Date" — toujours truthy — dont la soustraction
   // donne NaN, pas 0. Sans le garde isNaN ci-dessous, ce NaN se propagerait
   // jusqu'à l'affichage. Un âge négatif (date de naissance dans le futur,
-  // erreur de saisie) est tout aussi invalide et écarté de la même façon.
+  // erreur de saisie) est tout aussi invalide et écarté de la même façon —
+  // désormais aussi refusé à la saisie (validate.js), mais une donnée déjà
+  // en base avant ce correctif doit rester sans effet ici.
+  //
+  // ageDays (nombre de jours entiers depuis la naissance) plutôt qu'un
+  // décompte en années : lot 7 — un nourrisson né la veille affichait
+  // « 0 ans », arithmétiquement exact mais trompeur pour un secouriste
+  // pressé. formatAge() (frames.jsx côté frontend, medical-card.js côté
+  // PNG) choisit lui-même l'unité adaptée (années / mois+semaines /
+  // semaines+jours / jours) à partir de cette seule valeur brute — une
+  // fonction de formatage partagée par surface plutôt que de renvoyer un
+  // format déjà figé qui ne conviendrait qu'à un cas.
   const dob = profile.birthdate ? new Date(profile.birthdate) : null;
-  const rawAge = dob ? Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)) : null;
-  const age = (rawAge != null && Number.isFinite(rawAge) && rawAge >= 0) ? rawAge : null;
+  const rawDays = dob ? Math.floor((Date.now() - dob) / (24 * 3600 * 1000)) : null;
+  const ageDays = (rawDays != null && Number.isFinite(rawDays) && rawDays >= 0) ? rawDays : null;
   const allergies = (profile.allergies || '').split(',').map((a) => a.trim()).filter(Boolean);
   const conditions = (profile.conditions || '').split(',').map((c) => c.trim()).filter(Boolean);
   return {
     id,
     nom: profile.name || '',
-    age,
+    ageDays,
     bloodType: profile.blood_type || '',
     allergies,
     conditions,
@@ -119,6 +131,15 @@ router.get('/config', (req, res) => {
     supabaseUrl: process.env.SUPABASE_URL || null,
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
   });
+});
+
+// Source unique des numéros d'urgence (voir data/emergency-numbers.js) —
+// route publique (aucune donnée sensible) pour que tout écran frontend qui a
+// besoin d'afficher SAMU/Pompiers/Police les obtienne d'un seul endroit
+// plutôt que de les recoder en dur (cause du lot 7 : SOS et prompt IA
+// affichaient deux numéros de police différents).
+router.get('/emergency-numbers', (req, res) => {
+  res.json(EMERGENCY_NUMBERS);
 });
 
 // ─── AUTH : téléphone + OTP (standard Afrique de l'Ouest) ───────────────────
@@ -251,7 +272,7 @@ router.put('/medical-record', (req, res) => {
 // dizaines de fois.
 async function buildQrResponse(userId, gen, data) {
   const expiresAt = gen + SIX_MONTHS_MS;
-  const payload = { ...(data || { id: userId, nom: '', age: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
+  const payload = { ...(data || { id: userId, nom: '', ageDays: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
   const sig = signMedicalCard(userId, gen, expiresAt);
   const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${userId}.png?gen=${gen}&exp=${expiresAt}&sig=${sig}`;
   const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });

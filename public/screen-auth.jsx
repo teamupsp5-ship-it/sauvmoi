@@ -281,6 +281,15 @@ function RegisterScreen({ nav }) {
     if (!form.password)        return t('auth.error_password_required');
     if (form.password.length < 6) return t('auth.error_password_min');
     if (form.password !== form.confirm) return t('auth.error_password_mismatch');
+    // Une date de naissance dans le futur est toujours une erreur de saisie
+    // (contrairement à une date très récente — un nourrisson est un profil
+    // légitime, jamais à rejeter) — même règle que le serveur (routes/auth.js,
+    // isNotFutureDate), vérifiée ici aussi pour un retour immédiat sans
+    // aller-retour réseau. Comparaison de chaînes YYYY-MM-DD, BirthdateField
+    // exposant toujours ce format au parent.
+    if (form.birthdate && form.birthdate > new Date().toISOString().slice(0, 10)) {
+      return t('auth.error_birthdate_future');
+    }
     return null;
   }
 

@@ -20,14 +20,18 @@ function buildWaUrl(phone, userName, lat, lng, lang) {
 
 // ── Numéros d'urgence directs — recours immédiat, indépendant de l'app.
 // Factorisé pour être réutilisé à la fois par l'état de veille et par
-// l'état d'échec d'envoi (voir phase 'error' ci-dessous).
+// l'état d'échec d'envoi (voir phase 'error' ci-dessous), ET par l'accueil
+// (screen-home.jsx, lot 7) — un seul composant plutôt que des tuiles
+// dupliquées avec leurs propres numéros codés en dur. useEmergencyNumbers()
+// vient de frames.jsx (source unique, voir aussi src/data/emergency-numbers.js).
 function EmergencyQuickNumbers({ t }) {
+  const nums = useEmergencyNumbers();
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
       {[
-        { label: t('sos.samu'),        number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
-        { label: t('sos.firefighters'),number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
-        { label: t('sos.police'),      number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
+        { label: t('sos.samu'),        number: nums.samu,     icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
+        { label: t('sos.firefighters'),number: nums.pompiers, icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
+        { label: t('sos.police'),      number: nums.police,   icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
       ].map(item => (
         <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none', display: 'block' }}>
           <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -278,6 +282,7 @@ function SOSConfirm({ nav }) {
   const contacts = sos.contacts || [];
   const user = window.SM?.user;
   const prenom = (user?.prenom || user?.name?.split(' ')[0] || t('sos.you_fallback')).trim();
+  const nums = useEmergencyNumbers();
 
   const mapDivRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -330,7 +335,7 @@ function SOSConfirm({ nav }) {
         </div>
         {/* Bouton SAMU sticky */}
         <div style={{ padding: '0 16px 14px' }}>
-          <a href="tel:185" style={{ textDecoration: 'none', display: 'block' }}>
+          <a href={'tel:' + nums.samu} style={{ textDecoration: 'none', display: 'block' }}>
             <button style={{
               width: '100%', padding: '14px', borderRadius: 'var(--sm-radius)',
               background: 'var(--sm-red)', color: 'white', border: 'none',
@@ -339,7 +344,7 @@ function SOSConfirm({ nav }) {
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.22)',
             }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
-              {t('sos.call_samu_185')}
+              {t('sos.call_samu_185').replace('{samu}', nums.samu)}
             </button>
           </a>
         </div>
@@ -418,33 +423,13 @@ function SOSConfirm({ nav }) {
           </>
         )}
 
-        {/* Numéros d'urgence */}
+        {/* Numéros d'urgence — réutilise EmergencyQuickNumbers plutôt qu'une
+            troisième implémentation locale (celle-ci n'affichait que SAMU et
+            Pompiers, jamais Police, avec ses propres numéros codés en dur —
+            trouvé en unifiant les numéros d'urgence au lot 7). */}
         <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 12 }}>{t('sos.immediate_intervention')}</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          <a href="tel:185" style={{ textDecoration: 'none' }}>
-            <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 14, background: 'var(--sm-red-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name="ambulance" size={22} color="var(--sm-red)" strokeWidth={1.9} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 {t('sos.call_samu')}</div>
-                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.emergency_number')} · 185</div>
-              </div>
-              <Icon name="phone" size={18} color="var(--sm-red)" />
-            </div>
-          </a>
-          <a href="tel:180" style={{ textDecoration: 'none' }}>
-            <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 46, height: 46, borderRadius: 14, background: '#FEF5EC', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon name="flame" size={22} color="#E67E22" strokeWidth={1.9} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>📞 {t('sos.call_firefighters')}</div>
-                <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.emergency_number')} · 180</div>
-              </div>
-              <Icon name="phone" size={18} color="#E67E22" />
-            </div>
-          </a>
+        <div style={{ marginBottom: 20 }}>
+          <EmergencyQuickNumbers t={t} />
         </div>
 
         {/* Bouton annuler */}
@@ -466,4 +451,4 @@ function SOSConfirm({ nav }) {
   );
 }
 
-Object.assign(window, { SOSCountdown, SOSConfirm });
+Object.assign(window, { SOSCountdown, SOSConfirm, EmergencyQuickNumbers });

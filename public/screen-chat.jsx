@@ -310,7 +310,7 @@ function ChatScreen({ nav, lang }) {
           </button>
         </div>
         <p style={{ fontSize: 11, color: 'var(--sm-ink-400)', textAlign: 'center', marginTop: 7 }}>
-          Urgence vitale → 185 (SAMU) · 180 (pompiers) · 170 (police)
+          Urgence vitale → 185 (SAMU) · 180 (pompiers) · 110 (police)
         </p>
       </div>
     </div>

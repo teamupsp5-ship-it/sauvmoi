@@ -11,6 +11,8 @@
 // et plus robuste qu'un calcul de hauteur cumulée pour une carte générée une
 // fois et jamais réajustée interactivement.
 
+import { EMERGENCY_NUMBERS } from './data/emergency-numbers.js';
+
 const CARD_WIDTH = 1080;
 // 1350 -> 1460 : la mention "déclaré, non vérifié" (allergies/antécédents)
 // a besoin d'une ligne de plus que prévu par le gabarit d'origine — plutôt
@@ -90,13 +92,50 @@ function footerNumbersSvg() {
     <rect x="60" y="${y}" width="${CARD_WIDTH - 120}" height="${h}" rx="16" fill="${RED}"/>
     <line x1="${CARD_WIDTH / 2}" y1="${y + 16}" x2="${CARD_WIDTH / 2}" y2="${y + h - 16}" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="2"/>
     <text x="${CARD_WIDTH / 4 + 20}" y="${y + 44}" font-family="${FONT}" font-size="24" fill="#FFFFFF" fill-opacity="0.9" text-anchor="middle">SAMU</text>
-    <text x="${CARD_WIDTH / 4 + 20}" y="${y + 82}" font-family="${FONT}" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle">185</text>
+    <text x="${CARD_WIDTH / 4 + 20}" y="${y + 82}" font-family="${FONT}" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle">${EMERGENCY_NUMBERS.samu}</text>
     <text x="${(CARD_WIDTH * 3) / 4 - 20}" y="${y + 44}" font-family="${FONT}" font-size="24" fill="#FFFFFF" fill-opacity="0.9" text-anchor="middle">Pompiers</text>
-    <text x="${(CARD_WIDTH * 3) / 4 - 20}" y="${y + 82}" font-family="${FONT}" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle">180</text>
+    <text x="${(CARD_WIDTH * 3) / 4 - 20}" y="${y + 82}" font-family="${FONT}" font-size="44" font-weight="800" fill="#FFFFFF" text-anchor="middle">${EMERGENCY_NUMBERS.pompiers}</text>
   `;
 }
 
-export function buildMedicalCardSvg({ nom, age, bloodType, allergies, conditions, contacts, generatedAt, expiresAt }) {
+// Formate un âge (en jours entiers depuis la naissance) dans l'unité adaptée
+// à sa magnitude — jamais un format qui suggère une précision ou une
+// plausibilité qu'il n'a pas (lot 7 : un nourrisson né la veille affichait
+// « 0 ans », arithmétiquement exact mais trompeur pour un secouriste pressé
+// qui pourrait y lire un adulte). Quatre paliers :
+//   - 2 ans et plus            → années ("34 ans")
+//   - 2 semaines à < 2 ans     → mois + semaines ("2 mois et 3 semaines")
+//   - 1 à < 2 semaines         → semaines + jours ("1 semaine et 4 jours")
+//   - moins d'1 semaine        → jours seuls ("3 jours")
+// Une unité à zéro n'est jamais affichée à côté d'une autre (jamais
+// "0 semaine et 3 jours") — filtré par le .filter(Boolean) ci-dessous plutôt
+// que par des branches séparées par palier, pour garder une seule logique.
+// Version française uniquement : cette carte PNG (fiche d'urgence
+// publique) n'a pas de paramètre de langue, voir routes/api.js. La version
+// bilingue équivalente pour l'écran QR / la fiche victime vit dans
+// public/frames.jsx (frontend) — même principe, deux implémentations parce
+// que backend (Node) et frontend (navigateur) ne partagent pas de module
+// dans ce projet sans bundler (voir CLAUDE.md, section Stack technique).
+function formatAgeFr(ageDays) {
+  const years = Math.floor(ageDays / 365.25);
+  if (years >= 2) return `${years} ans`;
+
+  let parts;
+  if (ageDays >= 14) {
+    const months = Math.floor(ageDays / 30);
+    const weeks = Math.floor((ageDays - months * 30) / 7);
+    parts = [months > 0 ? `${months} mois` : null, weeks > 0 ? `${weeks} semaine${weeks > 1 ? 's' : ''}` : null];
+  } else if (ageDays >= 7) {
+    const weeks = Math.floor(ageDays / 7);
+    const days = ageDays - weeks * 7;
+    parts = [weeks > 0 ? `${weeks} semaine${weeks > 1 ? 's' : ''}` : null, days > 0 ? `${days} jour${days > 1 ? 's' : ''}` : null];
+  } else {
+    parts = [`${ageDays} jour${ageDays !== 1 ? 's' : ''}`];
+  }
+  return parts.filter(Boolean).join(' et ');
+}
+
+export function buildMedicalCardSvg({ nom, ageDays, bloodType, allergies, conditions, contacts, generatedAt, expiresAt }) {
   const genDate = generatedAt ? new Date(generatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
   const expDate = expiresAt ? new Date(expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
@@ -113,8 +152,8 @@ export function buildMedicalCardSvg({ nom, age, bloodType, allergies, conditions
   // garde) ; position de la ligne de séparation ci-dessous fixe dans les deux
   // cas, donc omettre cette ligne ne décale rien après elle.
   parts.push(`<text x="60" y="270" font-family="${FONT}" font-size="56" font-weight="700" fill="${INK}">${escapeXml(nameLine)}</text>`);
-  if (Number.isFinite(age) && age >= 0) {
-    parts.push(`<text x="60" y="312" font-family="${FONT}" font-size="30" fill="#5A6472">${age} ans</text>`);
+  if (Number.isFinite(ageDays) && ageDays >= 0) {
+    parts.push(`<text x="60" y="312" font-family="${FONT}" font-size="30" fill="#5A6472">${escapeXml(formatAgeFr(ageDays))}</text>`);
   }
   parts.push(`<line x1="60" y1="345" x2="${CARD_WIDTH - 60}" y2="345" stroke="#E7E9EC" stroke-width="2"/>`);
 

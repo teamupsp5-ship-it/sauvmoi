@@ -217,7 +217,7 @@ function SOSConfirm({ nav }) {
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
             }}>
               <Icon name="phone" size={20} color="white" strokeWidth={2.2} />
-              {t('sos.call_samu_185')}
+              {t('sos.call_samu_185').replace('{samu}', '185')}
             </button>
           </a>
         </div>

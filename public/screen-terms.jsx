@@ -3,6 +3,7 @@
 function TermsScreen({ nav }) {
   useLucide();
   const t = useTranslation();
+  const nums = useEmergencyNumbers();
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column' }}>
 
@@ -23,7 +24,11 @@ function TermsScreen({ nav }) {
         {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
           <div key={n} style={{ marginBottom: 22 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: 'var(--sm-ink)' }}>{t('terms.section' + n + '_title')}</h3>
-            <p style={{ margin: 0, color: 'var(--sm-ink-600)' }}>{t('terms.section' + n + '_body')}</p>
+            <p style={{ margin: 0, color: 'var(--sm-ink-600)' }}>
+              {n === 2
+                ? t('terms.section2_body').replace('{samu}', nums.samu).replace('{pompiers}', nums.pompiers)
+                : t('terms.section' + n + '_body')}
+            </p>
           </div>
         ))}
 
@@ -33,9 +38,9 @@ function TermsScreen({ nav }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--sm-red)' }}>{t('terms.emergency_numbers_title')}</div>
             <div style={{ fontSize: 13 }}>
-              <a href="tel:185" style={{ color: 'var(--sm-red)', fontWeight: 700 }}>185</a> {t('sos.samu')} ·
-              <a href="tel:180" style={{ color: 'var(--sm-red)', fontWeight: 700 }}> 180</a> {t('terms.emergency_red_cross')} ·
-              <a href="tel:170" style={{ color: 'var(--sm-red)', fontWeight: 700 }}> 170</a> {t('sos.police')}
+              <a href={'tel:' + nums.samu} style={{ color: 'var(--sm-red)', fontWeight: 700 }}>{nums.samu}</a> {t('sos.samu')} ·
+              <a href={'tel:' + nums.pompiers} style={{ color: 'var(--sm-red)', fontWeight: 700 }}> {nums.pompiers}</a> {t('sos.firefighters')} ·
+              <a href={'tel:' + nums.police} style={{ color: 'var(--sm-red)', fontWeight: 700 }}> {nums.police}</a> {t('sos.police')}
             </div>
           </div>
         </div>

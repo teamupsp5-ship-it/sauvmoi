@@ -32,8 +32,7 @@ function QrCodeScreen({ nav }) {
   }
 
   const payload = data && data.payload;
-  const dateLocale = lang === 'en' ? 'en-US' : 'fr-FR';
-  const expiresAt = payload ? new Date(payload.expiresAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const expiresAt = payload ? formatDate(payload.expiresAt, lang) : null;
   const isExpired = payload ? Date.now() > payload.expiresAt : false;
 
   return (
@@ -104,10 +103,10 @@ function QrCodeScreen({ nav }) {
                   </div>
                 )}
 
-                {Number.isFinite(payload.age) && payload.age >= 0 && (
+                {Number.isFinite(payload.ageDays) && payload.ageDays >= 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('qrcode.field_age')}</span>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{t('qrcode.age_suffix').replace('{age}', payload.age)}</span>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{formatAge(payload.ageDays, lang)}</span>
                   </div>
                 )}
 

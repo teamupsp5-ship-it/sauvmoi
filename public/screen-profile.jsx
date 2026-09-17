@@ -530,6 +530,7 @@ function ProfileScreen({ nav }) {
 function ProfilePersonal({ nav }) {
   useLucide();
   const t = useTranslation();
+  const lang = useLang();
   const SM = window.useSM();
   const user = SM.user || {};
 
@@ -552,8 +553,18 @@ function ProfilePersonal({ nav }) {
 
   async function save() {
     if (!form) return;
-    setSaving(true);
     setError('');
+    // Même règle que l'inscription (screen-auth.jsx) et le serveur
+    // (routes/auth.js, isNotFutureDate) : une date de naissance dans le
+    // futur est toujours une erreur de saisie. Vérifiée ici AVANT l'appel
+    // réseau pour un message clair et immédiat plutôt que le "Échec de
+    // l'enregistrement" générique du catch plus bas.
+    if (form.birthdate && form.birthdate > new Date().toISOString().slice(0, 10)) {
+      setError(t('profile.error_birthdate_future'));
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+    setSaving(true);
     const name = [form.prenom.trim(), form.nom.trim()].filter(Boolean).join(' ');
     const payload = { name, birthdate: form.birthdate, gender: form.gender, phone: form.phone.trim() };
     // L'état local / localStorage ne sont mis à jour qu'APRÈS confirmation du
@@ -586,7 +597,7 @@ function ProfilePersonal({ nav }) {
   const rows = editing ? null : [
     { label: t('profile.first_name'),         val: prenom           },
     { label: t('profile.last_name'),          val: nom               },
-    { label: t('common.birthdate_label'),     val: user.birthdate    },
+    { label: t('common.birthdate_label'),     val: formatDate(user.birthdate, lang) },
     { label: t('profile.gender'),             val: user.gender ? genderLabel(user.gender) : '' },
     { label: t('profile.email'),              val: user.email        },
     { label: t('profile.phone'),              val: user.phone        },

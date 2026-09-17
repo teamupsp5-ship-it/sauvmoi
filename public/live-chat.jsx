@@ -21,6 +21,14 @@ function speechSilentFailureMessage() {
 }
 
 // ── Protocoles PSC1 embarqués (fallback quand le backend est injoignable) ──
+// Numéros ici volontairement codés en dur (185/180, jamais la police, qui
+// n'a pas sa place dans un protocole de premiers secours) plutôt que tirés
+// de useEmergencyNumbers()/GET /api/emergency-numbers : ce fallback existe
+// PRÉCISÉMENT pour fonctionner quand le réseau est coupé (voir l'en-tête de
+// ce fichier) — le seul déclencheur possible d'un appel réseau supplémentaire
+// romprait cette garantie. Valeurs à tenir synchronisées manuellement avec
+// src/data/emergency-numbers.js si elles changent un jour (peu probable :
+// numéros d'urgence nationaux).
 const _CALL_LABELS = {
   '185': { fr: 'Appeler SAMU 185', en: 'Call SAMU 185' },
   '180': { fr: 'Pompiers 180', en: 'Call Firefighters 180' },
@@ -204,6 +212,7 @@ function ChatListening({ nav, lang }) {
   const fileRef = useRef(null);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const nums = useEmergencyNumbers();
 
   const [messages, setMessages] = useState([{
     role: 'assistant',
@@ -718,7 +727,7 @@ function ChatListening({ nav, lang }) {
             </div>
 
             <p style={{ fontSize: 11, color: 'var(--sm-ink-400)', textAlign: 'center', marginTop: 7 }}>
-              {t('chat.emergency_footer')}
+              {t('chat.emergency_footer').replace('{samu}', nums.samu).replace('{pompiers}', nums.pompiers).replace('{police}', nums.police)}
             </p>
           </div>
         </>

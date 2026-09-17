@@ -35,6 +35,19 @@ export function isValidIsoDate(v) {
   return !isNaN(d.getTime());
 }
 
+// Une date de naissance dans le FUTUR est toujours une erreur de saisie —
+// contrairement à une date très récente (un nourrisson est un profil
+// légitime pour cette application, jamais à rejeter). Comparaison de
+// chaînes YYYY-MM-DD (ordre lexicographique = ordre chronologique pour ce
+// format, zéro-paddé) plutôt que d'objets Date, pour éviter tout écart
+// d'horodatage exact entre la date envoyée (minuit local) et `now` côté
+// serveur. Suppose `v` déjà validé par isValidIsoDate() par l'appelant.
+export function isNotFutureDate(v) {
+  if (!isValidIsoDate(v)) return false;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  return v <= todayStr;
+}
+
 export function isFiniteNumber(v) {
   return typeof v === 'number' && Number.isFinite(v);
 }

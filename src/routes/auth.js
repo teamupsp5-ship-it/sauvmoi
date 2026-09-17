@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { supabase, createAuthClient } from '../supabase.js';
 import {
-  isNonEmptyString, isOptionalString, isValidEmail, isValidPhone, isValidIsoDate,
+  isNonEmptyString, isOptionalString, isValidEmail, isValidPhone, isValidIsoDate, isNotFutureDate,
   validateImageDataUrl, rejectUnknownFields,
 } from '../validate.js';
 
@@ -160,6 +160,9 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
   }
   if (birthdate && !isValidIsoDate(birthdate)) {
     return res.status(400).json({ error: 'Date de naissance invalide' });
+  }
+  if (birthdate && !isNotFutureDate(birthdate)) {
+    return res.status(400).json({ error: 'La date de naissance ne peut pas être dans le futur' });
   }
   if (!isOptionalString(gender, 30) || !isOptionalString(bloodType, 10)
     || !isOptionalString(conditions, 1000) || !isOptionalString(allergies, 1000)) {
@@ -422,6 +425,7 @@ router.put('/me', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Numéro de téléphone invalide' });
   }
   if (birthdate && !isValidIsoDate(birthdate)) return res.status(400).json({ error: 'Date de naissance invalide' });
+  if (birthdate && !isNotFutureDate(birthdate)) return res.status(400).json({ error: 'La date de naissance ne peut pas être dans le futur' });
   if (!isOptionalString(gender, 30)) return res.status(400).json({ error: 'Genre invalide' });
   if (!isOptionalString(bloodType, 10)) return res.status(400).json({ error: 'Groupe sanguin invalide' });
   if (!isOptionalString(conditions, 1000) || !isOptionalString(allergies, 1000)) {

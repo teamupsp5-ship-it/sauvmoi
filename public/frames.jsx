@@ -744,10 +744,85 @@ function DeclaredNotVerifiedNote({ t }) {
   );
 }
 
+// Formate une date (ISO YYYY-MM-DD ou timestamp) en toutes lettres dans la
+// langue active ("16 mars 2027" / "March 16, 2027") — même formatage partout
+// où une date est montrée à l'utilisateur (expiration du QR médical, fiche
+// victime, date de naissance dans les infos personnelles) plutôt que la
+// valeur ISO brute, qui n'a de sens que pour une machine (lot 7 : l'écran
+// infos perso affichait "2026-09-16" alors que l'écran QR savait déjà
+// formater "16 mars 2027").
+function formatDate(value, lang) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Formate un âge (en jours entiers depuis la naissance) dans l'unité adaptée
+// à sa magnitude — jamais un format qui suggère une précision ou une
+// plausibilité qu'il n'a pas (lot 7 : un nourrisson né la veille affichait
+// « 0 ans », arithmétiquement exact mais trompeur pour un secouriste pressé
+// qui pourrait y lire un adulte). Quatre paliers, mêmes seuils que la
+// version française de src/medical-card.js (deux implémentations parce que
+// backend et frontend ne partagent pas de module dans ce projet sans
+// bundler — voir CLAUDE.md) :
+//   - 2 ans et plus            → années ("34 ans")
+//   - 2 semaines à < 2 ans     → mois + semaines ("2 mois et 3 semaines")
+//   - 1 à < 2 semaines         → semaines + jours ("1 semaine et 4 jours")
+//   - moins d'1 semaine        → jours seuls ("3 jours")
+// Une unité à zéro n'est jamais affichée à côté d'une autre (jamais
+// "0 semaine et 3 jours") — filtré par .filter(Boolean) plutôt que par des
+// branches séparées par palier, une seule logique pour tous les cas.
+// Utilisée par screen-qr-code.jsx ET screen-victim-card.jsx (une seule
+// fonction partagée, pas deux implémentations frontend distinctes).
+function formatAge(ageDays, lang) {
+  const isEn = lang === 'en';
+  const years = Math.floor(ageDays / 365.25);
+  if (years >= 2) return isEn ? `${years} years` : `${years} ans`;
+
+  let parts;
+  if (ageDays >= 14) {
+    const months = Math.floor(ageDays / 30);
+    const weeks = Math.floor((ageDays - months * 30) / 7);
+    parts = isEn
+      ? [months > 0 ? `${months} month${months > 1 ? 's' : ''}` : null, weeks > 0 ? `${weeks} week${weeks > 1 ? 's' : ''}` : null]
+      : [months > 0 ? `${months} mois` : null, weeks > 0 ? `${weeks} semaine${weeks > 1 ? 's' : ''}` : null];
+  } else if (ageDays >= 7) {
+    const weeks = Math.floor(ageDays / 7);
+    const days = ageDays - weeks * 7;
+    parts = isEn
+      ? [weeks > 0 ? `${weeks} week${weeks > 1 ? 's' : ''}` : null, days > 0 ? `${days} day${days > 1 ? 's' : ''}` : null]
+      : [weeks > 0 ? `${weeks} semaine${weeks > 1 ? 's' : ''}` : null, days > 0 ? `${days} jour${days > 1 ? 's' : ''}` : null];
+  } else {
+    parts = [isEn ? `${ageDays} day${ageDays !== 1 ? 's' : ''}` : `${ageDays} jour${ageDays !== 1 ? 's' : ''}`];
+  }
+  return parts.filter(Boolean).join(isEn ? ' and ' : ' et ');
+}
+
+// Repli affiché tant que GET /api/emergency-numbers n'a pas répondu (ou s'il
+// échoue) : recopie volontairement les valeurs actuelles de
+// src/data/emergency-numbers.js (source unique, lot 7 — avant ce lot, SOS et
+// le prompt IA affichaient deux numéros de police différents, 110 et 170).
+// `tel:` n'a besoin d'aucun accès réseau : un écran SOS ne doit jamais
+// attendre un aller-retour pour afficher un numéro qui compose très bien
+// hors ligne — l'appel réseau ne fait que confirmer/corriger silencieusement
+// si la source venait à changer. Si emergency-numbers.js change un jour,
+// mettre ce repli à jour en même temps.
+const EMERGENCY_NUMBERS_FALLBACK = { samu: '185', pompiers: '180', police: '110' };
+
+// Hook partagé par tous les écrans qui affichent les numéros d'urgence (SOS,
+// accueil, CGU, fiche victime) — un seul point d'implémentation plutôt que
+// de dupliquer le repli + l'appel réseau dans chacun.
+function useEmergencyNumbers() {
+  const [nums, setNums] = useState(EMERGENCY_NUMBERS_FALLBACK);
+  useEffect(() => { window.API.emergencyNumbers().then(setNums).catch(() => {}); }, []);
+  return nums;
+}
+
 Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY, BirthdateField, Banner, FallbackImage,
-  DeclaredNotVerifiedNote,
+  DeclaredNotVerifiedNote, EMERGENCY_NUMBERS_FALLBACK, useEmergencyNumbers, formatAge, formatDate,
   speakText, stopSpeech, useSpeechActive, useSpeechUnavailable, stripMarkdownForSpeech,
 });

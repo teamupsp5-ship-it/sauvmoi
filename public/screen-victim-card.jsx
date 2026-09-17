@@ -8,12 +8,12 @@ function VictimCardScreen({ nav }) {
   const t = useTranslation();
   const lang = useLang();
   const v = window.SM_VICTIM || {};
-  const { nom, age, bloodType, allergies, conditions, contacts, generatedAt, expiresAt } = v;
+  const { nom, ageDays, bloodType, allergies, conditions, contacts, generatedAt, expiresAt } = v;
 
-  const dateLocale = lang === 'en' ? 'en-US' : 'fr-FR';
-  const genDate = generatedAt ? new Date(generatedAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
-  const expDate = expiresAt  ? new Date(expiresAt).toLocaleDateString(dateLocale,  { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const genDate = formatDate(generatedAt, lang) || null;
+  const expDate = formatDate(expiresAt, lang) || null;
   const isExpired = expiresAt && Date.now() > expiresAt;
+  const nums = useEmergencyNumbers();
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column' }}>
@@ -38,9 +38,9 @@ function VictimCardScreen({ nav }) {
           <div className="sm-serif" style={{ fontSize: 'clamp(22px, 7vw, 28px)', color: 'white', fontWeight: 700, lineHeight: 1.1 }}>
             {nom || t('victim.name_fallback')}
           </div>
-          {Number.isFinite(age) && age >= 0 && (
+          {Number.isFinite(ageDays) && ageDays >= 0 && (
             <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 5 }}>
-              {t('victim.age_years').replace('{age}', age)}
+              {formatAge(ageDays, lang)}
             </div>
           )}
         </div>
@@ -163,11 +163,11 @@ function VictimCardScreen({ nav }) {
 
         {/* Bouton SAMU */}
         <a
-          href="tel:185"
+          href={'tel:' + nums.samu}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '15px', borderRadius: 14, background: 'var(--sm-red)', color: 'white', textDecoration: 'none', marginBottom: 18 }}
         >
           <Icon name="phone-call" size={22} color="white" />
-          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('victim.call_samu')}</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('victim.call_samu').replace('{samu}', nums.samu)}</span>
         </a>
 
         {/* Footer informations QR */}
