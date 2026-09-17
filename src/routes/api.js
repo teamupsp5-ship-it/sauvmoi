@@ -73,8 +73,16 @@ async function loadMedicalCardData(id) {
   if (contactsErr) throw contactsErr;
   if (!profile) return null;
 
+  // Même principe que pour le GPS (LOT 1) : ne jamais présenter comme mesuré
+  // ce qui ne l'est pas. Une date de naissance absente laisse `dob` null (déjà
+  // couvert), mais une date INVALIDE (chaîne corrompue, format inattendu) crée
+  // un objet Date "Invalid Date" — toujours truthy — dont la soustraction
+  // donne NaN, pas 0. Sans le garde isNaN ci-dessous, ce NaN se propagerait
+  // jusqu'à l'affichage. Un âge négatif (date de naissance dans le futur,
+  // erreur de saisie) est tout aussi invalide et écarté de la même façon.
   const dob = profile.birthdate ? new Date(profile.birthdate) : null;
-  const age = dob ? Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)) : null;
+  const rawAge = dob ? Math.floor((Date.now() - dob) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = (rawAge != null && Number.isFinite(rawAge) && rawAge >= 0) ? rawAge : null;
   const allergies = (profile.allergies || '').split(',').map((a) => a.trim()).filter(Boolean);
   const conditions = (profile.conditions || '').split(',').map((c) => c.trim()).filter(Boolean);
   return {

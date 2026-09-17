@@ -723,9 +723,31 @@ function FallbackImage({ src, alt = '', fallbackColor = 'var(--sm-paper-2)', sty
   );
 }
 
+// Bandeau compact "déclaré, non vérifié" — appliqué à chaque donnée médicale
+// saisie par l'utilisateur sans aucun contrôle (groupe sanguin, allergies,
+// antécédents), partout où elle est affichée : fiche victime après scan QR
+// (screen-victim-card.jsx) ET récapitulatif du propriétaire sur son propre
+// écran QR (screen-qr-code.jsx) — un secouriste doit pouvoir distinguer une
+// donnée déclarée d'une donnée vérifiée avant d'agir dessus, quel que soit
+// l'écran. Volontairement lisible (texte bilingue via t(), icône, couleur
+// d'alerte) plutôt qu'un astérisque discret — c'est une information de
+// sécurité, pas un détail cosmétique. Définie ici (primitives partagées)
+// plutôt que dans un seul des deux écrans, pour éviter la duplication.
+function DeclaredNotVerifiedNote({ t }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+      <Icon name="info" size={13} color="#92400E" />
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+        {t('victim.declared_not_verified')}
+      </span>
+    </div>
+  );
+}
+
 Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY, BirthdateField, Banner, FallbackImage,
+  DeclaredNotVerifiedNote,
   speakText, stopSpeech, useSpeechActive, useSpeechUnavailable, stripMarkdownForSpeech,
 });

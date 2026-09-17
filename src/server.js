@@ -83,7 +83,16 @@ const CSP_DIRECTIVES = {
   scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-  imgSrc: ["'self'", 'data:', 'https://images.unsplash.com', 'https://images.pexels.com', 'https://*.tile.openstreetmap.org', 'https://unpkg.com'],
+  // 'blob:' nécessaire : screen-profile.jsx (photo de profil), live-chat.jsx
+  // (aperçu image envoyée au chat) et screen-qr-scanner.jsx (repli web du
+  // scanner) chargent tous un fichier sélectionné localement via
+  // `new Image(); img.src = URL.createObjectURL(file)` — sans 'blob:' ici,
+  // le navigateur bloque ce chargement au niveau CSP (silencieusement : ni
+  // onload ni onerror ne se déclenchent), rendant ces trois fonctionnalités
+  // inopérantes. Trouvé en vérifiant le LOT 6 (le correctif du découplage de
+  // handlePhoto() ne pouvait pas être observé tant que l'image ne chargeait
+  // jamais du tout, quel que soit l'état de la logique de sauvegarde).
+  imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://images.pexels.com', 'https://*.tile.openstreetmap.org', 'https://unpkg.com'],
   // API Sauv'Moi (prod + dev local) + Supabase (OAuth Google et lecture de
   // session côté navigateur, voir supabase-client.js) — l'API Anthropic
   // n'a PAS besoin d'être ici : elle n'est jamais appelée depuis le

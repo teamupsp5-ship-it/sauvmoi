@@ -242,6 +242,7 @@ function ProfileScreen({ nav }) {
   const [pwLoading, setPwLoading]   = useState(false);
   const [pwMsg, setPwMsg]           = useState('');
   const [toast, setToast]           = useState('');
+  const [error, setError]           = useState('');
   const photoRef = useRef(null);
 
   const user = SM.user || {};
@@ -253,22 +254,34 @@ function ProfileScreen({ nav }) {
   const medIncomplete = !med.bloodType || !(med.allergies || []).length;
 
   // ── Photo upload ──────────────────────────────────────────────────────────
+  // Même règle que ProfilePersonal/ProfileMedical/ProfileContacts.save() (voir
+  // LOT 5) : état local / localStorage mis à jour uniquement APRÈS confirmation
+  // serveur, avec la réponse du serveur elle-même — jamais une valeur optimiste
+  // calculée en local avant même l'appel réseau. C'était exactement le même
+  // découplage (ici pire : la mutation locale précédait même le lancement de
+  // l'appel réseau, dont l'échec était en plus avalé par .catch(() => {})) qui
+  // avait rendu invisible le bug d'enregistrement du carnet médical.
   function handlePhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       const max = 200, scale = Math.min(max / img.width, max / img.height, 1);
       canvas.width  = Math.round(img.width  * scale);
       canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       const b64 = canvas.toDataURL('image/jpeg', 0.82);
-      const updated = { ...window.SM.user, photo: b64 };
-      window.SM.user = updated;
-      localStorage.setItem('sm_user', JSON.stringify(updated));
-      window.SM.emit();
-      window.API.updateMe({ photo: b64 }).catch(() => {});
+      setError('');
+      try {
+        const res = await window.API.updateMe({ photo: b64 });
+        window.SM.user = res;
+        localStorage.setItem('sm_user', JSON.stringify(res));
+        window.SM.emit();
+      } catch (err) {
+        setError(t('profile.save_failed'));
+        setTimeout(() => setError(''), 4000);
+      }
     };
     img.src = URL.createObjectURL(file);
     e.target.value = '';
@@ -506,6 +519,7 @@ function ProfileScreen({ nav }) {
       )}
 
       <ProfileToast msg={toast} />
+      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }

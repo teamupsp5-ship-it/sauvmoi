@@ -1,22 +1,7 @@
 // screen-victim-card.jsx — Fiche d'urgence après scan QR Sauv'Moi
 // Données lues depuis window.SM_VICTIM (objet JSON décodé du QR)
-
-// Bandeau compact "déclaré, non vérifié" — appliqué à chaque donnée médicale
-// saisie par l'utilisateur sans aucun contrôle (groupe sanguin, allergies,
-// antécédents) : un secouriste doit pouvoir distinguer une donnée déclarée
-// d'une donnée vérifiée avant d'agir dessus. Volontairement lisible (texte
-// bilingue via t(), icône, couleur d'alerte) plutôt qu'un astérisque discret
-// — c'est une information de sécurité, pas un détail cosmétique.
-function DeclaredNotVerifiedNote({ t }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
-      <Icon name="info" size={13} color="#92400E" />
-      <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>
-        {t('victim.declared_not_verified')}
-      </span>
-    </div>
-  );
-}
+// DeclaredNotVerifiedNote (bandeau "déclaré, non vérifié") vient de
+// frames.jsx — partagé avec screen-qr-code.jsx, voir sa définition là-bas.
 
 function VictimCardScreen({ nav }) {
   useLucide();
@@ -53,7 +38,7 @@ function VictimCardScreen({ nav }) {
           <div className="sm-serif" style={{ fontSize: 'clamp(22px, 7vw, 28px)', color: 'white', fontWeight: 700, lineHeight: 1.1 }}>
             {nom || t('victim.name_fallback')}
           </div>
-          {age != null && (
+          {Number.isFinite(age) && age >= 0 && (
             <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 5 }}>
               {t('victim.age_years').replace('{age}', age)}
             </div>

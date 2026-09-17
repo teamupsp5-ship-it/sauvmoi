@@ -266,7 +266,18 @@ function HomeMobile({ nav, lang }) {
       </div>
 
       {/* ── Corps scrollable ────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 12px', background: 'var(--sm-paper)' }}>
+      {/* display:flex + justifyContent:'space-between' plutôt qu'un simple
+          empilement de blocs à hauteur fixe : sur un écran haut, la somme des
+          3 blocs (carte Chat IA, bouton Scanner QR, Conseil du jour) laissait
+          jusqu'à la moitié de la hauteur d'écran vide SOUS le dernier bloc,
+          personne ne réclamant l'espace restant. `gap` fixe la rythmique
+          minimale (identique au comportement précédent sur un petit écran où
+          le contenu remplit déjà tout l'espace) ; space-between distribue
+          l'espace EN TROP entre les blocs plutôt que de le laisser en zone
+          morte en bas — aucune carte n'est étirée, seuls les intervalles
+          grandissent. Sans effet si le contenu déborde (espace négatif) :
+          dégénère alors en simple pile scrollable, comportement inchangé. */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '18px 18px 12px', background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 18 }}>
 
         {/* Grande carte Chat IA — photo réelle + voile bleu marine pour la
             lisibilité du texte (blanc, y compris en anglais). Le fond uni
@@ -281,8 +292,8 @@ function HomeMobile({ nav, lang }) {
         <div
           className="sm-card-breathe"
           style={{
-            position: 'relative', width: '100%', minHeight: 148,
-            borderRadius: 'var(--sm-radius)', marginBottom: 14,
+            position: 'relative', width: '100%', minHeight: 148, flexShrink: 0,
+            borderRadius: 'var(--sm-radius)',
             overflow: 'hidden', background: 'var(--sm-navy-deep)',
           }}
         >
@@ -333,8 +344,8 @@ function HomeMobile({ nav, lang }) {
         <button
           onClick={() => nav.go('qr_scanner')}
           style={{
-            display: 'flex', width: '100%', alignItems: 'center', gap: 14,
-            padding: '15px 16px', borderRadius: 'var(--sm-radius)', marginBottom: 22,
+            display: 'flex', width: '100%', alignItems: 'center', gap: 14, flexShrink: 0,
+            padding: '15px 16px', borderRadius: 'var(--sm-radius)',
             background: 'white', border: '1.5px solid var(--sm-line)',
             cursor: 'pointer', textAlign: 'left',
             boxShadow: '0 2px 8px rgba(10,22,40,0.06)',
@@ -356,12 +367,19 @@ function HomeMobile({ nav, lang }) {
           </div>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-          <Icon name="lightbulb" size={17} color="var(--sm-ink)" strokeWidth={2} style={{ marginRight: 8 }} />
-          <h3 className="sm-serif" style={{ fontSize: 18, flex: 1 }}>{t('home.tip_of_day')}</h3>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-blue)' }}>{t('home.tip_see_more')}</span>
+        {/* Titre + carte groupés dans un seul bloc flex : space-between
+            (ci-dessus) répartit l'espace EN TROP entre les 3 blocs de haut
+            niveau, jamais À L'INTÉRIEUR de l'un d'eux — sans ce wrapper, le
+            titre resterait collé au bouton QR pendant que la carte partirait
+            seule vers le bas. */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+            <Icon name="lightbulb" size={17} color="var(--sm-ink)" strokeWidth={2} style={{ marginRight: 8 }} />
+            <h3 className="sm-serif" style={{ fontSize: 18, flex: 1 }}>{t('home.tip_of_day')}</h3>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-blue)' }}>{t('home.tip_see_more')}</span>
+          </div>
+          <TipOfDayCard tip={tip} />
         </div>
-        <TipOfDayCard tip={tip} />
       </div>
 
       <FloatingChatButton nav={nav} />

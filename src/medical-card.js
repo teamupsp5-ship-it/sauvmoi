@@ -108,9 +108,12 @@ export function buildMedicalCardSvg({ nom, age, bloodType, allergies, conditions
 
   const parts = [`<rect x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#FFFFFF"/>`, headerSvg()];
 
-  // Nom + âge
+  // Nom + âge — n'affiche la ligne que pour un âge réellement mesuré (jamais
+  // pour une date de naissance absente/invalide, qui produirait NaN sans ce
+  // garde) ; position de la ligne de séparation ci-dessous fixe dans les deux
+  // cas, donc omettre cette ligne ne décale rien après elle.
   parts.push(`<text x="60" y="270" font-family="${FONT}" font-size="56" font-weight="700" fill="${INK}">${escapeXml(nameLine)}</text>`);
-  if (age != null) {
+  if (Number.isFinite(age) && age >= 0) {
     parts.push(`<text x="60" y="312" font-family="${FONT}" font-size="30" fill="#5A6472">${age} ans</text>`);
   }
   parts.push(`<line x1="60" y1="345" x2="${CARD_WIDTH - 60}" y2="345" stroke="#E7E9EC" stroke-width="2"/>`);

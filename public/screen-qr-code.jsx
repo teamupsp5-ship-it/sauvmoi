@@ -104,7 +104,7 @@ function QrCodeScreen({ nav }) {
                   </div>
                 )}
 
-                {(payload.age != null) && (
+                {Number.isFinite(payload.age) && payload.age >= 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('qrcode.field_age')}</span>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{t('qrcode.age_suffix').replace('{age}', payload.age)}</span>
@@ -112,9 +112,12 @@ function QrCodeScreen({ nav }) {
                 )}
 
                 {payload.bloodType && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
-                    <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.blood_type')}</span>
-                    <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-soft-red)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14 }}>{payload.bloodType}</span>
+                  <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.blood_type')}</span>
+                      <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-soft-red)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14 }}>{payload.bloodType}</span>
+                    </div>
+                    <DeclaredNotVerifiedNote t={t} />
                   </div>
                 )}
 
