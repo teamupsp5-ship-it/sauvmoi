@@ -154,12 +154,15 @@ function SaveBar({ onCancel, onSave, saving }) {
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
-function ProfileToast({ msg }) {
+// variant="danger" réutilisé pour les échecs d'enregistrement (voir les
+// save() de ProfilePersonal/ProfileMedical/ProfileContacts ci-dessous) — même
+// composant, jamais un toast de succès affiché à la place d'une erreur.
+function ProfileToast({ msg, variant = 'success' }) {
   if (!msg) return null;
   return (
     <Banner
-      variant="success"
-      icon="check-circle-2"
+      variant={variant}
+      icon={variant === 'danger' ? 'alert-circle' : 'check-circle-2'}
       text={msg}
       style={{ position: 'absolute', top: 70, left: 16, right: 16, zIndex: 300, boxShadow: '0 6px 24px rgba(0,0,0,0.2)' }}
     />
@@ -520,6 +523,7 @@ function ProfilePersonal({ nav }) {
   const [form, setForm]       = useState(null);
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState('');
+  const [error, setError]     = useState('');
 
   const nameParts = (user.name || '').trim().split(/\s+/);
   const prenom = nameParts[0] || '';
@@ -535,16 +539,28 @@ function ProfilePersonal({ nav }) {
   async function save() {
     if (!form) return;
     setSaving(true);
+    setError('');
     const name = [form.prenom.trim(), form.nom.trim()].filter(Boolean).join(' ');
     const payload = { name, birthdate: form.birthdate, gender: form.gender, phone: form.phone.trim() };
-    const updated = { ...window.SM.user, ...payload };
-    try { const res = await window.API.updateMe(payload); Object.assign(updated, res); } catch {}
-    window.SM.user = updated;
-    localStorage.setItem('sm_user', JSON.stringify(updated));
-    window.SM.emit();
-    setSaving(false); setEditing(false); setForm(null);
-    setToast(t('profile.updated_personal'));
-    setTimeout(() => setToast(''), 2500);
+    // L'état local / localStorage ne sont mis à jour qu'APRÈS confirmation du
+    // serveur, avec la réponse du serveur elle-même (source de vérité) — pas
+    // une valeur calculée en local qui pourrait diverger de ce qui a
+    // réellement été écrit. Un échec (réseau ou réponse d'erreur) ne touche
+    // jamais l'état local ni le localStorage et affiche un Banner d'erreur au
+    // lieu du toast de succès.
+    try {
+      const res = await window.API.updateMe(payload);
+      window.SM.user = res;
+      localStorage.setItem('sm_user', JSON.stringify(res));
+      window.SM.emit();
+      setSaving(false); setEditing(false); setForm(null);
+      setToast(t('profile.updated_personal'));
+      setTimeout(() => setToast(''), 2500);
+    } catch (e) {
+      setSaving(false);
+      setError(t('profile.save_failed'));
+      setTimeout(() => setError(''), 4000);
+    }
   }
 
   const Val = ({ v }) => (
@@ -629,6 +645,7 @@ function ProfilePersonal({ nav }) {
 
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
+      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
@@ -647,6 +664,7 @@ function ProfileMedical({ nav }) {
   const [form, setForm]       = useState(null);
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState('');
+  const [error, setError]     = useState('');
 
   function startEdit() {
     setForm({
@@ -664,6 +682,7 @@ function ProfileMedical({ nav }) {
   async function save() {
     if (!form) return;
     setSaving(true);
+    setError('');
     const medPayload = {
       bloodType:  form.bloodType,
       height:     form.height     ? Number(form.height)  : null,
@@ -671,14 +690,24 @@ function ProfileMedical({ nav }) {
       allergies:  form.allergies.split(',').map(a => a.trim()).filter(Boolean),
       conditions: form.conditions.split(',').map(c => c.trim()).filter(Boolean),
     };
-    const updated = { ...window.SM.user, medicalRecord: { ...med, ...medPayload } };
-    try { await window.API.updateMe({ medicalRecord: medPayload }); } catch {}
-    window.SM.user = updated;
-    localStorage.setItem('sm_user', JSON.stringify(updated));
-    window.SM.emit();
-    setSaving(false); setEditing(false); setForm(null);
-    setToast(t('profile.updated_medical'));
-    setTimeout(() => setToast(''), 2500);
+    // Même règle que ProfilePersonal.save() : état local / localStorage
+    // uniquement après confirmation serveur, avec la réponse du serveur
+    // elle-même — jamais une valeur optimiste calculée en local. C'est ce
+    // découplage (état local mis à jour même si l'écriture échouait) qui
+    // rendait invisible l'échec réel de l'enregistrement du carnet médical.
+    try {
+      const res = await window.API.updateMe({ medicalRecord: medPayload });
+      window.SM.user = res;
+      localStorage.setItem('sm_user', JSON.stringify(res));
+      window.SM.emit();
+      setSaving(false); setEditing(false); setForm(null);
+      setToast(t('profile.updated_medical'));
+      setTimeout(() => setToast(''), 2500);
+    } catch (e) {
+      setSaving(false);
+      setError(t('profile.save_failed'));
+      setTimeout(() => setError(''), 4000);
+    }
   }
 
   const rows = [
@@ -751,6 +780,7 @@ function ProfileMedical({ nav }) {
 
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
+      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
@@ -769,6 +799,7 @@ function ProfileContacts({ nav }) {
   const [contacts, setContacts] = useState([]);
   const [saving, setSaving]    = useState(false);
   const [toast, setToast]      = useState('');
+  const [error, setError]      = useState('');
 
   function startEdit() {
     setContacts((med.emergencyContacts || []).map(c => ({ ...c })));
@@ -782,15 +813,24 @@ function ProfileContacts({ nav }) {
 
   async function save() {
     setSaving(true);
+    setError('');
     const clean = contacts.filter(c => c.name && c.name.trim());
-    const updated = { ...window.SM.user, medicalRecord: { ...med, emergencyContacts: clean } };
-    try { await window.API.updateMe({ medicalRecord: { emergencyContacts: clean } }); } catch {}
-    window.SM.user = updated;
-    localStorage.setItem('sm_user', JSON.stringify(updated));
-    window.SM.emit();
-    setSaving(false); setEditing(false); setContacts([]);
-    setToast(t('profile.updated_contacts'));
-    setTimeout(() => setToast(''), 2500);
+    // Même règle que ProfilePersonal/ProfileMedical.save() : état local /
+    // localStorage uniquement après confirmation serveur, avec la réponse du
+    // serveur elle-même.
+    try {
+      const res = await window.API.updateMe({ medicalRecord: { emergencyContacts: clean } });
+      window.SM.user = res;
+      localStorage.setItem('sm_user', JSON.stringify(res));
+      window.SM.emit();
+      setSaving(false); setEditing(false); setContacts([]);
+      setToast(t('profile.updated_contacts'));
+      setTimeout(() => setToast(''), 2500);
+    } catch (e) {
+      setSaving(false);
+      setError(t('profile.save_failed'));
+      setTimeout(() => setError(''), 4000);
+    }
   }
 
   const savedContacts = med.emergencyContacts || [];
@@ -865,6 +905,7 @@ function ProfileContacts({ nav }) {
 
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
+      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }

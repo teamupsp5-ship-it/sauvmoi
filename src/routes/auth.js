@@ -51,6 +51,17 @@ function sessionExpiresAtMs(session) {
 // sous `medicalRecord` (contrat actuel de PUT /me) ou `medical` — au cas où
 // un appelant utilise l'une ou l'autre convention, les deux endpoints les
 // retrouvent de la même façon au lieu de silencieusement les ignorer.
+// ProfileMedical.save() (screen-profile.jsx) envoie allergies/conditions sous
+// forme de TABLEAU (form.allergies.split(',')...), pas de string — cohérent
+// avec le contrat medicalRecord.allergies/conditions (tableaux) partout
+// ailleurs dans le payload utilisateur. Sans cette normalisation, la
+// validation plus bas (isOptionalString, qui exige typeof === 'string')
+// rejetait TOUJOURS ces champs en 400 dès qu'ils étaient renseignés — cause
+// racine réelle du carnet médical qui ne s'enregistrait jamais.
+function normalizeListField(v) {
+  return Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean).join(', ') : v;
+}
+
 function extractMedicalFields(body) {
   const nested = (body && (body.medicalRecord || body.medical)) || null;
   const src = nested || body || {};
@@ -58,8 +69,8 @@ function extractMedicalFields(body) {
     bloodType: src.bloodType,
     height: src.height,
     weight: src.weight,
-    conditions: src.conditions,
-    allergies: src.allergies,
+    conditions: normalizeListField(src.conditions),
+    allergies: normalizeListField(src.allergies),
   };
 }
 

@@ -261,6 +261,7 @@ window.I18N_FR = {
   'profile.relation_placeholder': 'Relation (époux, sœur…)',
   'profile.add_contact': 'Ajouter un contact ({n}/5)',
   'profile.updated_contacts': 'Contacts mis à jour !',
+  'profile.save_failed': "Échec de l'enregistrement. Vos modifications n'ont pas été sauvegardées — réessayez.",
 
   // ── Chat IA — interface (le contenu conversationnel reste Phase 2) ───────
   'chat.assistant_name': "Assistant Sauv'Moi",
@@ -311,6 +312,14 @@ window.I18N_FR = {
   'qrcode.age_suffix': '{age} ans',
   'qrcode.valid_until_label': "Valide jusqu'au",
   'qrcode.disclaimer': 'Ce QR Code encode vos informations médicales essentielles. Mettez-le à jour depuis votre profil si vos données changent.',
+  'qrcode.expired_title': 'QR expiré',
+  'qrcode.expired_text': 'Ce QR Code a dépassé sa date de validité et sera refusé par les secours. Régénérez-le pour en obtenir un valide.',
+  'qrcode.regenerate_button': 'Régénérer mon QR',
+  'qrcode.regenerating': 'Régénération en cours…',
+  'qrcode.regenerate_failed': 'La régénération a échoué. Réessayez.',
+  'qrcode.regenerate_confirm_title': 'Régénérer le QR médical ?',
+  'qrcode.regenerate_confirm_body': "Toute carte imprimée ou partagée avec l'ancien QR cessera immédiatement de fonctionner. Ne régénérez que si nécessaire.",
+  'qrcode.regenerate_confirm_button': 'Régénérer',
 
   // ── Scanner QR ───────────────────────────────────────────────────────────
   'qrscan.expired': "Ce QR Code est expiré. Demandez à l'utilisateur de le régénérer depuis son profil.",

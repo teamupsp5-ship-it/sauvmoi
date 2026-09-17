@@ -153,7 +153,12 @@
 
     // Carnet médical
     medicalRecord: () => req('/api/medical-record'),
+    // Lecture pure : réutilise le QR déjà généré (gen/exp/sig stables), n'en
+    // recrée un que s'il n'en existe encore aucun — voir routes/api.js.
     medicalQr: () => req('/api/medical-record/qr'),
+    // Régénération EXPLICITE uniquement : invalide toute carte imprimée ou
+    // partagée existante (nouveau qr_generated_at, voir routes/api.js).
+    regenerateQr: () => req('/api/medical-record/qr/regenerate', { method: 'POST' }),
 
     // Notifications in-app
     notifications: () => req('/api/notifications'),

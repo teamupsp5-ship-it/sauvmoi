@@ -7,6 +7,9 @@ function QrCodeScreen({ nav }) {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState(null);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState('');
 
   useEffect(() => {
     window.API.medicalQr()
@@ -14,9 +17,24 @@ function QrCodeScreen({ nav }) {
       .catch(() => { setError(t('qrcode.error_generate')); setLoading(false); });
   }, []);
 
+  async function doRegenerate() {
+    setShowRegenConfirm(false);
+    setRegenerating(true);
+    setRegenError('');
+    try {
+      const d = await window.API.regenerateQr();
+      setData(d);
+      setError(null);
+    } catch (e) {
+      setRegenError(t('qrcode.regenerate_failed'));
+    }
+    setRegenerating(false);
+  }
+
   const payload = data && data.payload;
   const dateLocale = lang === 'en' ? 'en-US' : 'fr-FR';
   const expiresAt = payload ? new Date(payload.expiresAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const isExpired = payload ? Date.now() > payload.expiresAt : false;
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column' }}>
@@ -54,6 +72,17 @@ function QrCodeScreen({ nav }) {
               <h2 className="sm-serif" style={{ fontSize: 22, marginBottom: 6 }}>{t('qrcode.subtitle')}</h2>
               <p style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('qrcode.instructions')}</p>
             </div>
+
+            {isExpired && (
+              <Banner
+                variant="warning"
+                icon="alert-triangle"
+                title={t('qrcode.expired_title')}
+                text={t('qrcode.expired_text')}
+                stacked
+                style={{ width: '100%', marginBottom: 18 }}
+              />
+            )}
 
             {/* QR Code */}
             <div style={{ background: 'white', borderRadius: 18, padding: 14, boxShadow: 'var(--shadow-3)', border: '1.5px solid var(--sm-line)', marginBottom: 20 }}>
@@ -125,9 +154,46 @@ function QrCodeScreen({ nav }) {
                 {t('qrcode.disclaimer')}
               </p>
             </div>
+
+            {regenError && (
+              <Banner variant="danger" icon="alert-circle" text={regenError} style={{ width: '100%', marginTop: 14 }} />
+            )}
+
+            <button
+              onClick={() => setShowRegenConfirm(true)}
+              disabled={regenerating}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', marginTop: 18, padding: '13px', borderRadius: 12, background: 'var(--sm-paper-2)', border: '1px solid var(--sm-line)', color: 'var(--sm-ink)', fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-ui)', cursor: regenerating ? 'default' : 'pointer', opacity: regenerating ? 0.6 : 1 }}
+            >
+              <Icon name="refresh-cw" size={16} />
+              {regenerating ? t('qrcode.regenerating') : t('qrcode.regenerate_button')}
+            </button>
           </>
         )}
       </div>
+
+      {/* Modal confirmation régénération */}
+      {showRegenConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.5)', display: 'flex', alignItems: 'flex-end', zIndex: 200 }}>
+          <div style={{ width: '100%', background: 'white', borderRadius: '20px 20px 0 0', padding: '28px 20px 40px' }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--sm-line)', margin: '0 auto 22px' }} />
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#FDEDEC', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <Icon name="alert-triangle" size={26} color="#C0392B" />
+            </div>
+            <h3 className="sm-serif" style={{ fontSize: 20, textAlign: 'center', marginBottom: 8 }}>{t('qrcode.regenerate_confirm_title')}</h3>
+            <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', textAlign: 'center', marginBottom: 24, fontFamily: 'var(--font-ui)', lineHeight: 1.5 }}>
+              {t('qrcode.regenerate_confirm_body')}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button onClick={doRegenerate} style={{ padding: '14px', borderRadius: 12, background: '#C0392B', color: 'white', border: 'none', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-ui)', cursor: 'pointer' }}>
+                {t('qrcode.regenerate_confirm_button')}
+              </button>
+              <button onClick={() => setShowRegenConfirm(false)} style={{ padding: '14px', borderRadius: 12, background: '#F1F2F4', color: 'var(--sm-ink)', border: 'none', fontWeight: 600, fontSize: 16, fontFamily: 'var(--font-ui)', cursor: 'pointer' }}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -233,43 +233,83 @@ router.put('/medical-record', (req, res) => {
   res.json(DEMO_USER.medicalRecord);
 });
 
+// Construit la réponse {payload, qrDataUrl, url} pour un id/gen déjà connus
+// (soit rechargés depuis qr_generated_at, soit tout juste écrits par une
+// régénération) — partagé par GET /medical-record/qr et
+// POST /medical-record/qr/regenerate pour ne pas dupliquer la construction
+// de l'URL signée. exp est TOUJOURS dérivé de gen (jamais de Date.now()) :
+// c'est ce qui garantit que l'URL — donc le contenu du QR affiché — reste
+// strictement identique tant que gen ne change pas, même consultée des
+// dizaines de fois.
+async function buildQrResponse(userId, gen, data) {
+  const expiresAt = gen + SIX_MONTHS_MS;
+  const payload = { ...(data || { id: userId, nom: '', age: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
+  const sig = signMedicalCard(userId, gen, expiresAt);
+  const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${userId}.png?gen=${gen}&exp=${expiresAt}&sig=${sig}`;
+  const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
+  return { payload, qrDataUrl, url };
+}
+
+// Lecture pure : NE régénère jamais. Ouvrir l'écran "Mon QR médical" ne doit
+// pas invalider une carte déjà imprimée — seule une régénération EXPLICITE
+// (POST .../regenerate ci-dessous) doit écrire un nouveau qr_generated_at.
+// Si aucun QR n'a jamais été généré pour ce profil, celui-ci en crée un une
+// seule fois (premier accès à l'écran) ; sinon elle réutilise tel quel
+// l'horodatage déjà stocké, donc la même URL/signature à chaque appel.
 router.get('/medical-record/qr', requireAuth, async (req, res) => {
   // Échec fermé : jamais de QR non signé émis, quoi qu'il arrive.
   if (!getMedicalCardSecret()) {
     console.error('[medical-card] MEDICAL_CARD_SECRET absent — génération de QR refusée (échec fermé)');
     return res.status(500).json({ error: 'Configuration serveur invalide — QR médical indisponible' });
   }
+  res.set('Cache-Control', 'no-store'); // données de santé — jamais en cache
+  res.set('Pragma', 'no-cache');
   try {
     const data = await loadMedicalCardData(req.user.id);
-    const now = Date.now();
-    const expiresAt = now + SIX_MONTHS_MS;
-    const payload = { ...(data || { id: req.user.id, nom: '', age: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: now, expiresAt };
-
-    // Révocation réelle : mémorise l'horodatage de CETTE génération sur le
-    // profil. La route publique refuse toute URL (même valablement signée)
-    // dont le gen est antérieur à cette valeur — c'est ce qui invalide
-    // vraiment un ancien QR dès qu'un nouveau est généré. La signature seule
-    // ne suffit pas : une URL signée volée resterait valide jusqu'à son exp
-    // d'origine sans ce contrôle.
-    const { error: revokeErr } = await supabase
-      .from('profiles')
-      .update({ qr_generated_at: new Date(now).toISOString() })
-      .eq('id', req.user.id);
-    if (revokeErr) throw revokeErr;
-
-    // Le QR encode une URL vers l'image PNG publique (chargement instantané,
-    // aucune app tierce requise pour lire du JSON brut — un scanner
-    // d'appareil photo standard ouvre directement l'image) plutôt que du
-    // JSON brut. gen/exp voyagent en query string car cette route publique
-    // ne peut pas dépendre d'une session pour retrouver la date de
-    // génération du QR — sig (HMAC de id:gen:exp) garantit qu'ils n'ont pas
-    // été altérés ou retirés côté client (voir signMedicalCard ci-dessus).
-    const sig = signMedicalCard(req.user.id, now, expiresAt);
-    const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${req.user.id}.png?gen=${now}&exp=${expiresAt}&sig=${sig}`;
-    const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
-    res.json({ payload, qrDataUrl, url });
+    let gen = data?.qrGeneratedAt;
+    if (gen == null) {
+      gen = Date.now();
+      const { error: revokeErr } = await supabase
+        .from('profiles')
+        .update({ qr_generated_at: new Date(gen).toISOString() })
+        .eq('id', req.user.id);
+      if (revokeErr) throw revokeErr;
+    }
+    res.json(await buildQrResponse(req.user.id, gen, data));
   } catch (e) {
     res.status(500).json({ error: 'Génération QR échouée', detail: e.message });
+  }
+});
+
+// Régénération EXPLICITE — seule route qui écrit un nouveau qr_generated_at.
+// Invalide immédiatement toute carte imprimée ou partagée précédemment (la
+// route publique refuse tout gen antérieur à cette nouvelle valeur, voir
+// plus bas) : le frontend doit exiger une confirmation explicite de
+// l'utilisateur avant d'appeler cette route (voir screen-qr-code.jsx).
+router.post('/medical-record/qr/regenerate', requireAuth, async (req, res) => {
+  if (!getMedicalCardSecret()) {
+    console.error('[medical-card] MEDICAL_CARD_SECRET absent — régénération de QR refusée (échec fermé)');
+    return res.status(500).json({ error: 'Configuration serveur invalide — QR médical indisponible' });
+  }
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
+  try {
+    const gen = Date.now();
+    // Même garde-fou anti-échec-silencieux que le reste de l'app (voir
+    // PUT /me) : .select() + vérification qu'une ligne a bien été retournée.
+    const { data: updatedProfile, error: revokeErr } = await supabase
+      .from('profiles')
+      .update({ qr_generated_at: new Date(gen).toISOString() })
+      .eq('id', req.user.id)
+      .select()
+      .maybeSingle();
+    if (revokeErr) throw revokeErr;
+    if (!updatedProfile) throw new Error('Profil introuvable pour cet utilisateur — régénération non appliquée');
+
+    const data = await loadMedicalCardData(req.user.id);
+    res.json(await buildQrResponse(req.user.id, gen, data));
+  } catch (e) {
+    res.status(500).json({ error: 'Régénération du QR échouée', detail: e.message });
   }
 });
 
@@ -287,6 +327,10 @@ router.get('/medical-record/qr', requireAuth, async (req, res) => {
 // s'applique en sondant l'URL. Le détail exact part uniquement dans les logs
 // serveur (console.warn/error), jamais dans la réponse HTTP.
 router.get('/public/medical-card/:file', async (req, res) => {
+  // Des données de santé n'ont pas à séjourner dans un cache — y compris sur
+  // les réponses de refus, qui portent quand même un `Fiche indisponible`.
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
   const m = /^([^.]+)\.(png|json)$/.exec(req.params.file);
   if (!m) return res.status(400).json({ error: 'Format invalide' });
   const [, id, format] = m;
