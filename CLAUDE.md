@@ -230,6 +230,7 @@ charger le fichier dans `index.html`, l'ajouter ici.
 |---|---|
 | `capacitor.config.json` | `appId: ci.sauvmoi.app` · `appName: Sauv'Moi` · `webDir: public` · `androidScheme: https` |
 | `package.json` | Scripts `start`, `dev`, `android:add`, `build:mobile`, `android:open`, `android:run` |
+| `.cpanel.yml` | Déploiement semi-automatique via l'outil **Git Version Control** de cPanel (o2switch) — voir section Déploiement & infrastructure. Spécifique à o2switch, n'affecte pas le déploiement Render |
 | `index.html` | `viewport-fit=cover` (nécessaire pour `env(safe-area-inset-*)`), `apple-touch-icon`, `apple-mobile-web-app-capable`/`-status-bar-style`/`-title` pour l'expérience iOS "app". Charge `tweak-defaults.js` (externalisé, ex-`<script>` inline) plutôt qu'un bloc inline — permet de ne pas ajouter `'unsafe-inline'` à script-src pour CE fichier (nécessaire quand même globalement à cause de Babel Standalone, voir Sécurité ci-dessous). |
 
 ---
@@ -591,6 +592,37 @@ pour une migration testée correctement :
 | Déploiement | Automatique sur push Render ← GitHub |
 | Base de données / Auth | Projet Supabase — schéma dans `supabase/schema.sql` (**à exécuter manuellement** via l'éditeur SQL Supabase avant tout déploiement sur une base neuve) |
 | Variables Render | `ANTHROPIC_API_KEY` (optionnelle, **non configurée lors des derniers tests** → fallback PSC1 en prod) · `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (requises — le serveur ne fonctionne pas sans elles) |
+
+### Déploiement o2switch (cPanel) — secondaire, n'affecte pas Render
+
+`.cpanel.yml` à la racine du projet : permet un déploiement semi-automatique
+via l'outil **Git Version Control** de cPanel (o2switch) — cPanel détecte ce
+fichier et exécute ses `tasks` à chaque déploiement déclenché depuis son
+interface. Ce fichier est **spécifique à o2switch** ; il n'est lu par
+personne d'autre (Render ignore tout fichier qu'il ne connaît pas) et
+n'affecte donc en rien le déploiement automatique Render ← GitHub décrit
+ci-dessus. Les deux déploiements sont indépendants et peuvent coexister à
+partir du même dépôt.
+
+```yaml
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home3/sc3jdmi5414/sauvmoi
+    - /usr/bin/rsync -av --exclude='.git' --exclude='node_modules' ./ $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
+```
+
+- `rsync` copie le dépôt vers `$DEPLOYPATH`, en excluant `.git` et
+  `node_modules`.
+- `touch tmp/restart.txt` est le mécanisme standard **Passenger** (utilisé
+  par cPanel pour les apps Node.js) pour déclencher un redémarrage propre de
+  l'application après déploiement.
+- **`npm install` n'est volontairement pas exécuté** dans ce script — rien
+  ne garantit que `npm` soit dans le `PATH` du contexte d'exécution cPanel
+  qui lance `.cpanel.yml`. À faire manuellement (SSH ou terminal cPanel) si
+  de nouvelles dépendances sont ajoutées, ou à automatiser dans une
+  itération future une fois le PATH vérifié.
 
 ---
 

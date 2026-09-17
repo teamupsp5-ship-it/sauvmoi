@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home3/sc3jdmi5414/sauvmoi
+    - /usr/bin/rsync -av --exclude='.git' --exclude='node_modules' ./ $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
