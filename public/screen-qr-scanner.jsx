@@ -4,6 +4,7 @@
 
 function QrScannerScreen({ nav }) {
   useLucide();
+  const t = useTranslation();
   const fileRef   = useRef(null);
   const canvasRef = useRef(null);
 
@@ -30,7 +31,7 @@ function QrScannerScreen({ nav }) {
     try { legacyParsed = JSON.parse(raw); } catch {}
     if (legacyParsed && legacyParsed.id) {
       if (legacyParsed.expiresAt && Date.now() > legacyParsed.expiresAt) {
-        setError("Ce QR Code est expiré. Demandez à l'utilisateur de le régénérer depuis son profil.");
+        setError(t('qrscan.expired'));
         return;
       }
       window.SM_VICTIM = legacyParsed;
@@ -40,7 +41,7 @@ function QrScannerScreen({ nav }) {
 
     const m = /\/api\/public\/medical-card\/([^\/?]+)\.png(\?.*)?$/.exec(raw);
     if (!m) {
-      setError("Ce QR Code n'est pas un QR Sauv'Moi.");
+      setError(t('qrscan.not_sauvmoi'));
       return;
     }
     const id = m[1];
@@ -53,14 +54,14 @@ function QrScannerScreen({ nav }) {
     try {
       const res = await fetch(`${base}/api/public/medical-card/${id}.json${qs}`);
       if (!res.ok) {
-        setError(res.status === 404 ? "Fiche introuvable ou expirée." : 'Impossible de charger la fiche.');
+        setError(res.status === 404 ? t('qrscan.card_not_found') : t('qrscan.card_load_failed'));
         return;
       }
       const data = await res.json();
       window.SM_VICTIM = data;
       nav.go('victim_card');
     } catch (e) {
-      setError('Impossible de charger la fiche. Vérifiez votre connexion.');
+      setError(t('qrscan.card_load_failed_network'));
     }
   }
 
@@ -70,7 +71,7 @@ function QrScannerScreen({ nav }) {
     setError(null);
     const BS = window.Capacitor?.Plugins?.BarcodeScanner;
     if (!BS) {
-      setError("Plugin scanner non disponible. Rebuilder l'APK avec npm run android:run.");
+      setError(t('qrscan.plugin_unavailable'));
       setScanning(false);
       return;
     }
@@ -79,21 +80,21 @@ function QrScannerScreen({ nav }) {
       if (camera !== 'granted') {
         const result = await BS.requestPermissions();
         if (result.camera !== 'granted') {
-          setError('Permission caméra refusée. Activez-la dans Paramètres → Applications → Sauv\'Moi.');
+          setError(t('qrscan.camera_permission_denied'));
           setScanning(false);
           return;
         }
       }
-      setHint("Pointez la caméra vers un QR Code Sauv'Moi…");
+      setHint(t('qrscan.hint_pointing'));
       const { barcodes } = await BS.scan({ formats: ['QR_CODE'] });
       setHint(null);
       if (barcodes && barcodes.length > 0) {
         await handleRaw(barcodes[0].rawValue);
       } else {
-        setError('Aucun QR Code détecté. Réessayez.');
+        setError(t('qrscan.no_qr_detected'));
       }
     } catch (e) {
-      setError('Erreur scanner : ' + (e.message || String(e)));
+      setError(t('qrscan.scanner_error_prefix') + (e.message || String(e)));
       setHint(null);
     } finally {
       setScanning(false);
@@ -118,7 +119,7 @@ function QrScannerScreen({ nav }) {
       const imageData = ctx.getImageData(0, 0, img.width, img.height);
 
       if (typeof window.jsQR !== 'function') {
-        setError('Librairie jsQR non chargée. Vérifiez votre connexion internet.');
+        setError(t('qrscan.jsqr_not_loaded'));
         setScanning(false);
         return;
       }
@@ -126,11 +127,11 @@ function QrScannerScreen({ nav }) {
       if (code) {
         await handleRaw(code.data);
       } else {
-        setError('Aucun QR Code trouvé dans cette image. Essayez avec une meilleure photo.');
+        setError(t('qrscan.no_qr_in_image'));
       }
       setScanning(false);
     };
-    img.onerror = () => { setError('Impossible de lire l\'image.'); setScanning(false); };
+    img.onerror = () => { setError(t('qrscan.image_read_failed')); setScanning(false); };
     img.src = URL.createObjectURL(file);
     e.target.value = '';
   }
@@ -149,7 +150,7 @@ function QrScannerScreen({ nav }) {
           <Icon name="arrow-left" size={22} color="white" />
         </button>
         <h2 className="sm-serif" style={{ fontSize: 20, color: 'white', flex: 1 }}>
-          Scanner un QR Sauv'Moi
+          {t('home.qr_scan_title')}
         </h2>
       </div>
 
@@ -180,9 +181,7 @@ function QrScannerScreen({ nav }) {
         {/* Message aide */}
         {!error && !hint && (
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, textAlign: 'center', lineHeight: 1.55, marginBottom: 6 }}>
-            {isNative
-              ? "Pointez la caméra vers un QR Code Sauv'Moi"
-              : "Prenez en photo ou importez une image d'un QR Code Sauv'Moi"}
+            {isNative ? t('qrscan.help_native') : t('qrscan.help_web')}
           </p>
         )}
         {hint && (
@@ -211,7 +210,7 @@ function QrScannerScreen({ nav }) {
             style={{ width: '100%', padding: '15px', borderRadius: 14, background: scanning ? 'rgba(255,255,255,0.15)' : 'var(--sm-red)', color: 'white', border: 'none', fontWeight: 700, fontSize: 16, cursor: scanning ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
             <Icon name="scan" size={20} color="white" />
-            {scanning ? 'Scan en cours…' : 'Ouvrir la caméra'}
+            {scanning ? t('qrscan.scan_in_progress') : t('qrscan.open_camera')}
           </button>
         ) : (
           <button
@@ -220,7 +219,7 @@ function QrScannerScreen({ nav }) {
             style={{ width: '100%', padding: '15px', borderRadius: 14, background: scanning ? 'rgba(255,255,255,0.15)' : 'var(--sm-red)', color: 'white', border: 'none', fontWeight: 700, fontSize: 16, cursor: scanning ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
             <Icon name="camera" size={20} color="white" />
-            {scanning ? 'Analyse en cours…' : 'Ouvrir la caméra / galerie'}
+            {scanning ? t('qrscan.analyzing') : t('qrscan.open_camera_gallery')}
           </button>
         )}
 
@@ -228,7 +227,7 @@ function QrScannerScreen({ nav }) {
           onClick={() => goBack(nav)}
           style={{ width: '100%', padding: '14px', borderRadius: 14, background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)', border: '1px solid rgba(255,255,255,0.15)', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}
         >
-          Retour
+          {t('qrscan.back')}
         </button>
       </div>
     </div>

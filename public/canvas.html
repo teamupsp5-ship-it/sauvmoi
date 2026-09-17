@@ -9,6 +9,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 
+  <!-- Thème clair/sombre — même ordre que index.html : expose useTheme(),
+       utilisé par frames.jsx et screen-home.jsx (tous deux chargés
+       ci-dessous). -->
+  <script src="theme.js"></script>
+
   <!-- i18n FR/EN — même ordre que index.html : fr.js/en.js posent les
        dictionnaires sur window, i18n.js lit sm_lang et expose
        t()/useTranslation()/useLang(), utilisés par la quasi-totalité des
@@ -34,6 +39,22 @@
       "dark": false
     }/*EDITMODE-END*/;
   </script>
+
+  <!-- Client API + état partagé — mêmes fichiers et même ordre que
+       index.html, avant les écrans : screen-home.jsx (HomeMobile) lit
+       window.SM/useSM() et appelle window.API.notifications() au montage
+       (échecs déjà interceptés par .catch, sans écran ni backend réel) ;
+       screen-training.jsx appelle window.API.trainingModules() sans garde —
+       sans api-client.js chargé, window.API est undefined et cet appel lève
+       une erreur synchrone (pas une rejection de promesse, donc jamais
+       rattrapée par le .catch qui suit). supabase-client.js se dégrade
+       proprement sans le SDK Supabase CDN (non chargé ici, inutile pour le
+       canvas) — inclus pour que le bouton Google de screen-auth.jsx reste
+       utilisable dans le canvas sans lever "getSupabaseClient is not
+       defined". -->
+  <script src="api-client.js"></script>
+  <script src="sm-state.js"></script>
+  <script src="supabase-client.js"></script>
 
   <script type="text/babel" src="design-canvas.jsx"></script>
   <script type="text/babel" src="tweaks-panel.jsx"></script>

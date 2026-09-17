@@ -616,11 +616,11 @@ function ProfilePersonal({ nav }) {
               </div>
               <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{t('profile.email')}</div>
-                <input type="email" value={form.email} onChange={e => setF('email')(e.target.value)} placeholder="exemple@email.com" style={{ ...PINP }} />
+                <input type="email" value={form.email} onChange={e => setF('email')(e.target.value)} placeholder={t('auth.email_placeholder')} style={{ ...PINP }} />
               </div>
               <div style={{ padding: '12px 16px', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{t('profile.phone')}</div>
-                <input type="tel" value={form.phone} onChange={e => setF('phone')(e.target.value)} placeholder="+225 07 00 00 00" style={{ ...PINP }} />
+                <input type="tel" value={form.phone} onChange={e => setF('phone')(e.target.value)} placeholder={t('profile.phone_placeholder')} style={{ ...PINP }} />
               </div>
             </>
           )}

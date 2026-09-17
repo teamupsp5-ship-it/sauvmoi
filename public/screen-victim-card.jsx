@@ -1,13 +1,33 @@
 // screen-victim-card.jsx — Fiche d'urgence après scan QR Sauv'Moi
 // Données lues depuis window.SM_VICTIM (objet JSON décodé du QR)
 
+// Bandeau compact "déclaré, non vérifié" — appliqué à chaque donnée médicale
+// saisie par l'utilisateur sans aucun contrôle (groupe sanguin, allergies,
+// antécédents) : un secouriste doit pouvoir distinguer une donnée déclarée
+// d'une donnée vérifiée avant d'agir dessus. Volontairement lisible (texte
+// bilingue via t(), icône, couleur d'alerte) plutôt qu'un astérisque discret
+// — c'est une information de sécurité, pas un détail cosmétique.
+function DeclaredNotVerifiedNote({ t }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+      <Icon name="info" size={13} color="#92400E" />
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>
+        {t('victim.declared_not_verified')}
+      </span>
+    </div>
+  );
+}
+
 function VictimCardScreen({ nav }) {
   useLucide();
+  const t = useTranslation();
+  const lang = useLang();
   const v = window.SM_VICTIM || {};
   const { nom, age, bloodType, allergies, conditions, contacts, generatedAt, expiresAt } = v;
 
-  const genDate = generatedAt ? new Date(generatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
-  const expDate = expiresAt  ? new Date(expiresAt).toLocaleDateString('fr-FR',  { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const dateLocale = lang === 'en' ? 'en-US' : 'fr-FR';
+  const genDate = generatedAt ? new Date(generatedAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const expDate = expiresAt  ? new Date(expiresAt).toLocaleDateString(dateLocale,  { day: 'numeric', month: 'long', year: 'numeric' }) : null;
   const isExpired = expiresAt && Date.now() > expiresAt;
 
   return (
@@ -25,17 +45,17 @@ function VictimCardScreen({ nav }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <Icon name="shield-alert" size={18} color="rgba(255,255,255,0.9)" />
             <span style={{ fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Fiche d'Urgence · Sauv'Moi
+              {t('victim.header_title')}
             </span>
           </div>
         </div>
         <div>
           <div className="sm-serif" style={{ fontSize: 'clamp(22px, 7vw, 28px)', color: 'white', fontWeight: 700, lineHeight: 1.1 }}>
-            {nom || 'Victime'}
+            {nom || t('victim.name_fallback')}
           </div>
           {age != null && (
             <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.82)', marginTop: 5 }}>
-              {age} ans
+              {t('victim.age_years').replace('{age}', age)}
             </div>
           )}
         </div>
@@ -43,7 +63,7 @@ function VictimCardScreen({ nav }) {
         {isExpired && (
           <div style={{ marginTop: 12, background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="alert-triangle" size={15} color="white" />
-            <span style={{ fontSize: 12, color: 'white', fontWeight: 600 }}>QR Code expiré — données potentiellement obsolètes</span>
+            <span style={{ fontSize: 12, color: 'white', fontWeight: 600 }}>{t('victim.expired_banner')}</span>
           </div>
         )}
       </div>
@@ -59,14 +79,17 @@ function VictimCardScreen({ nav }) {
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sm-red)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
-                Groupe sanguin
+                {t('victim.blood_type')}
               </div>
               {bloodType ? (
-                <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--sm-red)', fontFamily: 'var(--font-display, serif)', lineHeight: 1 }}>
-                  {bloodType}
-                </div>
+                <>
+                  <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--sm-red)', fontFamily: 'var(--font-display, serif)', lineHeight: 1 }}>
+                    {bloodType}
+                  </div>
+                  <DeclaredNotVerifiedNote t={t} />
+                </>
               ) : (
-                <div style={{ fontSize: 15, color: 'var(--sm-ink-400)' }}>Non renseigné</div>
+                <div style={{ fontSize: 15, color: 'var(--sm-ink-400)' }}>{t('victim.not_provided')}</div>
               )}
             </div>
           </div>
@@ -80,20 +103,23 @@ function VictimCardScreen({ nav }) {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#e65100', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                Allergies
+                {t('victim.allergies')}
               </div>
               {allergies && allergies.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {allergies.map((a, i) => (
-                    <span key={i} style={{ padding: '4px 10px', borderRadius: 999, background: '#fff3e0', color: '#bf360c', fontWeight: 700, fontSize: 13, border: '1px solid #ffcc02' }}>
-                      {a}
-                    </span>
-                  ))}
-                </div>
+                <>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {allergies.map((a, i) => (
+                      <span key={i} style={{ padding: '4px 10px', borderRadius: 999, background: '#fff3e0', color: '#bf360c', fontWeight: 700, fontSize: 13, border: '1px solid #ffcc02' }}>
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                  <DeclaredNotVerifiedNote t={t} />
+                </>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Icon name="check-circle" size={16} color="var(--sm-green)" />
-                  <span style={{ fontSize: 14, color: 'var(--sm-green)', fontWeight: 600 }}>Aucune allergie connue</span>
+                  <span style={{ fontSize: 14, color: 'var(--sm-green)', fontWeight: 600 }}>{t('victim.no_known_allergy')}</span>
                 </div>
               )}
             </div>
@@ -109,11 +135,12 @@ function VictimCardScreen({ nav }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sm-blue)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                  Antécédents médicaux
+                  {t('victim.medical_history')}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--sm-ink)', lineHeight: 1.55 }}>
                   {conditions.join(' · ')}
                 </div>
+                <DeclaredNotVerifiedNote t={t} />
               </div>
             </div>
           </div>
@@ -124,7 +151,7 @@ function VictimCardScreen({ nav }) {
           <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--sm-line)', marginBottom: 16, overflow: 'hidden' }}>
             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--sm-line)', background: 'var(--sm-paper-2)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sm-ink-400)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Contacts d'urgence
+                {t('victim.emergency_contacts')}
               </div>
             </div>
             {contacts.map((c, i) => (
@@ -155,23 +182,23 @@ function VictimCardScreen({ nav }) {
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '15px', borderRadius: 14, background: 'var(--sm-red)', color: 'white', textDecoration: 'none', marginBottom: 18 }}
         >
           <Icon name="phone-call" size={22} color="white" />
-          <span style={{ fontWeight: 700, fontSize: 17 }}>Appeler le SAMU — 185</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('victim.call_samu')}</span>
         </a>
 
         {/* Footer informations QR */}
         <div style={{ background: 'var(--sm-paper-2)', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 5 }}>
           {genDate && (
             <div style={{ fontSize: 12, color: 'var(--sm-ink-500)' }}>
-              Généré le {genDate}
+              {t('victim.generated_on').replace('{date}', genDate)}
             </div>
           )}
           {expDate && (
             <div style={{ fontSize: 12, color: isExpired ? 'var(--sm-red)' : 'var(--sm-ink-500)', fontWeight: isExpired ? 600 : 400 }}>
-              {isExpired ? 'Expiré le ' : 'Valide jusqu\'au '}{expDate}
+              {(isExpired ? t('victim.expired_on') : t('victim.valid_until')).replace('{date}', expDate)}
             </div>
           )}
           <div style={{ fontSize: 11, color: 'var(--sm-ink-400)', marginTop: 4 }}>
-            Ces informations sont fournies par l'application Sauv'Moi et ont été saisies par la victime elle-même.
+            {t('victim.footer_disclaimer')}
           </div>
         </div>
 

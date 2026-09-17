@@ -12,7 +12,14 @@
 // fois et jamais réajustée interactivement.
 
 const CARD_WIDTH = 1080;
-const CARD_HEIGHT = 1350;
+// 1350 -> 1460 : la mention "déclaré, non vérifié" (allergies/antécédents)
+// a besoin d'une ligne de plus que prévu par le gabarit d'origine — plutôt
+// que de la comprimer dans l'espace existant (testé : les sections se
+// touchaient visiblement), les positions Y fixes à partir d'ANTÉCÉDENTS
+// MÉDICAUX sont décalées vers le bas d'autant qu'il faut, la carte grandit
+// d'autant. Toujours des positions Y fixes, jamais de cascade dynamique —
+// seules les valeurs elles-mêmes ont été recalculées.
+const CARD_HEIGHT = 1460;
 const FONT = 'Arial, Helvetica, sans-serif';
 const RED = '#E53935';
 const GREEN = '#2E6B4F';
@@ -20,6 +27,7 @@ const BLUE = '#4A90C2';
 const INK = '#0A1628';
 const ORANGE = '#E65100';
 const GRAY = '#9AA3AD';
+const AMBER = '#92400E'; // "déclaré, non vérifié" — même teinte que le bandeau hors-ligne du frontend (live-chat.jsx)
 
 function escapeXml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({
@@ -54,6 +62,17 @@ function wrapText(text, maxChars, maxLines) {
   return lines;
 }
 
+// Groupe sanguin / allergies / antécédents sont simplement saisis par
+// l'utilisateur dans son profil, sans aucun contrôle — un secouriste qui
+// s'y fie comme à une donnée vérifiée peut agir sur une information
+// fausse. Réutilisé sur les trois sections concernées (jamais affiché sur
+// une section vide : rien à mettre en garde s'il n'y a pas de donnée
+// affichée). Cette carte reste en français uniquement, comme le reste du
+// gabarit (pas de paramètre de langue sur la route publique qui la sert,
+// voir /api/public/medical-card dans routes/api.js) — seule la mention
+// elle-même est nouvelle, pas de plomberie i18n ajoutée à ce fichier.
+const DECLARED_NOT_VERIFIED_FR = "Déclaré par l'utilisateur — non vérifié médicalement";
+
 function headerSvg() {
   return `
     <rect x="0" y="0" width="${CARD_WIDTH}" height="190" fill="${RED}"/>
@@ -66,7 +85,7 @@ function headerSvg() {
 }
 
 function footerNumbersSvg() {
-  const y = 1170, h = 100;
+  const y = 1248, h = 100;
   return `
     <rect x="60" y="${y}" width="${CARD_WIDTH - 120}" height="${h}" rx="16" fill="${RED}"/>
     <line x1="${CARD_WIDTH / 2}" y1="${y + 16}" x2="${CARD_WIDTH / 2}" y2="${y + h - 16}" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="2"/>
@@ -96,47 +115,62 @@ export function buildMedicalCardSvg({ nom, age, bloodType, allergies, conditions
   }
   parts.push(`<line x1="60" y1="345" x2="${CARD_WIDTH - 60}" y2="345" stroke="#E7E9EC" stroke-width="2"/>`);
 
-  // Groupe sanguin — section critique, très grand et rouge
+  // Groupe sanguin — section critique, très grand et rouge. Donnée saisie
+  // par l'utilisateur dans son profil, jamais vérifiée médicalement — la
+  // mention ci-dessous doit rester lisible (pas un astérisque discret), un
+  // secouriste ne doit jamais la confondre avec une donnée contrôlée.
   parts.push(`<text x="60" y="398" font-family="${FONT}" font-size="24" font-weight="700" fill="${RED}" letter-spacing="1.5">GROUPE SANGUIN</text>`);
   if (bloodType) {
     parts.push(`<text x="60" y="580" font-family="${FONT}" font-size="150" font-weight="800" fill="${RED}">${escapeXml(bloodType)}</text>`);
+    parts.push(`<text x="60" y="622" font-family="${FONT}" font-size="19" font-weight="700" fill="${AMBER}">${DECLARED_NOT_VERIFIED_FR}</text>`);
   } else {
     parts.push(`<text x="60" y="450" font-family="${FONT}" font-size="30" fill="${GRAY}">Non renseigné</text>`);
   }
   parts.push(`<line x1="60" y1="650" x2="${CARD_WIDTH - 60}" y2="650" stroke="#E7E9EC" stroke-width="2"/>`);
 
-  // Allergies
+  // Allergies — même réserve : déclarées par l'utilisateur, non vérifiées.
   parts.push(`<text x="60" y="695" font-family="${FONT}" font-size="24" font-weight="700" fill="${ORANGE}" letter-spacing="1.5">ALLERGIES</text>`);
   if (allergyLines.length) {
     allergyLines.forEach((line, i) => {
       parts.push(`<text x="60" y="${740 + i * 40}" font-family="${FONT}" font-size="30" font-weight="700" fill="#BF360C">${escapeXml(line)}</text>`);
     });
+    // Position fixe (pas dépendante du nombre de lignes réellement affichées,
+    // même logique que le reste du gabarit : réserve toujours l'espace du
+    // pire cas — 2 lignes — pour ne jamais avoir à recalculer la section
+    // suivante ; un profil avec 1 seule ligne laisse un peu de blanc au-dessus,
+    // assumé comme le reste des slots de ce fichier).
+    parts.push(`<text x="60" y="820" font-family="${FONT}" font-size="19" font-weight="700" fill="${AMBER}">${DECLARED_NOT_VERIFIED_FR}</text>`);
   } else {
     parts.push(`<text x="60" y="740" font-family="${FONT}" font-size="30" font-weight="700" fill="${GREEN}">✓ Aucune allergie connue</text>`);
   }
 
-  // Antécédents médicaux
-  parts.push(`<text x="60" y="850" font-family="${FONT}" font-size="24" font-weight="700" fill="${BLUE}" letter-spacing="1.5">ANTÉCÉDENTS MÉDICAUX</text>`);
+  // Antécédents médicaux — même réserve : déclarés par l'utilisateur, non
+  // vérifiés. Décalée de 850 à 890 (+40) pour laisser la place à la mention
+  // "déclaré, non vérifié" des allergies ci-dessus sans que les deux se touchent.
+  parts.push(`<text x="60" y="890" font-family="${FONT}" font-size="24" font-weight="700" fill="${BLUE}" letter-spacing="1.5">ANTÉCÉDENTS MÉDICAUX</text>`);
   if (conditionLines.length) {
     conditionLines.forEach((line, i) => {
-      parts.push(`<text x="60" y="${892 + i * 38}" font-family="${FONT}" font-size="28" fill="${INK}">${escapeXml(line)}</text>`);
+      parts.push(`<text x="60" y="${932 + i * 38}" font-family="${FONT}" font-size="28" fill="${INK}">${escapeXml(line)}</text>`);
     });
+    // Position fixe, même raisonnement que la mention allergies ci-dessus.
+    parts.push(`<text x="60" y="1008" font-family="${FONT}" font-size="19" font-weight="700" fill="${AMBER}">${DECLARED_NOT_VERIFIED_FR}</text>`);
   } else {
-    parts.push(`<text x="60" y="892" font-family="${FONT}" font-size="28" fill="${GRAY}">Aucun antécédent connu</text>`);
+    parts.push(`<text x="60" y="932" font-family="${FONT}" font-size="28" fill="${GRAY}">Aucun antécédent connu</text>`);
   }
 
-  // Contacts d'urgence
-  parts.push(`<text x="60" y="998" font-family="${FONT}" font-size="24" font-weight="700" fill="${INK}" letter-spacing="1.5">CONTACTS D'URGENCE — APPELER POUR URGENCE</text>`);
+  // Contacts d'urgence — décalée de 998 à 1076 (+78, cumul des deux décalages
+  // ci-dessus) pour laisser la place à la mention antécédents.
+  parts.push(`<text x="60" y="1076" font-family="${FONT}" font-size="24" font-weight="700" fill="${INK}" letter-spacing="1.5">CONTACTS D'URGENCE — APPELER POUR URGENCE</text>`);
   if (shownContacts.length) {
     shownContacts.forEach((c, i) => {
       const line = `${c.name || ''}${c.relation ? ' (' + c.relation + ')' : ''} · ${c.phone || ''}`;
-      parts.push(`<text x="60" y="${1042 + i * 46}" font-family="${FONT}" font-size="30" fill="${INK}">${escapeXml(line)}</text>`);
+      parts.push(`<text x="60" y="${1120 + i * 46}" font-family="${FONT}" font-size="30" fill="${INK}">${escapeXml(line)}</text>`);
     });
     if (extraContacts > 0) {
-      parts.push(`<text x="60" y="${1042 + shownContacts.length * 46}" font-family="${FONT}" font-size="24" fill="${GRAY}">+${extraContacts} autre(s) contact(s)</text>`);
+      parts.push(`<text x="60" y="${1120 + shownContacts.length * 46}" font-family="${FONT}" font-size="24" fill="${GRAY}">+${extraContacts} autre(s) contact(s)</text>`);
     }
   } else {
-    parts.push(`<text x="60" y="1042" font-family="${FONT}" font-size="28" fill="${GRAY}">Aucun contact renseigné</text>`);
+    parts.push(`<text x="60" y="1120" font-family="${FONT}" font-size="28" fill="${GRAY}">Aucun contact renseigné</text>`);
   }
 
   // Numéros d'urgence
@@ -145,7 +179,7 @@ export function buildMedicalCardSvg({ nom, age, bloodType, allergies, conditions
   // Dates génération / expiration
   const dateLine = [genDate ? `Généré le ${genDate}` : null, expDate ? `Valable jusqu'au ${expDate}` : null].filter(Boolean).join('   ·   ');
   if (dateLine) {
-    parts.push(`<text x="${CARD_WIDTH / 2}" y="1320" font-family="${FONT}" font-size="20" fill="${GRAY}" text-anchor="middle">${escapeXml(dateLine)}</text>`);
+    parts.push(`<text x="${CARD_WIDTH / 2}" y="1398" font-family="${FONT}" font-size="20" fill="${GRAY}" text-anchor="middle">${escapeXml(dateLine)}</text>`);
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}">${parts.join('\n')}</svg>`;

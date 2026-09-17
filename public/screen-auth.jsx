@@ -385,7 +385,7 @@ function RegisterScreen({ nav }) {
 
             <FieldWrap label={t('auth.fullname_label')}>
               <input
-                type="text" placeholder="Aïcha Koné"
+                type="text" placeholder={t('auth.fullname_placeholder')}
                 value={form.name} onChange={set('name')}
                 style={AUTH_INP}
               />
