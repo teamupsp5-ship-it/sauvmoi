@@ -277,6 +277,38 @@ function ChatListening({ nav, lang }) {
         // Vraie panne réseau (hors-ligne) : protocoles PSC1 embarqués côté client.
         result = _localFallback(msg, chatLang);
         setOffline(true);
+      } else if (err && err.status === 401) {
+        // Session expirée/invalide (POST /chat exige désormais un compte) —
+        // jamais présenté comme une panne réseau : le fallback PSC1 local
+        // aurait l'air d'une vraie réponse de l'assistant alors qu'aucun
+        // message n'est parti.
+        result = chatLang === 'en'
+          ? {
+              reply: 'Your session has expired. Please sign in again to continue chatting.\nFor a life-threatening emergency, call 185 (SAMU) directly.',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            }
+          : {
+              reply: 'Votre session a expiré. Reconnectez-vous pour continuer à discuter.\nEn cas d\'urgence vitale, appelez directement le 185 (SAMU).',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            };
+        setOffline(false);
+      } else if (err && err.status === 429) {
+        // Limite de messages atteinte (chatLimiter, routes/chat.js) — même
+        // raison : ne jamais faire passer ça pour du hors-ligne.
+        result = chatLang === 'en'
+          ? {
+              reply: 'Too many messages sent. Please try again in a few minutes.\nFor a life-threatening emergency, call 185 (SAMU) directly.',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            }
+          : {
+              reply: 'Trop de messages envoyés. Réessayez dans quelques minutes.\nEn cas d\'urgence vitale, appelez directement le 185 (SAMU).',
+              suggestedActions: [_callAction('185', chatLang)],
+              source: 'error',
+            };
+        setOffline(false);
       } else {
         // Le serveur a répondu mais en erreur — ce n'est pas du hors-ligne,
         // ne pas prétendre le contraire avec le fallback local.

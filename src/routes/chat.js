@@ -1,11 +1,33 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { get, save, uid } from '../store.js';
 import { generateReply } from '../ai.js';
 import { isNonEmptyString, isOptionalString } from '../validate.js';
+import { requireAuth } from './auth.js';
 
 const router = Router();
 
 const MAX_MESSAGE_LEN = 2000;
+
+// Décision produit : le chat IA exige désormais un compte (requireAuth
+// ci-dessous). Combiné à un CORS ouvert, cette route était auparavant
+// appelable en boucle depuis n'importe quel site sans authentification —
+// coût direct (API Anthropic payante) et abus sans aucune limite.
+//
+// Limite par utilisateur authentifié plutôt que par IP (keyGenerator lit
+// req.user.id, posé par requireAuth qui s'exécute avant ce middleware) :
+// plus juste qu'une IP partagée (réseau d'entreprise, NAT mobile...) et
+// plus difficile à contourner qu'une IP puisqu'il faut un compte par
+// tentative. Même convention que loginLimiter/registerLimiter
+// (routes/auth.js) : express-rate-limit, message bilingue FR/EN.
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: { error: 'Trop de messages envoyés. Réessayez dans quelques minutes. / Too many messages sent. Please try again in a few minutes.' },
+});
 
 // Historique : seed de conversations pour la sidebar desktop
 function seedConversations() {
@@ -38,8 +60,9 @@ router.get('/conversations/:id', (req, res) => {
   res.json(c);
 });
 
-// POST /api/chat — envoie un message, reçoit la réponse IA
-router.post('/chat', async (req, res) => {
+// POST /api/chat — envoie un message, reçoit la réponse IA. requireAuth
+// avant chatLimiter : le keyGenerator du limiteur a besoin de req.user.id.
+router.post('/chat', requireAuth, chatLimiter, async (req, res) => {
   const { message, lang = 'FR', conversationId } = req.body || {};
   if (!message) return res.status(400).json({ error: 'message requis' });
   if (!isNonEmptyString(message, MAX_MESSAGE_LEN)) {

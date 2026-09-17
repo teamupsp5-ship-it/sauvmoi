@@ -27,7 +27,38 @@ const app = express();
 // monde) en plus de faire lever un avertissement à express-rate-limit.
 app.set('trust proxy', 1);
 
-app.use(cors());
+// ─── CORS — liste blanche explicite ─────────────────────────────────────────
+// cors() sans options reflétait n'importe quelle origine — combiné à
+// l'absence d'authentification sur /chat (désormais corrigée, voir
+// routes/chat.js), ça laissait n'importe quel site tiers appeler l'API
+// depuis le navigateur d'un visiteur. Configurable via CORS_ALLOWED_ORIGINS
+// (origines séparées par des virgules) pour ajouter un domaine propre sans
+// redéployer le code — valeurs par défaut couvrant tous les points d'entrée
+// connus de l'app :
+//   - https://sauvmoi.onrender.com    : production Render
+//   - https://localhost               : WebView Capacitor Android —
+//     capacitor.config.json a androidScheme:"https" sans `hostname`
+//     personnalisé, donc Capacitor sert l'app sous ce hostname par défaut
+//   - http://localhost:3000           : développement local
+//   - https://sc3jdmi5414.universe.wf : instance o2switch
+const DEFAULT_CORS_ORIGINS = [
+  'https://sauvmoi.onrender.com',
+  'https://localhost',
+  'http://localhost:3000',
+  'https://sc3jdmi5414.universe.wf',
+];
+const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_CORS_ORIGINS;
+
+app.use(cors({
+  origin(origin, callback) {
+    // Pas d'en-tête Origin (requête same-origin, curl, health check...) :
+    // rien à vérifier ici, cors() par défaut ne l'aurait pas bloqué non plus.
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(null, false);
+  },
+}));
 
 // ─── Content-Security-Policy ────────────────────────────────────────────────
 // L'app n'a pas de bundler : tout le JSX est transpilé EN DIRECT dans le
