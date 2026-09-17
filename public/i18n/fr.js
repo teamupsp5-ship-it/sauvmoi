@@ -159,6 +159,13 @@ window.I18N_FR = {
   'sos.cancel_alert': "Annuler l'alerte",
   'sos.position_of': '📍 Position de {name}',
   'sos.you_fallback': 'Vous',
+  'sos.gps_unavailable_title': 'Position GPS indisponible',
+  'sos.gps_unavailable_text': "Votre position n'a pas pu être obtenue. L'alerte va être envoyée sans localisation.",
+  'sos.trigger_failed_title': "L'alerte n'a pas pu être envoyée",
+  'sos.trigger_failed_text': 'Réessayez, ou appelez directement les secours ci-dessous.',
+  'sos.no_location_recorded': "Vos contacts ont été alertés, mais votre position n'a pas pu être transmise.",
+  'sos.no_location_title': 'Position non transmise',
+  'sos.no_location_text': "Le GPS n'était pas disponible au moment de l'alerte.",
 
   // ── Localisation ─────────────────────────────────────────────────────────
   'map.title': 'Centres de santé proches',

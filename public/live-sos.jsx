@@ -2,56 +2,118 @@
 // Surcharge SOSCountdown et SOSConfirm de screen-sos.jsx
 
 // ── URL WhatsApp géolocalisé ──────────────────────────────────────────────────
+// lat/lng peuvent être null (GPS indisponible au moment de l'alerte) — le
+// message ne doit alors jamais prétendre à une position qui n'existe pas.
 function buildWaUrl(phone, userName, lat, lng, lang) {
   const clean = phone.replace(/^\+/, '').replace(/\s/g, '');
   const isEn = lang === 'en';
   const now = new Date().toLocaleTimeString(isEn ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const hasLocation = lat != null && lng != null;
+  const locationLine = hasLocation
+    ? (isEn ? `Location: https://maps.google.com/?q=${lat},${lng}` : `Position : https://maps.google.com/?q=${lat},${lng}`)
+    : (isEn ? 'Location: unavailable (GPS could not be acquired).' : "Position : indisponible (le GPS n'a pas pu être obtenu).");
   const msg = isEn
-    ? `🚨 EMERGENCY ALERT - Sauv'Moi\n${userName} has triggered an SOS alert.\nLocation: https://maps.google.com/?q=${lat},${lng}\nTime: ${now}`
-    : `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\nPosition : https://maps.google.com/?q=${lat},${lng}\nHeure : ${now}`;
+    ? `🚨 EMERGENCY ALERT - Sauv'Moi\n${userName} has triggered an SOS alert.\n${locationLine}\nTime: ${now}`
+    : `🚨 ALERTE URGENCE - Sauv'Moi\n${userName} a déclenché une alerte SOS.\n${locationLine}\nHeure : ${now}`;
   return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+}
+
+// ── Numéros d'urgence directs — recours immédiat, indépendant de l'app.
+// Factorisé pour être réutilisé à la fois par l'état de veille et par
+// l'état d'échec d'envoi (voir phase 'error' ci-dessous).
+function EmergencyQuickNumbers({ t }) {
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {[
+        { label: t('sos.samu'),        number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
+        { label: t('sos.firefighters'),number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
+        { label: t('sos.police'),      number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
+      ].map(item => (
+        <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none', display: 'block' }}>
+          <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="sm-icon-tile" style={{ background: item.bg }}>
+              <Icon name={item.icon} size={22} color={item.color} strokeWidth={1.9} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{item.label}</div>
+              <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.direct_call')} · {item.number}</div>
+            </div>
+            <div className="sm-icon-circle" style={{ background: item.bg }}>
+              <Icon name="phone" size={16} color={item.color} strokeWidth={2} />
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 // ── 4a · Compte à rebours + état idle ─────────────────────────────────────────
 function SOSCountdown({ nav }) {
   useLucide();
   const t = useTranslation();
-  const [phase, setPhase] = useState('idle'); // 'idle' | 'counting' | 'fired'
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'counting' | 'fired' | 'error'
   const [count, setCount] = useState(5);
-  const gpsRef = useRef({ lat: 5.354, lng: -3.987, label: 'Abidjan' });
+  // null tant qu'aucune position réelle n'a été mesurée — jamais de
+  // coordonnées par défaut (voir Décisions techniques / correctif SOS) :
+  // un défaut silencieux a exactement la même forme qu'une vraie position
+  // GPS, donc rien ne permettrait de le distinguer une fois parti vers les
+  // secours/contacts.
+  const gpsRef = useRef(null);
 
   const handleStart = () => {
     setPhase('counting');
     setCount(5);
-    // GPS démarre ici, résultat disponible pendant les 5s
-    navigator.geolocation?.getCurrentPosition(
+    gpsRef.current = null;
+    if (!navigator.geolocation) {
+      // API absente (contexte non sécurisé, vieux navigateur…) : pas de
+      // position, l'alerte partira quand même sans coordonnées (voir plus
+      // bas) — jamais de callback vide qui masquerait ce cas.
+      return;
+    }
+    // GPS démarre ici, résultat disponible pendant les 5s (marge de
+    // 500ms sous le timeout d'attente pour laisser le temps au dernier
+    // rendu de refléter l'état final avant l'envoi).
+    navigator.geolocation.getCurrentPosition(
       p => { gpsRef.current = { lat: p.coords.latitude, lng: p.coords.longitude, label: 'Position GPS' }; },
-      () => {},
+      () => { gpsRef.current = null; }, // refus, timeout, position indisponible… : reste sans position, jamais de repli silencieux
       { timeout: 4500, enableHighAccuracy: true }
     );
   };
 
   const handleCancel = () => { setPhase('idle'); setCount(5); };
 
+  // Nouvel essai après échec d'envoi : relance tout le cycle (nouvelle
+  // tentative GPS incluse, au cas où l'échec précédent était un timeout
+  // ponctuel) plutôt qu'un renvoi instantané des dernières coordonnées,
+  // potentiellement obsolètes.
+  const handleRetry = () => handleStart();
+
   useEffect(() => {
     if (phase !== 'counting') return;
     if (count <= 0) {
       setPhase('fired');
-      window.API.sosTrigger(gpsRef.current)
+      const loc = gpsRef.current
+        ? { lat: gpsRef.current.lat, lng: gpsRef.current.lng, label: gpsRef.current.label }
+        : {}; // aucune position mesurée — n'envoie ni lat ni lng, jamais de valeur fabriquée
+      window.API.sosTrigger(loc)
         .then(a => {
-          window.SM.sos = { alertId: a.alertId, contacts: a.contacts || [], lat: a.lat, lng: a.lng };
+          window.SM.sos = { alertId: a.alertId, contacts: a.contacts || [], lat: a.lat ?? null, lng: a.lng ?? null };
           window.SM.emit();
           setTimeout(() => nav.replace('sos_confirm'), 200);
         })
         .catch(e => {
           console.warn('[SOS] trigger échoué:', e.message);
-          setPhase('idle');
+          // Ne retombe jamais silencieusement sur l'état de veille — l'écran
+          // d'échec explicite (phase 'error') reste affiché tant que
+          // l'utilisateur n'a pas explicitement choisi de réessayer.
+          setPhase('error');
         });
       return;
     }
     navigator.vibrate?.(200);
-    const t = setTimeout(() => setCount(c => c - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCount(c => c - 1), 1000);
+    return () => clearTimeout(timer);
   }, [phase, count]);
 
   // ── État idle ─────────────────────────────────────────────────────────────
@@ -98,28 +160,7 @@ function SOSCountdown({ nav }) {
               carré pastel (sm-icon-tile) + indicateur d'action dans un
               cercle pastel à droite (sm-icon-circle) — pas d'aplat rouge
               plein ici, réservé au bouton SOS principal ci-dessus. */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { label: t('sos.samu'),        number: '185', icon: 'ambulance', color: 'var(--sm-red)',  bg: 'var(--sm-red-soft)' },
-              { label: t('sos.firefighters'),number: '180', icon: 'flame',     color: '#E67E22',        bg: '#FEF5EC' },
-              { label: t('sos.police'),      number: '110', icon: 'shield',    color: 'var(--sm-blue)', bg: 'var(--sm-blue-soft)' },
-            ].map(item => (
-              <a key={item.number} href={'tel:' + item.number} style={{ textDecoration: 'none', display: 'block' }}>
-                <div style={{ padding: '14px 16px', borderRadius: 'var(--sm-radius)', background: 'white', boxShadow: 'var(--sm-shadow)', display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <div className="sm-icon-tile" style={{ background: item.bg }}>
-                    <Icon name={item.icon} size={22} color={item.color} strokeWidth={1.9} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--sm-ink)', fontFamily: 'var(--font-ui)' }}>{item.label}</div>
-                    <div style={{ fontSize: 13, color: 'var(--sm-ink-500)', marginTop: 2 }}>{t('sos.direct_call')} · {item.number}</div>
-                  </div>
-                  <div className="sm-icon-circle" style={{ background: item.bg }}>
-                    <Icon name="phone" size={16} color={item.color} strokeWidth={2} />
-                  </div>
-                </div>
-              </a>
-            ))}
-          </div>
+          <EmergencyQuickNumbers t={t} />
         </div>
         <FloatingChatButton nav={nav} />
         <HomeTabBar active="sos" nav={nav} />
@@ -127,15 +168,66 @@ function SOSCountdown({ nav }) {
     );
   }
 
+  // ── État d'échec d'envoi ──────────────────────────────────────────────────
+  // Jamais un retour silencieux à l'état de veille (voir handleStart/handleRetry
+  // ci-dessus) : l'utilisateur doit voir explicitement que rien n'est parti,
+  // avec un recours immédiat (numéros d'urgence directs) et un nouvel essai.
+  if (phase === 'error') {
+    return (
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '40px 24px 32px', gap: 20 }}>
+          <Banner
+            variant="danger"
+            icon="alert-circle"
+            title={t('sos.trigger_failed_title')}
+            text={t('sos.trigger_failed_text')}
+            stacked
+          />
+          <button
+            onClick={handleRetry}
+            style={{
+              width: '100%', padding: '16px',
+              borderRadius: 'var(--sm-radius)', border: 'none',
+              background: 'linear-gradient(135deg, #E74C3C, #C0392B)', color: 'white',
+              fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
+              cursor: 'pointer', letterSpacing: '0.04em',
+              boxShadow: '0 4px 16px rgba(192,57,43,0.3)',
+            }}
+          >
+            {t('common.retry')}
+          </button>
+          <div>
+            <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14 }}>{t('sos.emergency_numbers')}</h3>
+            <EmergencyQuickNumbers t={t} />
+          </div>
+        </div>
+        <HomeTabBar active="sos" nav={nav} />
+      </div>
+    );
+  }
+
   // ── Compte à rebours (phase 'counting' ou 'fired') ────────────────────────
+  const gpsMissing = phase === 'fired' && !gpsRef.current;
   const R = 90, C = 2 * Math.PI * R;
   const dashoffset = C * (count / 5);
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'var(--sm-paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
-      <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: 40, textAlign: 'center' }}>
+      <p style={{ fontSize: 14, color: 'var(--sm-ink-500)', marginBottom: gpsMissing ? 16 : 40, textAlign: 'center' }}>
         {phase === 'fired' ? t('sos.alert_sent') : t('sos.sending_alert')}
       </p>
+      {/* Aucune position mesurée au moment de l'envoi — visible avant/pendant
+          l'envoi plutôt que de laisser croire qu'une position a été jointe. */}
+      {gpsMissing && (
+        <Banner
+          variant="warning"
+          icon="alert-circle"
+          title={t('sos.gps_unavailable_title')}
+          text={t('sos.gps_unavailable_text')}
+          stacked
+          style={{ width: '100%', maxWidth: 340, marginBottom: 24 }}
+        />
+      )}
       {/* Fond disque + ombre douce (var(--sm-shadow-md), échelle du design
           system) derrière l'anneau de progression, plutôt qu'un SVG nu sur
           fond plat. */}
@@ -177,8 +269,12 @@ function SOSConfirm({ nav }) {
   const t = useTranslation();
   const lang = useLang();
   const sos = window.SM?.sos || {};
-  const lat = sos.lat ?? 5.354;
-  const lng = sos.lng ?? -3.987;
+  // Jamais de coordonnées par défaut ici non plus : null veut dire "le GPS
+  // était indisponible au moment de l'alerte", à afficher explicitement
+  // plutôt que de centrer une carte sur une position fabriquée.
+  const lat = sos.lat ?? null;
+  const lng = sos.lng ?? null;
+  const hasLocation = lat != null && lng != null;
   const contacts = sos.contacts || [];
   const user = window.SM?.user;
   const prenom = (user?.prenom || user?.name?.split(' ')[0] || t('sos.you_fallback')).trim();
@@ -186,10 +282,10 @@ function SOSConfirm({ nav }) {
   const mapDivRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
-  // Carte Leaflet — montée une seule fois
+  // Carte Leaflet — montée une seule fois, uniquement si une position réelle existe
   useEffect(() => {
     const L = window.L;
-    if (!L || !mapDivRef.current || mapInstanceRef.current) return;
+    if (!hasLocation || !L || !mapDivRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapDivRef.current, { zoomControl: false, attributionControl: false })
       .setView([lat, lng], 15);
@@ -258,15 +354,27 @@ function SOSConfirm({ nav }) {
           variant="success"
           icon="check-circle-2"
           title={t('sos.alert_triggered')}
-          text={t('sos.position_recorded')}
+          text={hasLocation ? t('sos.position_recorded') : t('sos.no_location_recorded')}
           stacked
           style={{ marginBottom: 16 }}
         />
 
-        {/* Carte Leaflet */}
-        <div style={{ borderRadius: 'var(--sm-radius)', overflow: 'hidden', marginBottom: 16, boxShadow: 'var(--sm-shadow)' }}>
-          <div ref={mapDivRef} style={{ width: '100%', height: 220 }} />
-        </div>
+        {/* Carte Leaflet — uniquement si une position réelle a été mesurée ;
+            jamais de carte centrée sur une position fabriquée. */}
+        {hasLocation ? (
+          <div style={{ borderRadius: 'var(--sm-radius)', overflow: 'hidden', marginBottom: 16, boxShadow: 'var(--sm-shadow)' }}>
+            <div ref={mapDivRef} style={{ width: '100%', height: 220 }} />
+          </div>
+        ) : (
+          <Banner
+            variant="warning"
+            icon="alert-circle"
+            title={t('sos.no_location_title')}
+            text={t('sos.no_location_text')}
+            stacked
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
         {/* Contacts d'urgence */}
         {contacts.length > 0 && (

@@ -159,6 +159,13 @@ window.I18N_EN = {
   'sos.cancel_alert': 'Cancel alert',
   'sos.position_of': "📍 {name}'s location",
   'sos.you_fallback': 'You',
+  'sos.gps_unavailable_title': 'GPS location unavailable',
+  'sos.gps_unavailable_text': 'Your location could not be obtained. The alert will be sent without a location.',
+  'sos.trigger_failed_title': 'The alert could not be sent',
+  'sos.trigger_failed_text': 'Try again, or call emergency services directly below.',
+  'sos.no_location_recorded': 'Your contacts have been alerted, but your location could not be sent.',
+  'sos.no_location_title': 'Location not shared',
+  'sos.no_location_text': 'GPS was not available when the alert was sent.',
 
   // ── Location ─────────────────────────────────────────────────────────────
   'map.title': 'Nearby health centers',
