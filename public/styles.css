@@ -21,6 +21,14 @@
   --sm-ink-400: #8A93A2;
   --sm-line: #E5DFD3;
   --sm-line-soft: #EFE9DC;
+  /* Séparateur de LISTE uniquement (lot 9) — distinct de --sm-line, qui
+     reste pour les bordures structurelles légitimes (champs de saisie,
+     boutons outline, puces) où une frontière unique est voulue. Jamais posé
+     comme bordure de carte : une carte se définit par son fond et son
+     ombre, jamais par un contour (voir .sm-card plus bas) — ce token ne
+     sert qu'au filet UNIQUE, en retrait des bords, entre les éléments d'une
+     liste longue (centres de santé, contacts, modules, notifications). */
+  --sm-divider: #EFE9DC;
 
   --sm-soft-red: #FCE6E5;
   --sm-soft-blue: #E1ECF4;
@@ -100,6 +108,10 @@
   --sm-ink-400: #7C8494;
   --sm-line: #2E2E2E;
   --sm-line-soft: #262626;
+  /* PLUS CLAIRE que les surfaces de carte qu'elle borde (--sm-paper-2
+     #1E1E1E, --sm-paper-3 #262626 ci-dessus) — une bordure plus foncée que
+     ce qu'elle entoure se lit comme une fissure, pas comme un filet. */
+  --sm-divider: #3A3A3A;
 
   --sm-soft-red: #3B211F;
   --sm-soft-blue: #16232E;
@@ -420,10 +432,13 @@ input, textarea {
   padding: 4px 14px;
 }
 
-/* Card primitives */
+/* Card primitives — lot 9 : une carte se définit par son fond ET son ombre,
+   jamais un contour en plus (deux frontières pour un seul objet). .sm-card
+   n'a donc plus de bordure ; .sm-card-flat (aucune ombre voulue, ex. usage
+   à plat contre un fond neutre) garde la sienne — jamais les deux
+   ensemble sur le même élément. */
 .sm-card {
   background: white;
-  border: 1px solid var(--sm-line);
   border-radius: var(--r-card);
   box-shadow: var(--sm-shadow);
 }
@@ -432,11 +447,41 @@ input, textarea {
   border: 1px solid var(--sm-line);
   border-radius: var(--r-card);
 }
-.sm-divider {
+.sm-list-divider {
   height: 1px;
-  background: var(--sm-line);
+  background: var(--sm-divider);
   border: none;
-  margin: 0;
+  margin: 0 16px;
+}
+/* Séparateur de liste UNIQUE, en retrait des bords, à faible contraste
+   (lot 9) — remplace les `borderBottom: i < length-1 ? '...' : 'none'`
+   dispersés écran par écran (contacts, centres de santé, modules, lignes
+   de profil...) par une seule règle centralisée : `:last-child` supprime
+   lui-même le filet sur la dernière ligne, y compris pour une liste dont
+   le nombre de lignes RENDUES varie (ex. tableau récap de l'écran QR, où
+   certains champs sont conditionnels) — plus besoin qu'un écran calcule
+   "suis-je le dernier élément affiché ?". `background-size` inset de 32px
+   (16px de chaque côté, aligné sur le padding horizontal standard des
+   lignes) plutôt qu'un `border-bottom` d'un bord à l'autre de la carte.
+   `!important`, même logique que les overrides de mode sombre plus haut
+   dans ce fichier : de nombreuses lignes posent leur propre
+   `background: '#...'` ou `background: 'none'` EN LIGNE (React), et le
+   raccourci `background` réinitialise `background-image` à `none` au
+   passage — sans !important, ces déclarations inline (plus la règle
+   `.sm-frame button { background: none }`, elle aussi via un raccourci)
+   effaceraient le dégradé du séparateur. `!important` ici ne fait
+   qu'imposer LA LIGNE elle-même, jamais une couleur de fond : les
+   déclarations `background-color`/`background` inline continuent de
+   s'appliquer normalement pour la couleur, seul `background-image` (et
+   consorts) est repris. */
+.sm-row-divider {
+  background-image: linear-gradient(var(--sm-divider), var(--sm-divider)) !important;
+  background-size: calc(100% - 32px) 1px !important;
+  background-position: center bottom !important;
+  background-repeat: no-repeat !important;
+}
+.sm-row-divider:last-child {
+  background-image: none !important;
 }
 
 /* Buttons */

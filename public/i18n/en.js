@@ -124,7 +124,6 @@ window.I18N_EN = {
   'home.training_all_done': '{total}/{total} modules · training complete',
   'home.tip_of_day': 'Tip of the day',
   'home.today_badge': 'Today',
-  'home.tip_see_more': 'See more',
   'home.notifications_title': 'Alerts received',
   'home.no_notifications': 'No alerts yet',
   'home.view_on_map': 'View on map',

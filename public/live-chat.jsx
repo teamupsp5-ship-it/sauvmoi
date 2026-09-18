@@ -173,7 +173,7 @@ function VoiceModeOverlay({ voiceState, voiceError, voiceInterim, voicePaused, l
             title={voicePaused ? 'Reprendre' : 'Mettre en pause'}
             style={{
               width: 52, height: 52, borderRadius: '50%',
-              background: 'white', border: '1.5px solid var(--sm-line)',
+              background: 'white',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
               boxShadow: 'var(--sm-shadow)',
             }}

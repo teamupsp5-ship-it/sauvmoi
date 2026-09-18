@@ -37,14 +37,14 @@ function calcCompletion(user, med) {
 // hideChevron : pour une ligne d'interrupteur (Mode sombre) — le chevron
 // suggère une navigation vers un sous-écran, trompeur pour un simple bouton
 // bascule dont l'état se voit déjà dans `right` (ThemeSwitch).
-function ListRow({ icon, iconBg, iconColor, label, right, badge, onClick, last, hideChevron }) {
+function ListRow({ icon, iconBg, iconColor, label, right, badge, onClick, hideChevron }) {
   return (
     <button
       onClick={onClick}
+      className="sm-row-divider"
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 14,
         padding: '14px 16px', background: 'none', border: 'none', textAlign: 'left',
-        borderBottom: last ? 'none' : '0.5px solid var(--sm-line)',
         cursor: 'pointer',
       }}
     >
@@ -455,7 +455,6 @@ function ProfileScreen({ nav }) {
             right={<ThemeSwitch checked={theme === 'dark'} />}
             onClick={() => window.SM_THEME.toggle()}
             hideChevron
-            last
           />
         </div>
 
@@ -626,7 +625,7 @@ function ProfilePersonal({ nav }) {
 
           {/* ── Mode lecture ── */}
           {!editing && rows.map((r, i) => (
-            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < rows.length - 1 ? '0.5px solid var(--sm-line)' : 'none' }}>
+            <div key={r.label} className="sm-row-divider" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px' }}>
               <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', width: 130, flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{r.label}</span>
               <Val v={r.val} />
             </div>
@@ -635,7 +634,7 @@ function ProfilePersonal({ nav }) {
           {/* ── Mode édition ── */}
           {editing && (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '0.5px solid var(--sm-line)' }}>
+              <div className="sm-row-divider" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                 {[{ label: t('profile.first_name'), key: 'prenom', ph: 'Aïcha' }, { label: t('profile.last_name'), key: 'nom', ph: 'Kouassi' }].map((f, i) => (
                   <div key={f.key} style={{ padding: '12px 14px', borderRight: i === 0 ? '0.5px solid var(--sm-line)' : 'none', background: '#F4F8FF' }}>
                     <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{f.label}</div>
@@ -643,7 +642,7 @@ function ProfilePersonal({ nav }) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
+              <div className="sm-row-divider" style={{ padding: '12px 16px', background: '#F4F8FF' }}>
                 <BirthdateField
                   value={form.birthdate}
                   onChange={v => setF('birthdate')(v)}
@@ -651,7 +650,7 @@ function ProfilePersonal({ nav }) {
                   inputStyle={{ ...PINP }}
                 />
               </div>
-              <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
+              <div className="sm-row-divider" style={{ padding: '12px 16px', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 8 }}>{t('profile.gender')}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {GENDERS_P.map(g => (
@@ -661,7 +660,7 @@ function ProfilePersonal({ nav }) {
                   ))}
                 </div>
               </div>
-              <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
+              <div className="sm-row-divider" style={{ padding: '12px 16px', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{t('profile.email')}</div>
                 <input type="email" value={form.email} onChange={e => setF('email')(e.target.value)} placeholder={t('auth.email_placeholder')} style={{ ...PINP }} />
               </div>
@@ -845,7 +844,7 @@ function ProfileMedical({ nav }) {
               indépendant du mode édition (joindre/remplacer/retirer reste
               possible même hors "Modifier"). */}
           {!editing && (
-            <div style={{ padding: '13px 16px', borderBottom: '0.5px solid var(--sm-line)' }}>
+            <div className="sm-row-divider" style={{ padding: '13px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', width: 130, flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{t('profile.blood_type')}</span>
                 {med.bloodType ? (
@@ -885,7 +884,7 @@ function ProfileMedical({ nav }) {
             </div>
           )}
           {!editing && rows.map((r, i) => (
-            <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < rows.length - 1 ? '0.5px solid var(--sm-line)' : 'none' }}>
+            <div key={r.label} className="sm-row-divider" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px' }}>
               <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', width: 130, flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{r.label}</span>
               {r.render ? r.render() : (
                 <span style={{ fontSize: 15, color: r.val ? 'var(--sm-ink)' : 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>{r.val || '—'}</span>
@@ -896,7 +895,7 @@ function ProfileMedical({ nav }) {
           {/* ── Édition ── */}
           {editing && (
             <>
-              <div style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
+              <div className="sm-row-divider" style={{ padding: '14px 16px', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 10 }}>{t('profile.blood_type')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {BLOOD_TYPES_P.map(bt => (
@@ -906,7 +905,7 @@ function ProfileMedical({ nav }) {
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '0.5px solid var(--sm-line)' }}>
+              <div className="sm-row-divider" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                 {[{ label: t('auth.height_label'), key: 'height', ph: '170', min: 50, max: 250 }, { label: t('auth.weight_label'), key: 'weight', ph: '65', min: 1, max: 300 }].map((f, i) => (
                   <div key={f.key} style={{ padding: '12px 14px', borderRight: i === 0 ? '0.5px solid var(--sm-line)' : 'none', background: '#F4F8FF' }}>
                     <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{f.label}</div>
@@ -914,7 +913,7 @@ function ProfileMedical({ nav }) {
                   </div>
                 ))}
               </div>
-              <div style={{ padding: '12px 16px', borderBottom: '0.5px solid var(--sm-line)', background: '#F4F8FF' }}>
+              <div className="sm-row-divider" style={{ padding: '12px 16px', background: '#F4F8FF' }}>
                 <div style={{ fontSize: 12, color: 'var(--sm-blue)', fontWeight: 600, fontFamily: 'var(--font-ui)', marginBottom: 6 }}>{t('profile.allergies_hint')}</div>
                 <input value={form.allergies} onChange={e => setF('allergies')(e.target.value)} placeholder="Pénicilline, Arachides…" style={{ ...PINP }} />
               </div>

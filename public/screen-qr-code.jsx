@@ -84,7 +84,7 @@ function QrCodeScreen({ nav }) {
             )}
 
             {/* QR Code */}
-            <div style={{ background: 'white', borderRadius: 18, padding: 14, boxShadow: 'var(--shadow-3)', border: '1.5px solid var(--sm-line)', marginBottom: 20 }}>
+            <div style={{ background: 'white', borderRadius: 18, padding: 14, boxShadow: 'var(--shadow-3)', marginBottom: 20 }}>
               <img
                 src={data.qrDataUrl}
                 alt={t('qrcode.alt_text')}
@@ -94,24 +94,24 @@ function QrCodeScreen({ nav }) {
 
             {/* Infos récap */}
             {payload && (
-              <div style={{ width: '100%', background: 'var(--sm-paper)', borderRadius: 14, border: '1px solid var(--sm-line)', overflow: 'hidden', marginBottom: 18 }}>
+              <div style={{ width: '100%', background: 'white', borderRadius: 14, boxShadow: 'var(--sm-shadow)', overflow: 'hidden', marginBottom: 18 }}>
 
                 {payload.nom && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                  <div className="sm-row-divider" style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('qrcode.field_name')}</span>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{payload.nom}</span>
                   </div>
                 )}
 
                 {Number.isFinite(payload.ageDays) && payload.ageDays >= 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                  <div className="sm-row-divider" style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('qrcode.field_age')}</span>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{formatAge(payload.ageDays, lang)}</span>
                   </div>
                 )}
 
                 {payload.bloodType && (
-                  <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                  <div className="sm-row-divider" style={{ padding: '11px 16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.blood_type')}</span>
                       <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-soft-red)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14 }}>{payload.bloodType}</span>
@@ -121,14 +121,14 @@ function QrCodeScreen({ nav }) {
                 )}
 
                 {payload.allergies && payload.allergies.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                  <div className="sm-row-divider" style={{ display: 'flex', justifyContent: 'space-between', padding: '11px 16px' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.allergies')}</span>
                     <span style={{ fontWeight: 500, fontSize: 13, textAlign: 'right', maxWidth: '55%' }}>{payload.allergies.join(', ')}</span>
                   </div>
                 )}
 
                 {payload.contacts && payload.contacts.length > 0 && (
-                  <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--sm-line)' }}>
+                  <div className="sm-row-divider" style={{ padding: '11px 16px' }}>
                     <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.emergency_contacts')}</span>
                     <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {payload.contacts.map((c, i) => (

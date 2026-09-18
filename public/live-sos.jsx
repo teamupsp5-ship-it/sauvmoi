@@ -257,7 +257,6 @@ function SOSCountdown({ nav }) {
             background: 'white', color: 'var(--sm-red)',
             fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-ui)',
             cursor: 'pointer', letterSpacing: '0.04em',
-            boxShadow: '0 2px 8px rgba(192,57,43,0.12)',
           }}
         >
           {t('sos.cancel')}

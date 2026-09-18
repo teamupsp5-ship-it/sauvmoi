@@ -202,7 +202,7 @@ function TrainingResumeCard({ nav, t, lang }) {
       style={{
         display: 'flex', width: '100%', alignItems: 'center', gap: 14, flexShrink: 0,
         padding: '15px 16px', borderRadius: 'var(--sm-radius)',
-        background: 'white', border: '1.5px solid var(--sm-line)',
+        background: 'white',
         cursor: modules ? 'pointer' : 'default', textAlign: 'left',
         boxShadow: '0 2px 8px rgba(10,22,40,0.06)',
       }}
@@ -409,7 +409,7 @@ function HomeMobile({ nav, lang }) {
           style={{
             display: 'flex', width: '100%', alignItems: 'center', gap: 14, flexShrink: 0,
             padding: '15px 16px', borderRadius: 'var(--sm-radius)',
-            background: 'white', border: '1.5px solid var(--sm-line)',
+            background: 'white',
             cursor: 'pointer', textAlign: 'left',
             boxShadow: '0 2px 8px rgba(10,22,40,0.06)',
           }}
@@ -451,8 +451,7 @@ function HomeMobile({ nav, lang }) {
         <div style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
             <Icon name="lightbulb" size={17} color="var(--sm-ink)" strokeWidth={2} style={{ marginRight: 8 }} />
-            <h3 className="sm-serif" style={{ fontSize: 18, flex: 1 }}>{t('home.tip_of_day')}</h3>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sm-blue)' }}>{t('home.tip_see_more')}</span>
+            <h3 className="sm-serif" style={{ fontSize: 18 }}>{t('home.tip_of_day')}</h3>
           </div>
           <TipOfDayCard tip={tip} />
         </div>

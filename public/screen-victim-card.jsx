@@ -82,7 +82,7 @@ function VictimCardScreen({ nav }) {
         </div>
 
         {/* Allergies */}
-        <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--sm-line)', marginBottom: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'white', borderRadius: 14, boxShadow: 'var(--sm-shadow)', marginBottom: 12, overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: '#fff3e0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
               <Icon name="triangle-alert" size={20} color="#e65100" />
@@ -114,7 +114,7 @@ function VictimCardScreen({ nav }) {
 
         {/* Antécédents médicaux */}
         {conditions && conditions.length > 0 && (
-          <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--sm-line)', marginBottom: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'white', borderRadius: 14, boxShadow: 'var(--sm-shadow)', marginBottom: 12, overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ width: 42, height: 42, borderRadius: 12, background: 'var(--sm-soft-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                 <Icon name="clipboard-list" size={20} color="var(--sm-blue)" />
@@ -134,14 +134,14 @@ function VictimCardScreen({ nav }) {
 
         {/* Contacts d'urgence */}
         {contacts && contacts.length > 0 && (
-          <div style={{ background: 'white', borderRadius: 14, border: '1px solid var(--sm-line)', marginBottom: 16, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--sm-line)', background: 'var(--sm-paper-2)' }}>
+          <div style={{ background: 'white', borderRadius: 14, boxShadow: 'var(--sm-shadow)', marginBottom: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', background: 'var(--sm-paper-2)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--sm-ink-400)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 {t('victim.emergency_contacts')}
               </div>
             </div>
             {contacts.map((c, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < contacts.length - 1 ? '1px solid var(--sm-line)' : 'none' }}>
+              <div key={i} className="sm-row-divider" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--sm-soft-blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon name="user" size={18} color="var(--sm-blue)" />
                 </div>

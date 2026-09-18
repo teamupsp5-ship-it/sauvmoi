@@ -32,7 +32,7 @@ function LangChoiceScreen({ nav }) {
           onClick={() => choose('fr')}
           style={{
             width: '100%', padding: '18px 24px', borderRadius: 16,
-            background: 'white', border: '1.5px solid var(--sm-line)',
+            background: 'white',
             fontSize: 17, fontWeight: 600, fontFamily: 'var(--font-ui)', color: 'var(--sm-ink)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
             boxShadow: 'var(--sm-shadow)',
@@ -45,7 +45,7 @@ function LangChoiceScreen({ nav }) {
           onClick={() => choose('en')}
           style={{
             width: '100%', padding: '18px 24px', borderRadius: 16,
-            background: 'white', border: '1.5px solid var(--sm-line)',
+            background: 'white',
             fontSize: 17, fontWeight: 600, fontFamily: 'var(--font-ui)', color: 'var(--sm-ink)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
             boxShadow: 'var(--sm-shadow)',
