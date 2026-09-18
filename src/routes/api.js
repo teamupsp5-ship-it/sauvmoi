@@ -11,6 +11,7 @@ import { EMERGENCY_NUMBERS } from '../data/emergency-numbers.js';
 import { analyzeImage } from '../ai.js';
 import { supabase } from '../supabase.js';
 import { requireAuth } from './auth.js';
+import { validateProofDataUrl } from '../validate.js';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
 import { buildMedicalCardSvg, buildUnavailableCardSvg } from '../medical-card.js';
@@ -102,6 +103,10 @@ async function loadMedicalCardData(id) {
     nom: profile.name || '',
     ageDays,
     bloodType: profile.blood_type || '',
+    // Statut du justificatif (lot 8) — jamais le chemin Storage lui-même :
+    // cette fonction alimente à la fois la fiche victime et la carte PNG
+    // PUBLIQUES, qui ne doivent montrer que le statut, jamais le document.
+    bloodTypeStatus: profile.blood_type_status || 'declared',
     allergies,
     conditions,
     contacts: (contactsRows || []).map((c) => ({ name: c.name, phone: c.phone, relation: c.relation })),
@@ -272,7 +277,7 @@ router.put('/medical-record', (req, res) => {
 // dizaines de fois.
 async function buildQrResponse(userId, gen, data) {
   const expiresAt = gen + SIX_MONTHS_MS;
-  const payload = { ...(data || { id: userId, nom: '', ageDays: null, bloodType: '', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
+  const payload = { ...(data || { id: userId, nom: '', ageDays: null, bloodType: '', bloodTypeStatus: 'declared', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
   const sig = signMedicalCard(userId, gen, expiresAt);
   const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${userId}.png?gen=${gen}&exp=${expiresAt}&sig=${sig}`;
   const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
@@ -339,6 +344,145 @@ router.post('/medical-record/qr/regenerate', requireAuth, async (req, res) => {
     res.json(await buildQrResponse(req.user.id, gen, data));
   } catch (e) {
     res.status(500).json({ error: 'Régénération du QR échouée', detail: e.message });
+  }
+});
+
+const MAX_PROOF_BYTES = 5 * 1024 * 1024; // 5 Mo, même limite que la photo de profil
+
+// Extension déduite du MIME déjà validé (jamais du nom de fichier fourni par
+// le client — tout arrive en data URL, sans nom) : sert au chemin de
+// stockage et au Content-Type de relecture.
+const PROOF_EXT_BY_MIME = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf',
+};
+
+// ─── Justificatif de groupe sanguin (lot 8) ──────────────────────────────────
+// Bucket Storage PRIVÉ 'blood-type-proofs' (voir supabase/schema.sql) —
+// jamais d'URL publique ni de lien signé transmis au client : chaque accès
+// passe par une de ces trois routes, avec requireAuth, et le chemin
+// s'appuie toujours sur req.user.id (jamais un id fourni par le client) —
+// un compte ne peut donc jamais, même en trafiquant la requête, atteindre
+// le chemin de stockage d'un autre.
+router.post('/medical-record/blood-type-proof', requireAuth, async (req, res) => {
+  const { file } = req.body || {};
+  const check = validateProofDataUrl(file, MAX_PROOF_BYTES);
+  if (!check.ok) return res.status(400).json({ error: check.error });
+
+  try {
+    const { data: current } = await supabase
+      .from('profiles')
+      .select('blood_type_proof_path')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    const ext = PROOF_EXT_BY_MIME[check.mime];
+    const path = `${req.user.id}/proof.${ext}`;
+    const buffer = Buffer.from(file.slice(file.indexOf(',') + 1), 'base64');
+
+    // Ancien fichier supprimé s'il avait une extension différente — upsert
+    // écrase déjà le même chemin, mais pas un chemin différent (ex. un
+    // ancien PDF remplacé par un JPEG ne serait jamais nettoyé sinon).
+    if (current?.blood_type_proof_path && current.blood_type_proof_path !== path) {
+      await supabase.storage.from('blood-type-proofs').remove([current.blood_type_proof_path]);
+    }
+
+    const { error: uploadErr } = await supabase.storage
+      .from('blood-type-proofs')
+      .upload(path, buffer, { contentType: check.mime, upsert: true });
+    if (uploadErr) throw uploadErr;
+
+    // Un ajout de justificatif n'est JAMAIS une validation : statut "en
+    // attente" jusqu'à ce qu'un médecin l'examine (aucune interface de
+    // validation n'existe encore, voir blood_type_verified_by) — jamais
+    // "vérifié" ici, même si l'écriture réussit.
+    const { data: updatedProfile, error: updateErr } = await supabase
+      .from('profiles')
+      .update({
+        blood_type_status: 'pending',
+        blood_type_proof_path: path,
+        blood_type_verified_at: null,
+        blood_type_verified_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.user.id)
+      .select()
+      .maybeSingle();
+    if (updateErr) throw updateErr;
+    if (!updatedProfile) throw new Error('Profil introuvable pour cet utilisateur — justificatif non enregistré');
+
+    res.json({ bloodTypeStatus: updatedProfile.blood_type_status, hasBloodTypeProof: true });
+  } catch (e) {
+    console.error('[api] upload justificatif groupe sanguin échoué pour', req.user.id, ':', e.message);
+    res.status(500).json({ error: "Échec de l'envoi du justificatif" });
+  }
+});
+
+router.delete('/medical-record/blood-type-proof', requireAuth, async (req, res) => {
+  try {
+    const { data: current } = await supabase
+      .from('profiles')
+      .select('blood_type_proof_path')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    if (current?.blood_type_proof_path) {
+      const { error: removeErr } = await supabase.storage.from('blood-type-proofs').remove([current.blood_type_proof_path]);
+      if (removeErr) throw removeErr;
+    }
+
+    const { data: updatedProfile, error: updateErr } = await supabase
+      .from('profiles')
+      .update({
+        blood_type_status: 'declared',
+        blood_type_proof_path: null,
+        blood_type_verified_at: null,
+        blood_type_verified_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.user.id)
+      .select()
+      .maybeSingle();
+    if (updateErr) throw updateErr;
+    if (!updatedProfile) throw new Error('Profil introuvable pour cet utilisateur — retrait non appliqué');
+
+    res.json({ bloodTypeStatus: updatedProfile.blood_type_status, hasBloodTypeProof: false });
+  } catch (e) {
+    console.error('[api] retrait justificatif groupe sanguin échoué pour', req.user.id, ':', e.message);
+    res.status(500).json({ error: 'Échec du retrait du justificatif' });
+  }
+});
+
+// Lecture du document lui-même — jamais d'URL publique/signée transmise au
+// client : le backend télécharge depuis Storage (service_role) et relaie les
+// octets directement. requireAuth authentifie l'appelant ; le chemin relu
+// vient de LA LIGNE profiles du même req.user.id (jamais d'id fourni par le
+// client), donc structurellement impossible d'atteindre le justificatif
+// d'un autre compte via cette route.
+router.get('/medical-record/blood-type-proof', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Pragma', 'no-cache');
+  try {
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('blood_type_proof_path')
+      .eq('id', req.user.id)
+      .maybeSingle();
+    if (profileErr) throw profileErr;
+    if (!profile?.blood_type_proof_path) return res.status(404).json({ error: 'Aucun justificatif' });
+
+    const { data: fileData, error: downloadErr } = await supabase.storage
+      .from('blood-type-proofs')
+      .download(profile.blood_type_proof_path);
+    if (downloadErr) throw downloadErr;
+
+    const ext = profile.blood_type_proof_path.split('.').pop();
+    const mime = Object.entries(PROOF_EXT_BY_MIME).find(([, e]) => e === ext)?.[0] || 'application/octet-stream';
+    const buffer = Buffer.from(await fileData.arrayBuffer());
+    res.type(mime);
+    res.send(buffer);
+  } catch (e) {
+    console.error('[api] lecture justificatif groupe sanguin échouée pour', req.user.id, ':', e.message);
+    res.status(500).json({ error: 'Lecture du justificatif échouée' });
   }
 });
 

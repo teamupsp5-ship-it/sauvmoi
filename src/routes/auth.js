@@ -93,6 +93,14 @@ function toUserPayload(authUser, profile, contacts) {
       weight: p.weight ?? null,
       allergies: splitList(p.allergies),
       conditions: splitList(p.conditions),
+      // Justificatif de groupe sanguin (lot 8) : le chemin Storage n'est
+      // JAMAIS transmis au frontend (pas de lien devinable, même indirect)
+      // — seuls le statut et le fait qu'un fichier existe (pour afficher
+      // "remplacer"/"retirer" plutôt que "joindre") le sont. Le fichier
+      // lui-même se récupère uniquement via GET /medical-record/blood-type-proof.
+      bloodTypeStatus: p.blood_type_status || 'declared',
+      hasBloodTypeProof: !!p.blood_type_proof_path,
+      bloodTypeVerifiedAt: p.blood_type_verified_at || null,
       emergencyContacts: (contacts || []).map((c) => ({
         name: c.name, phone: c.phone, relation: c.relation || '',
       })),
@@ -477,6 +485,30 @@ router.put('/me', requireAuth, async (req, res) => {
   if (conditions !== undefined) patch.conditions = Array.isArray(conditions) ? conditions.join(', ') : conditions;
 
   try {
+    // Règle de cohérence (lot 8) : un justificatif attaché à un groupe
+    // sanguin qui vient de changer ne prouve plus rien pour la NOUVELLE
+    // valeur — repasse à "déclaré" et le document existant est supprimé du
+    // stockage, jamais laissé "vérifié"/"en attente" contre une valeur
+    // différente de celle qu'il justifiait à l'origine (pire cas possible :
+    // un badge vert attaché à une donnée qui a changé sous lui).
+    if (bloodType !== undefined) {
+      const { data: current } = await supabase
+        .from('profiles')
+        .select('blood_type, blood_type_proof_path')
+        .eq('id', req.user.id)
+        .maybeSingle();
+      if (current && (current.blood_type || '') !== (bloodType || '')) {
+        patch.blood_type_status = 'declared';
+        patch.blood_type_proof_path = null;
+        patch.blood_type_verified_at = null;
+        patch.blood_type_verified_by = null;
+        if (current.blood_type_proof_path) {
+          const { error: removeErr } = await supabase.storage.from('blood-type-proofs').remove([current.blood_type_proof_path]);
+          if (removeErr) console.error('[auth] suppression justificatif (changement de groupe sanguin) échouée pour', req.user.id, ':', removeErr.message);
+        }
+      }
+    }
+
     if (Object.keys(patch).length > 1) {
       // Même garde-fou que POST /auth/register : .update() seul réussit
       // silencieusement (error === null) même s'il ne matche aucune ligne.

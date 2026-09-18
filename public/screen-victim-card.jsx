@@ -1,14 +1,15 @@
 // screen-victim-card.jsx — Fiche d'urgence après scan QR Sauv'Moi
 // Données lues depuis window.SM_VICTIM (objet JSON décodé du QR)
-// DeclaredNotVerifiedNote (bandeau "déclaré, non vérifié") vient de
-// frames.jsx — partagé avec screen-qr-code.jsx, voir sa définition là-bas.
+// DeclaredNotVerifiedNote (allergies/antécédents, toujours "déclaré, non
+// vérifié") et BloodTypeStatusNote (groupe sanguin, trois états — lot 8)
+// viennent de frames.jsx — partagés avec screen-qr-code.jsx.
 
 function VictimCardScreen({ nav }) {
   useLucide();
   const t = useTranslation();
   const lang = useLang();
   const v = window.SM_VICTIM || {};
-  const { nom, ageDays, bloodType, allergies, conditions, contacts, generatedAt, expiresAt } = v;
+  const { nom, ageDays, bloodType, bloodTypeStatus, allergies, conditions, contacts, generatedAt, expiresAt } = v;
 
   const genDate = formatDate(generatedAt, lang) || null;
   const expDate = formatDate(expiresAt, lang) || null;
@@ -71,7 +72,7 @@ function VictimCardScreen({ nav }) {
                   <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--sm-red)', fontFamily: 'var(--font-display, serif)', lineHeight: 1 }}>
                     {bloodType}
                   </div>
-                  <DeclaredNotVerifiedNote t={t} />
+                  <BloodTypeStatusNote t={t} status={bloodTypeStatus} />
                 </>
               ) : (
                 <div style={{ fontSize: 15, color: 'var(--sm-ink-400)' }}>{t('victim.not_provided')}</div>

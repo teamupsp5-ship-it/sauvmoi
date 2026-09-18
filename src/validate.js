@@ -56,23 +56,39 @@ export function isValidLatLng(lat, lng) {
   return isFiniteNumber(lat) && isFiniteNumber(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
-// data:image/<type>;base64,<...> — MIME strictement limité (jpeg/png/webp),
-// taille approximée depuis la longueur base64 (4 caractères encodent 3
-// octets) sans jamais décoder la chaîne entière en mémoire pour mesurer.
+// data:<mime>;base64,<...> — taille approximée depuis la longueur base64
+// (4 caractères encodent 3 octets) sans jamais décoder la chaîne entière en
+// mémoire pour mesurer. Générique : partagée par validateImageDataUrl
+// (photo de profil, jpeg/png/webp uniquement) et validateProofDataUrl
+// (justificatif de groupe sanguin, qui autorise aussi le PDF) — même
+// validation, whitelist MIME différente selon l'usage.
 const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'];
-export function validateImageDataUrl(dataUrl, maxBytes) {
-  if (typeof dataUrl !== 'string') return { ok: false, error: "Format d'image invalide" };
+const ALLOWED_PROOF_MIME = [...ALLOWED_IMAGE_MIME, 'application/pdf'];
+
+function validateDataUrl(dataUrl, allowedMimes, maxBytes, label) {
+  if (typeof dataUrl !== 'string') return { ok: false, error: `Format de ${label} invalide` };
   const m = /^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
-  if (!m) return { ok: false, error: "Format d'image invalide (data URL attendue)" };
+  if (!m) return { ok: false, error: `Format de ${label} invalide (data URL attendue)` };
   const [, mime, b64] = m;
-  if (!ALLOWED_IMAGE_MIME.includes(mime.toLowerCase())) {
-    return { ok: false, error: `Type d'image non autorisé (${mime}) — jpeg, png ou webp uniquement` };
+  if (!allowedMimes.includes(mime.toLowerCase())) {
+    return { ok: false, error: `Type de ${label} non autorisé (${mime}) — ${allowedMimes.join(', ')} uniquement` };
   }
   const approxBytes = Math.floor((b64.length * 3) / 4);
   if (approxBytes > maxBytes) {
-    return { ok: false, error: `Image trop volumineuse (max ${Math.round(maxBytes / (1024 * 1024))} Mo)` };
+    return { ok: false, error: `Fichier trop volumineux (max ${Math.round(maxBytes / (1024 * 1024))} Mo)` };
   }
   return { ok: true, mime: mime.toLowerCase(), bytes: approxBytes };
+}
+
+export function validateImageDataUrl(dataUrl, maxBytes) {
+  return validateDataUrl(dataUrl, ALLOWED_IMAGE_MIME, maxBytes, 'image');
+}
+
+// Justificatif de groupe sanguin (lot 8) : jpeg/png/webp (scan photo) ou PDF
+// (export d'une carte de groupe sanguin numérisée) — jamais svg (script
+// embarqué possible, même réserve que validateImageDataUrl) ni autre type.
+export function validateProofDataUrl(dataUrl, maxBytes) {
+  return validateDataUrl(dataUrl, ALLOWED_PROOF_MIME, maxBytes, 'justificatif');
 }
 
 // Rejette tout champ de premier niveau absent de `allowed` — whitelist

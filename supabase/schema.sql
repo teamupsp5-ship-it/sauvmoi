@@ -35,6 +35,14 @@ create table profiles (
   -- généré, une signature seule ne faisant qu'empêcher la falsification de
   -- l'URL, pas la réutilisation d'une ancienne URL toujours signée.
   qr_generated_at timestamptz,
+  -- Justificatif de groupe sanguin (lot 8) — trois états, jamais atteignable
+  -- à "verified" par une route existante : aucune interface de validation
+  -- médicale n'existe encore, cette colonne prépare uniquement la lecture.
+  blood_type_status text not null default 'declared'
+    check (blood_type_status in ('declared', 'pending', 'verified')),
+  blood_type_proof_path text,        -- chemin dans le bucket Storage privé, jamais une URL publique
+  blood_type_verified_at timestamptz,
+  blood_type_verified_by uuid references auth.users(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -103,12 +111,53 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ============================================================================
+-- Stockage — justificatif de groupe sanguin (lot 8)
+--
+-- Bucket PRIVÉ (public = false) : jamais d'URL publique, jamais de lien
+-- devinable. Le backend y accède uniquement via le client service_role
+-- (src/supabase.js), qui contourne RLS comme pour les 4 tables existantes —
+-- la policy ci-dessous est un filet de sécurité en profondeur (comme les
+-- policies RLS des tables), pas le mécanisme d'autorisation réel : c'est
+-- requireAuth + la vérification "propriétaire uniquement" côté backend
+-- (routes/api.js) qui filtrent réellement les accès aujourd'hui.
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('blood-type-proofs', 'blood-type-proofs', false)
+on conflict (id) do nothing;
+
+-- Refuse tout accès direct (anon/authenticated) au bucket, y compris pour
+-- son propriétaire : ce document ne doit être lu QUE via le backend, qui
+-- vérifie explicitement req.user.id === propriétaire avant de le servir —
+-- jamais via un accès Supabase Storage direct depuis le navigateur, qui
+-- contournerait cette vérification applicative.
+create policy "blood_type_proofs_no_direct_access"
+  on storage.objects for all
+  using (bucket_id != 'blood-type-proofs');
+
+-- ============================================================================
 -- MIGRATION — base de production existante
 --
 -- Ce fichier sert de script de démarrage pour une base NEUVE (create table
 -- échoue si les tables existent déjà). Sur un projet Supabase déjà en
 -- production (table profiles déjà créée), exécutez UNIQUEMENT le bloc
 -- ci-dessous dans l'éditeur SQL — pas le fichier en entier. Idempotent
--- (if not exists), sans risque à rejouer.
+-- (if not exists / on conflict do nothing), sans risque à rejouer.
 -- ============================================================================
 alter table profiles add column if not exists qr_generated_at timestamptz;
+
+alter table profiles add column if not exists blood_type_status text not null default 'declared';
+alter table profiles drop constraint if exists profiles_blood_type_status_check;
+alter table profiles add constraint profiles_blood_type_status_check
+  check (blood_type_status in ('declared', 'pending', 'verified'));
+alter table profiles add column if not exists blood_type_proof_path text;
+alter table profiles add column if not exists blood_type_verified_at timestamptz;
+alter table profiles add column if not exists blood_type_verified_by uuid references auth.users(id);
+
+insert into storage.buckets (id, name, public)
+values ('blood-type-proofs', 'blood-type-proofs', false)
+on conflict (id) do nothing;
+
+drop policy if exists "blood_type_proofs_no_direct_access" on storage.objects;
+create policy "blood_type_proofs_no_direct_access"
+  on storage.objects for all
+  using (bucket_id != 'blood-type-proofs');

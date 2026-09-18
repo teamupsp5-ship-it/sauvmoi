@@ -116,7 +116,7 @@ function QrCodeScreen({ nav }) {
                       <span style={{ fontSize: 13, color: 'var(--sm-ink-500)' }}>{t('victim.blood_type')}</span>
                       <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-soft-red)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14 }}>{payload.bloodType}</span>
                     </div>
-                    <DeclaredNotVerifiedNote t={t} />
+                    <BloodTypeStatusNote t={t} status={payload.bloodTypeStatus} />
                   </div>
                 )}
 

@@ -75,6 +75,18 @@ function wrapText(text, maxChars, maxLines) {
 // elle-même est nouvelle, pas de plomberie i18n ajoutée à ce fichier.
 const DECLARED_NOT_VERIFIED_FR = "Déclaré par l'utilisateur — non vérifié médicalement";
 
+// Justificatif de groupe sanguin (lot 8) — trois états. La couleur ne porte
+// JAMAIS seule le sens : le statut est toujours écrit en toutes lettres à
+// côté (secouriste daltonien ou pressé). "verified" n'est atteignable par
+// AUCUNE route existante aujourd'hui (voir routes/api.js) — un document
+// téléversé n'est jamais, à lui seul, un document validé : le statut reste
+// "pending" (orange) tant qu'aucun médecin ne l'a examiné.
+function bloodTypeStatusFr(status) {
+  if (status === 'verified') return { text: 'Vérifié par un médecin', color: GREEN };
+  if (status === 'pending') return { text: 'En attente de validation médicale', color: ORANGE };
+  return { text: DECLARED_NOT_VERIFIED_FR, color: AMBER };
+}
+
 function headerSvg() {
   return `
     <rect x="0" y="0" width="${CARD_WIDTH}" height="190" fill="${RED}"/>
@@ -135,7 +147,7 @@ function formatAgeFr(ageDays) {
   return parts.filter(Boolean).join(' et ');
 }
 
-export function buildMedicalCardSvg({ nom, ageDays, bloodType, allergies, conditions, contacts, generatedAt, expiresAt }) {
+export function buildMedicalCardSvg({ nom, ageDays, bloodType, bloodTypeStatus, allergies, conditions, contacts, generatedAt, expiresAt }) {
   const genDate = generatedAt ? new Date(generatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
   const expDate = expiresAt ? new Date(expiresAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 
@@ -164,7 +176,8 @@ export function buildMedicalCardSvg({ nom, ageDays, bloodType, allergies, condit
   parts.push(`<text x="60" y="398" font-family="${FONT}" font-size="24" font-weight="700" fill="${RED}" letter-spacing="1.5">GROUPE SANGUIN</text>`);
   if (bloodType) {
     parts.push(`<text x="60" y="580" font-family="${FONT}" font-size="150" font-weight="800" fill="${RED}">${escapeXml(bloodType)}</text>`);
-    parts.push(`<text x="60" y="622" font-family="${FONT}" font-size="19" font-weight="700" fill="${AMBER}">${DECLARED_NOT_VERIFIED_FR}</text>`);
+    const statusInfo = bloodTypeStatusFr(bloodTypeStatus);
+    parts.push(`<text x="60" y="622" font-family="${FONT}" font-size="19" font-weight="700" fill="${statusInfo.color}">${escapeXml(statusInfo.text)}</text>`);
   } else {
     parts.push(`<text x="60" y="450" font-family="${FONT}" font-size="30" fill="${GRAY}">Non renseigné</text>`);
   }

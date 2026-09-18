@@ -744,6 +744,36 @@ function DeclaredNotVerifiedNote({ t }) {
   );
 }
 
+// Justificatif de groupe sanguin (lot 8) — même principe que
+// DeclaredNotVerifiedNote ci-dessus (icône + texte en toutes lettres, jamais
+// la couleur seule) mais à TROIS états au lieu d'un seul, spécifique au
+// groupe sanguin (seule donnée avec un justificatif attachable — allergies
+// et antécédents restent sur DeclaredNotVerifiedNote, inchangé) :
+//   - "declared" (aucun justificatif)      → ambre, comme avant
+//   - "pending"  (justificatif fourni)     → ORANGE — un ajout de fichier
+//     n'est jamais une validation, ce statut ne doit jamais ressembler à un
+//     succès
+//   - "verified" (validé par un médecin)   → VERT — inatteignable par
+//     aucune route existante aujourd'hui, voir routes/api.js
+// Partagée par screen-qr-code.jsx (propre récapitulatif) et
+// screen-victim-card.jsx (fiche après scan), même composant plutôt que deux
+// implémentations locales.
+function BloodTypeStatusNote({ t, status }) {
+  const info = status === 'verified'
+    ? { icon: 'shield-check', color: '#1B7A3D', textKey: 'victim.blood_type_verified' }
+    : status === 'pending'
+    ? { icon: 'clock', color: '#B7530A', textKey: 'victim.blood_type_pending' }
+    : { icon: 'info', color: '#92400E', textKey: 'victim.declared_not_verified' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+      <Icon name={info.icon} size={13} color={info.color} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: info.color }}>
+        {t(info.textKey)}
+      </span>
+    </div>
+  );
+}
+
 // Formate une date (ISO YYYY-MM-DD ou timestamp) en toutes lettres dans la
 // langue active ("16 mars 2027" / "March 16, 2027") — même formatage partout
 // où une date est montrée à l'utilisateur (expiration du QR médical, fiche
@@ -823,6 +853,6 @@ Object.assign(window, {
   Icon, useLucide, StatusBar, HomeIndicator, FloatingChatButton,
   PhoneFrame, DesktopFrame, TabBar, LangPill, PulseCircle, Waveform,
   IconTile, NumBadge, T, COPY, BirthdateField, Banner, FallbackImage,
-  DeclaredNotVerifiedNote, EMERGENCY_NUMBERS_FALLBACK, useEmergencyNumbers, formatAge, formatDate,
+  DeclaredNotVerifiedNote, BloodTypeStatusNote, EMERGENCY_NUMBERS_FALLBACK, useEmergencyNumbers, formatAge, formatDate,
   speakText, stopSpeech, useSpeechActive, useSpeechUnavailable, stripMarkdownForSpeech,
 });

@@ -343,6 +343,13 @@ function ProfileScreen({ nav }) {
       {/* ── Corps scrollable ────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+        {/* Erreur photo — EN LIGNE en tête du corps (jamais un overlay
+            position:absolute à décalage fixe deviné, voir le correctif du
+            lot 8) : c'est le tout premier élément visible, juste au-dessus
+            de l'avatar que l'utilisateur vient de toucher, sans dépendre
+            d'un défilement ni d'une hauteur de header à deviner. */}
+        {error && <Banner variant="danger" icon="alert-circle" text={error} />}
+
         {/* ── Carte profil ─────────────────────────────────────────────── */}
         <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', padding: '18px 18px 20px' }}>
           <input ref={photoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhoto} />
@@ -482,7 +489,7 @@ function ProfileScreen({ nav }) {
                   <input type="password" value={pwForm[f.key]} onChange={e => setPwForm(p => ({ ...p, [f.key]: e.target.value }))} placeholder={f.ph} style={{ ...PINP, border: '1.5px solid var(--sm-line)', background: 'white' }} />
                 </div>
               ))}
-              {pwMsg && <p style={{ fontSize: 13, margin: 0, color: pwMsg.includes('✓') ? '#27AE60' : 'var(--sm-red)', fontFamily: 'var(--font-ui)' }}>{pwMsg}</p>}
+              {pwMsg && <Banner variant={pwMsg.includes('✓') ? 'success' : 'danger'} icon={pwMsg.includes('✓') ? 'check-circle-2' : 'alert-circle'} text={pwMsg} />}
               <button onClick={changePassword} disabled={pwLoading} style={{ padding: '13px', borderRadius: 12, background: 'var(--sm-blue)', color: 'white', border: 'none', fontWeight: 700, fontSize: 15, fontFamily: 'var(--font-ui)', cursor: pwLoading ? 'default' : 'pointer' }}>
                 {pwLoading ? t('profile.password_changing') : t('profile.password_change_button')}
               </button>
@@ -519,7 +526,6 @@ function ProfileScreen({ nav }) {
       )}
 
       <ProfileToast msg={toast} />
-      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
@@ -668,9 +674,17 @@ function ProfilePersonal({ nav }) {
         </div>
       </div>
 
+      {/* Erreur EN LIGNE juste au-dessus de la barre Annuler/Sauvegarder —
+          jamais un overlay position:absolute à décalage deviné (voir le
+          correctif du lot 8) : toujours visible sans défiler, exactement là
+          où l'œil se trouve au moment de cliquer sur Sauvegarder. */}
+      {error && (
+        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
+          <Banner variant="danger" icon="alert-circle" text={error} />
+        </div>
+      )}
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
-      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
@@ -690,6 +704,75 @@ function ProfileMedical({ nav }) {
   const [saving, setSaving]   = useState(false);
   const [toast, setToast]     = useState('');
   const [error, setError]     = useState('');
+
+  // ── Justificatif de groupe sanguin (lot 8) — indépendant du mode édition
+  // ci-dessus : joindre/remplacer/retirer un justificatif est une action à
+  // part, pas un champ du formulaire. Même découplage que save() plus bas :
+  // window.SM.user n'est mis à jour qu'avec la réponse du serveur, jamais
+  // avant ; erreur affichée EN LIGNE (proofError), jamais un overlay perdu.
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofError, setProofError] = useState('');
+  const proofRef = useRef(null);
+
+  function applyProofResult(data) {
+    const updatedUser = {
+      ...window.SM.user,
+      medicalRecord: { ...window.SM.user.medicalRecord, bloodTypeStatus: data.bloodTypeStatus, hasBloodTypeProof: data.hasBloodTypeProof },
+    };
+    window.SM.user = updatedUser;
+    localStorage.setItem('sm_user', JSON.stringify(updatedUser));
+    window.SM.emit();
+  }
+
+  async function handleProofFile(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setProofError('');
+    setProofUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('lecture du fichier échouée'));
+        reader.readAsDataURL(file);
+      });
+      const base = window.API?.base || '';
+      const token = window.SM?.token;
+      const res = await fetch(base + '/api/medical-record/blood-type-proof', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) },
+        body: JSON.stringify({ file: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t('profile.blood_type_proof_upload_failed'));
+      applyProofResult(data);
+    } catch (err) {
+      setProofError(err.message || t('profile.blood_type_proof_upload_failed'));
+      setTimeout(() => setProofError(''), 5000);
+    }
+    setProofUploading(false);
+  }
+
+  async function removeProof() {
+    setProofError('');
+    setProofUploading(true);
+    try {
+      const base = window.API?.base || '';
+      const token = window.SM?.token;
+      const res = await fetch(base + '/api/medical-record/blood-type-proof', {
+        method: 'DELETE',
+        headers: { ...(token ? { authorization: 'Bearer ' + token } : {}) },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t('profile.blood_type_proof_remove_failed'));
+      applyProofResult(data);
+    } catch (err) {
+      setProofError(err.message || t('profile.blood_type_proof_remove_failed'));
+      setTimeout(() => setProofError(''), 5000);
+    }
+    setProofUploading(false);
+  }
 
   function startEdit() {
     setForm({
@@ -736,9 +819,6 @@ function ProfileMedical({ nav }) {
   }
 
   const rows = [
-    { label: t('profile.blood_type'), render: () => med.bloodType ? (
-      <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-red-soft)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-ui)' }}>{med.bloodType}</span>
-    ) : <span style={{ color: 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>—</span> },
     { label: t('profile.height_weight'), val: (med.height || med.weight) ? `${med.height || '?'} cm · ${med.weight || '?'} kg` : null },
     { label: t('profile.allergies'),     val: (med.allergies  || []).join(', ') || null },
     { label: t('profile.conditions'),    val: (med.conditions || []).join(', ') || null },
@@ -760,6 +840,50 @@ function ProfileMedical({ nav }) {
         <div style={{ background: 'white', borderRadius: 'var(--sm-radius)', boxShadow: 'var(--sm-shadow)', overflow: 'hidden' }}>
 
           {/* ── Lecture ── */}
+          {/* Groupe sanguin — bloc dédié plutôt qu'une ligne de `rows` : c'est
+              la seule donnée du carnet avec un justificatif attachable,
+              indépendant du mode édition (joindre/remplacer/retirer reste
+              possible même hors "Modifier"). */}
+          {!editing && (
+            <div style={{ padding: '13px 16px', borderBottom: '0.5px solid var(--sm-line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', width: 130, flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{t('profile.blood_type')}</span>
+                {med.bloodType ? (
+                  <span style={{ padding: '3px 12px', borderRadius: 999, background: 'var(--sm-red-soft)', color: 'var(--sm-red)', fontWeight: 700, fontSize: 14, fontFamily: 'var(--font-ui)' }}>{med.bloodType}</span>
+                ) : <span style={{ color: 'var(--sm-ink-400)', fontFamily: 'var(--font-ui)' }}>—</span>}
+              </div>
+              {med.bloodType && (
+                <>
+                  <BloodTypeStatusNote t={t} status={med.bloodTypeStatus} />
+                  <input
+                    ref={proofRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf"
+                    style={{ display: 'none' }} onChange={handleProofFile}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button
+                      type="button" onClick={() => proofRef.current?.click()} disabled={proofUploading}
+                      style={{ padding: '7px 14px', borderRadius: 8, background: '#F1F2F4', color: 'var(--sm-ink)', border: 'none', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: proofUploading ? 'default' : 'pointer' }}
+                    >
+                      {proofUploading ? t('common.saving') : (med.hasBloodTypeProof ? t('profile.blood_type_proof_replace') : t('profile.blood_type_proof_attach'))}
+                    </button>
+                    {med.hasBloodTypeProof && (
+                      <button
+                        type="button" onClick={removeProof} disabled={proofUploading}
+                        style={{ padding: '7px 14px', borderRadius: 8, background: '#FDEDEC', color: '#C0392B', border: 'none', fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: proofUploading ? 'default' : 'pointer' }}
+                      >
+                        {t('profile.blood_type_proof_remove')}
+                      </button>
+                    )}
+                  </div>
+                  {proofError && (
+                    <div style={{ marginTop: 10 }}>
+                      <Banner variant="danger" icon="alert-circle" text={proofError} />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           {!editing && rows.map((r, i) => (
             <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < rows.length - 1 ? '0.5px solid var(--sm-line)' : 'none' }}>
               <span style={{ fontSize: 13, color: 'var(--sm-ink-500)', width: 130, flexShrink: 0, fontFamily: 'var(--font-ui)' }}>{r.label}</span>
@@ -803,9 +927,17 @@ function ProfileMedical({ nav }) {
         </div>
       </div>
 
+      {/* Erreur EN LIGNE juste au-dessus de la barre Annuler/Sauvegarder —
+          jamais un overlay position:absolute à décalage deviné (voir le
+          correctif du lot 8) : toujours visible sans défiler, exactement là
+          où l'œil se trouve au moment de cliquer sur Sauvegarder. */}
+      {error && (
+        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
+          <Banner variant="danger" icon="alert-circle" text={error} />
+        </div>
+      )}
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
-      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
@@ -928,9 +1060,17 @@ function ProfileContacts({ nav }) {
         )}
       </div>
 
+      {/* Erreur EN LIGNE juste au-dessus de la barre Annuler/Sauvegarder —
+          jamais un overlay position:absolute à décalage deviné (voir le
+          correctif du lot 8) : toujours visible sans défiler, exactement là
+          où l'œil se trouve au moment de cliquer sur Sauvegarder. */}
+      {error && (
+        <div style={{ padding: '0 16px 12px', flexShrink: 0 }}>
+          <Banner variant="danger" icon="alert-circle" text={error} />
+        </div>
+      )}
       {editing && <SaveBar onCancel={cancelEdit} onSave={save} saving={saving} />}
       <ProfileToast msg={toast} />
-      <ProfileToast msg={error} variant="danger" />
     </div>
   );
 }
