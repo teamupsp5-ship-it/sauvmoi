@@ -381,6 +381,25 @@ criticité réelle plutôt qu'exhaustive).
   pas d'effet contre un bot qui appelle l'API JSON directement sans jamais
   charger la page — le rate limiting reste la défense principale contre ce
   cas-là.
+- **Policies RLS Supabase (`supabase/schema.sql`) : accordent, ne refusent
+  jamais.** Une policy RLS accorde toujours des droits, elle n'en retire
+  jamais ; plusieurs policies permissives sur une même table se combinent
+  par OU (la moins restrictive l'emporte, il n'existe pas de policy
+  "restrictive" par défaut) ; sans clause `to`, une policy s'applique à
+  PUBLIC (rôle anonyme compris) ; l'ABSENCE de policy est le refus par
+  défaut — RLS actif sur une table = personne n'a accès tant qu'aucune
+  policy ne l'accorde explicitement. Trouvé en pratique (lot 8) : une
+  version antérieure de `supabase/schema.sql` créait sur `storage.objects`
+  une policy `using (bucket_id != 'blood-type-proofs')` en pensant
+  interdire l'accès direct au bucket des justificatifs de groupe sanguin —
+  elle faisait l'inverse, accordant un accès PUBLIC (anonyme compris) en
+  lecture/écriture à TOUS LES AUTRES buckets Storage du projet. Jamais
+  exécutée en production ; corrigée en retirant purement et simplement la
+  policy — l'absence de policy sur ce bucket est déjà la protection voulue
+  (le backend y accède via `service_role`, qui contourne RLS, comme pour
+  les 4 tables ci-dessus). Avant d'écrire une policy dont la condition
+  "ressemble" à une interdiction (`!=`, `not`, `<>`...), vérifier ce
+  qu'elle ACCORDE réellement plutôt que ce qu'elle semble refuser.
 
 **Content-Security-Policy — compromis assumé et documenté :** l'app n'a pas
 de bundler (voir Stack technique) : tout le JSX est transpilé et exécuté EN

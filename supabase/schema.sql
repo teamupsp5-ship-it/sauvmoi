@@ -116,23 +116,36 @@ create trigger on_auth_user_created
 -- Bucket PRIVÉ (public = false) : jamais d'URL publique, jamais de lien
 -- devinable. Le backend y accède uniquement via le client service_role
 -- (src/supabase.js), qui contourne RLS comme pour les 4 tables existantes —
--- la policy ci-dessous est un filet de sécurité en profondeur (comme les
--- policies RLS des tables), pas le mécanisme d'autorisation réel : c'est
--- requireAuth + la vérification "propriétaire uniquement" côté backend
--- (routes/api.js) qui filtrent réellement les accès aujourd'hui.
+-- c'est requireAuth + la vérification "propriétaire uniquement" côté
+-- backend (routes/api.js) qui filtrent réellement les accès aujourd'hui.
+--
+-- ⚠️ AUCUNE policy RLS n'est créée sur ce bucket — volontairement, ne pas
+-- en ajouter une. Une policy RLS ACCORDE des droits, elle n'en retire
+-- jamais, et plusieurs policies permissives sur une même table se
+-- combinent par OU (la moins restrictive gagne). RLS est actif par défaut
+-- sur storage.objects : sans AUCUNE policy permissive, ni le rôle anon ni
+-- un utilisateur authentifié n'ont le moindre accès à AUCUN bucket — c'est
+-- exactement la protection voulue ici, obtenue par l'ABSENCE de policy,
+-- pas par une policy qui "refuserait" l'accès (ce mécanisme n'existe pas
+-- en RLS Postgres/Supabase).
+--
+-- Une version précédente de ce fichier créait ici
+-- `create policy ... using (bucket_id != 'blood-type-proofs')` en pensant
+-- interdire l'accès à ce bucket. Elle faisait l'inverse : sans clause
+-- `to`, elle s'appliquait à PUBLIC (anonyme compris) et ACCORDAIT un accès
+-- en lecture/écriture à TOUS LES AUTRES buckets Storage du projet — sans
+-- effet tant qu'aucun autre bucket n'existait, mais le prochain bucket
+-- créé se serait retrouvé ouvert à des utilisateurs non authentifiés.
+-- Jamais exécutée en production (voir historique du dépôt). Si un accès
+-- direct depuis le navigateur devient un jour nécessaire pour CE bucket,
+-- la policy correspondante doit porter une clause `to authenticated` et
+-- une condition qui restreint réellement aux lignes autorisées — jamais
+-- une condition qui ne fait qu'EXCLURE ce bucket en laissant les autres
+-- ouverts par accident.
 -- ============================================================================
 insert into storage.buckets (id, name, public)
 values ('blood-type-proofs', 'blood-type-proofs', false)
 on conflict (id) do nothing;
-
--- Refuse tout accès direct (anon/authenticated) au bucket, y compris pour
--- son propriétaire : ce document ne doit être lu QUE via le backend, qui
--- vérifie explicitement req.user.id === propriétaire avant de le servir —
--- jamais via un accès Supabase Storage direct depuis le navigateur, qui
--- contournerait cette vérification applicative.
-create policy "blood_type_proofs_no_direct_access"
-  on storage.objects for all
-  using (bucket_id != 'blood-type-proofs');
 
 -- ============================================================================
 -- MIGRATION — base de production existante
@@ -157,7 +170,9 @@ insert into storage.buckets (id, name, public)
 values ('blood-type-proofs', 'blood-type-proofs', false)
 on conflict (id) do nothing;
 
+-- Nettoyage : supprime la policy erronée d'une exécution précédente de ce
+-- fichier, si elle a été appliquée quelque part (jamais en production,
+-- voir la note dans la section Stockage ci-dessus). N'en recrée AUCUNE —
+-- l'absence de policy est la protection voulue sur ce bucket, pas une
+-- policy qui semblerait "refuser" l'accès.
 drop policy if exists "blood_type_proofs_no_direct_access" on storage.objects;
-create policy "blood_type_proofs_no_direct_access"
-  on storage.objects for all
-  using (bucket_id != 'blood-type-proofs');
