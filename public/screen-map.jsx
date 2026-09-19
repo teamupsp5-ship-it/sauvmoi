@@ -2,9 +2,14 @@
 
 const SAN_PEDRO = { lat: 4.7485, lng: -6.6363 };
 
-const TYPE_ICON  = { hopital: 'building-2', clinique: 'stethoscope', maternite: 'baby', dispensaire: 'pill', public: 'heart-handshake' };
-const TYPE_COLOR = { hopital: 'var(--sm-red)', clinique: 'var(--sm-blue)', maternite: '#D81B60', dispensaire: '#E67E22', public: '#27AE60' };
-const TYPE_BG    = { hopital: 'var(--sm-red-soft)', clinique: 'var(--sm-blue-soft)', maternite: '#FCE4EC', dispensaire: '#FEF5EC', public: '#EAFAF1' };
+// Taxonomie à 5 catégories produite par scripts/sync-health-centers.js
+// (resolveType(), déduite des tags OSM healthcare/amenity — voir CLAUDE.md,
+// section Localisation). `autre` n'a volontairement pas d'entrée ici : il
+// retombe sur le style générique déjà géré plus bas (`|| 'map-pin'` /
+// `|| 'var(--sm-ink)'` / `|| '#F1F2F4'`), pas la peine de le dupliquer.
+const TYPE_ICON  = { hopital: 'building-2', clinique: 'stethoscope', pharmacie: 'pill', centre_sante: 'heart-handshake' };
+const TYPE_COLOR = { hopital: 'var(--sm-red)', clinique: 'var(--sm-blue)', pharmacie: '#E67E22', centre_sante: '#27AE60' };
+const TYPE_BG    = { hopital: 'var(--sm-red-soft)', clinique: 'var(--sm-blue-soft)', pharmacie: '#FEF5EC', centre_sante: '#EAFAF1' };
 
 // iPadOS se présente comme "MacIntel" dans le user-agent depuis iOS 13 — le
 // distingue d'un vrai Mac via la présence d'écran tactile (navigator.maxTouchPoints).
@@ -52,12 +57,21 @@ function SkeletonCard() {
 function MapScreen({ nav }) {
   useLucide();
   const t = useTranslation();
+  // Correspond exactement à la taxonomie produite par resolveType()
+  // (scripts/sync-health-centers.js) — voir CLAUDE.md, section Localisation.
+  // "dispensaire" et "24h" retirés (lot précédent, 8d6567a) : la nouvelle
+  // taxonomie n'a plus de catégorie "dispensaire" (reclassée en
+  // centre_sante), et available24h n'existe plus du tout dans la table
+  // health_centers (ni pour les données healthsites.io, ni pour le seed
+  // manuel — voir la note détaillée plus bas sur le filtre 24h retiré).
+  // "autre" n'a pas de chip dédiée : catégorie fourre-tout peu utile à
+  // filtrer isolément, déjà couverte par "Tous".
   const FILTERS = [
-    { id: 'all',        label: t('map.filter_all') },
-    { id: 'hopital',    label: t('map.filter_hospitals') },
-    { id: 'clinique',   label: t('map.filter_clinics') },
-    { id: 'dispensaire',label: t('map.filter_dispensaries') },
-    { id: '24h',        label: t('map.filter_24h') },
+    { id: 'all',          label: t('map.filter_all') },
+    { id: 'hopital',      label: t('map.filter_hospitals') },
+    { id: 'clinique',     label: t('map.filter_clinics') },
+    { id: 'pharmacie',    label: t('map.filter_pharmacies') },
+    { id: 'centre_sante', label: t('map.filter_health_centers') },
   ];
 
   const [centers, setCenters]   = useState([]);
@@ -195,7 +209,6 @@ function MapScreen({ nav }) {
   // ── Filtrage + tri par distance ─────────────────────────────────────────
   const filtered = centers.filter(c => {
     if (filter === 'all') return true;
-    if (filter === '24h') return c.available24h;
     return c.type === filter;
   });
 
@@ -334,7 +347,17 @@ function MapScreen({ nav }) {
           {/* Skeletons */}
           {loading && [0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
 
-          {/* Cartes réelles */}
+          {/* Cartes réelles — pas de badge/filtre "24h" (retiré, voir
+              8d6567a puis ce lot) : l'ancien champ available24h n'existe
+              ni dans les données healthsites.io/OSM (aucun tag fiable et
+              systématiquement présent pour ça, contrairement à
+              amenity/healthcare qui alimentent `type`) ni dans la table
+              Supabase health_centers elle-même (colonne jamais ajoutée au
+              schéma, même pour le seed manuel — voir supabase/schema.sql).
+              Remettre ce filtre nécessiterait une vraie migration de schéma
+              (nouvelle colonne, jamais fabriquée pour les lignes où
+              l'information est inconnue) plutôt qu'un correctif de ce
+              fichier seul — décision volontairement pas prise ici. */}
           {!loading && sorted.map(c => {
             const dist = userPos
               ? haversineKm(userPos.lat, userPos.lng, c.lat, c.lng)
@@ -383,13 +406,6 @@ function MapScreen({ nav }) {
                         </span>
                       ) : (
                         <span style={{ fontSize: 13, color: 'var(--sm-ink-400)' }}>{t('map.distance_unavailable')}</span>
-                      )}
-                      {c.available24h && (
-                        <span style={{
-                          fontSize: 11, fontWeight: 700, color: '#27AE60',
-                          background: '#EAFAF1', borderRadius: 999, padding: '2px 9px',
-                          fontFamily: 'var(--font-ui)',
-                        }}>{t('map.filter_24h')}</span>
                       )}
                     </div>
                   </div>
