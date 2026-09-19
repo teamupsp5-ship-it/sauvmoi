@@ -2,8 +2,22 @@
 // (Pour pointer ailleurs : window.SAUVMOI_API = 'https://mon-url'; avant le chargement.)
 
 (function () {
+  // Le backend est servi par le MÊME serveur Express que le frontend statique
+  // (Render, o2switch/cPanel, ou npm run dev en local) — sauf dans l'app
+  // Android (Capacitor), où la WebView charge les fichiers locaux sous
+  // `https://localhost` (androidScheme: "https", voir capacitor.config.json)
+  // et où window.location.origin ne pointe donc vers AUCUN backend réel.
+  // Un repli codé en dur sur https://sauvmoi.onrender.com faisait dépendre
+  // silencieusement TOUT appel API du backend Render, même quand le frontend
+  // était servi depuis une autre adresse (ex. o2switch) — fonctionnait grâce
+  // à CORS (voir CORS_ALLOWED_ORIGINS, server.js) mais reléguait le backend
+  // réellement co-hébergé sur cette autre adresse au silence, jamais
+  // sollicité. Même détection `Capacitor.isNativePlatform()` que
+  // screen-qr-scanner.jsx pour ne garder le repli fixe que là où il est
+  // réellement nécessaire (app Android).
+  const isNativeApp = !!(window.Capacitor?.isNativePlatform?.());
   const BASE = window.SAUVMOI_API
-    || 'https://sauvmoi.onrender.com';
+    || (isNativeApp ? 'https://sauvmoi.onrender.com' : window.location.origin);
 
   // Le JWT Supabase (window.SM.token) expire après ~1h. sm_refresh_token et
   // sm_expires_at (ms epoch) sont écrits ici et dans screen-auth.jsx

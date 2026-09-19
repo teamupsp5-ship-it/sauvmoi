@@ -9,7 +9,19 @@
 // injoignable), tout ici se dégrade proprement sans jamais lancer d'erreur —
 // le bouton "Continuer avec Google" affiche juste un message clair.
 (function () {
-  const API_BASE = window.SAUVMOI_API || 'https://sauvmoi.onrender.com';
+  // Même repli que api-client.js (voir son commentaire pour le détail) :
+  // le backend tourne à la même origine que le frontend statique (Render,
+  // o2switch, dev local), sauf dans l'app Android (Capacitor) où
+  // window.location.origin ne pointe vers aucun backend réel. Corrigé en
+  // même temps qu'un bug de redirection OAuth Google signalé sur o2switch —
+  // ce repli codé en dur envoyait déjà /api/config vers Render quelle que
+  // soit l'origine réelle (fond bug distinct, désormais corrigé), mais
+  // n'expliquait pas à lui seul la redirection finale : redirectTo
+  // (screen-auth.jsx) utilisait déjà window.location.origin de façon
+  // dynamique. Voir CLAUDE.md / le rapport du correctif pour le détail.
+  const isNativeApp = !!(window.Capacitor?.isNativePlatform?.());
+  const API_BASE = window.SAUVMOI_API
+    || (isNativeApp ? 'https://sauvmoi.onrender.com' : window.location.origin);
 
   // Un seul client par onglet, créé au premier besoin (auto-sync au chargement
   // si un callback OAuth est présent dans l'URL, ou clic sur le bouton Google).
