@@ -11,8 +11,11 @@ Tagline : **"Restez calme, tout ira bien"** (affiché sur splash screen et écra
 Sauv'Moi guide les utilisateurs dans les premiers secours via une IA vocale,
 reconnaît les situations d'urgence (texte, voix, photo), déclenche un SOS géolocalisé,
 localise les centres de santé proches, et propose des formations PSC1 gamifiées.
-Cible : Abidjan et Afrique de l'Ouest. Les données de démo du module Localisation
-couvrent San Pédro (20 centres de santé, liste vérifiée le 31/07/2026).
+Cible : Abidjan et Afrique de l'Ouest. Le module Localisation vise une couverture
+nationale des centres de santé (Côte d'Ivoire), synchronisée depuis l'API
+healthsites.io (données OpenStreetMap) — voir section Localisation. En
+secours (sync réel pas encore exécuté), 20 centres de San Pédro vérifiés le
+31/07/2026 restent disponibles (`source: 'seed-manuel'`).
 
 ---
 
@@ -24,7 +27,7 @@ couvrent San Pédro (20 centres de santé, liste vérifiée le 31/07/2026).
 | Sécurité backend | `helmet` (headers de sécurité + CSP) + `express-rate-limit` (login/register) — voir `src/server.js` et `src/validate.js`, section Sécurité ci-dessous |
 | Frontend | React 18 + JSX transpilé par Babel Standalone (pas de build) |
 | Icônes | Lucide (UMD, chargé via CDN) |
-| Cartes | Leaflet.js (CDN) + tuiles OpenStreetMap — carte SOS et carte Localisation |
+| Cartes | Leaflet.js (CDN) + tuiles OpenStreetMap — carte SOS et carte Localisation. Centres de santé : couverture nationale Côte d'Ivoire, synchronisée depuis l'API healthsites.io (données OpenStreetMap, licence ODbL) vers la table Supabase `health_centers` par `scripts/sync-health-centers.js` (tâche cron, jamais appelée en direct par une requête utilisateur) — voir section Localisation ci-dessous. |
 | IA | Claude `claude-haiku-4-5-20251001` via Anthropic API — premiers secours **et** santé générale, garde-fous stricts (jamais de diagnostic ni de posologie) — fallback protocoles PSC1 si pas de clé ou appel échoué |
 | Auth + BDD | **Supabase** (`@supabase/supabase-js` ^2, npm côté backend) — auth JWT (register/login/refresh) + Postgres (`profiles`, `emergency_contacts`, `training_progress`, `notifications`) avec Row Level Security. Côté navigateur, même SDK chargé en CDN (`supabase-client.js`) — usage limité à l'OAuth Google (`signInWithOAuth`), tout le reste du CRUD passe par le backend. |
 | Persistance legacy | Fichier JSON `.data/db.json` via `src/store.js` — plus utilisé pour les comptes/profils (migrés vers Supabase), reste pour les données seed statiques, les alertes SOS actives (en mémoire) et les conversations chat |
@@ -181,8 +184,15 @@ charger le fichier dans `index.html`, l'ajouter ici.
 | `data/seed.js` | `DEMO_USER`, `EMERGENCY_LIST`, `RESCUERS`, `PAYMENT_METHODS`, `TIPS` — données statiques, plus la source de vérité des comptes (→ Supabase) |
 | `data/protocols.js` | Protocoles PSC1 validés (hémorragie, étouffement, RCP, brûlure, AVC…) |
 | `data/training-modules.js` | `TRAINING_MODULES` — 10 modules PSC1 ordonnés (`order`), chacun avec un quiz de 5 à 20 questions selon la difficulté. Structure bilingue : `{ id, order, icon, color, difficulty, image, fr:{title,description,steps,quiz}, en:{...} }` — `id`/`order`/`icon`/`color`/`difficulty`/`image` restent des champs canoniques indépendants de la langue (localisés côté serveur par `localizeModule()` dans `routes/training.js` selon `?lang=`), seuls `fr`/`en` portent le contenu traduit. `image` : URL Unsplash/Pexels réelle associée par thème, affichée via `FallbackImage` (`frames.jsx`) avec `mod.color` en repli — les 10 modules ont chacun une image distincte (Hémorragie/Brûlures/Fractures ont reçu des photos dédiées après un premier passage où elles partageaient une image à 3, les rendant indiscernables dans la liste) ; certaines coïncident avec une image de `DAILY_TIPS` (`screen-home.jsx`, pool de 6 photos séparé) par cohérence thématique, mais ce n'est plus un pool strictement partagé entre les deux fichiers. |
-| `data/health-centers.js` | `HEALTH_CENTERS` — 20 centres de santé de San Pédro (hôpital, clinique, maternité regroupée sous `type: 'clinique'`, dispensaire, public), liste vérifiée le 31/07/2026 via Google Maps. `phone` vaut `null` pour les centres sans numéro confirmé (6 centres) — le frontend (`screen-map.jsx`) affiche alors "Numéro non disponible" au lieu d'un bouton "Appeler" qui aurait planté sur `null.replace(...)`. |
+| `data/health-centers.js` | **Superseded, code mort** — `HEALTH_CENTERS`, la liste statique des 20 centres de San Pédro (utile jusque-là comme unique source), n'est plus importée par `routes/api.js` depuis le passage à une couverture nationale via la table Supabase `health_centers` (voir `scripts/sync-health-centers.js` et la section Localisation). Fichier laissé en place (les 20 mêmes entrées ont été copiées en dur dans la migration SQL de `supabase/schema.sql`, source `'seed-manuel'`) plutôt que supprimé — candidat à un nettoyage futur, voir Dette technique connue. |
 | `data/emergency-numbers.js` | `EMERGENCY_NUMBERS = { samu: '185', pompiers: '180', police: '110' }` — **source unique** des numéros d'urgence (lot 7). Avant ce fichier, la Police apparaissait en `110` sur les écrans SOS et en `170` dans le prompt système de l'IA/les CGU/le pied de page du chat (`src/data/protocols.js` définissait même déjà `POLICE='170'` sans que les écrans SOS ne l'utilisent) — deux valeurs réelles mais divergentes faute de source commune. `110` a été retenu comme valeur canonique parce que c'est celle déjà utilisée par la surface la plus critique (les écrans SOS), pas parce qu'une autorité externe a été consultée pour trancher entre les deux — si un numéro officiel différent devait un jour être confirmé, ce fichier est le seul endroit à corriger. `data/protocols.js` réexporte désormais SAMU/POMPIERS/POLICE depuis ce fichier plutôt que de les redéfinir. Exposé côté client via `GET /api/emergency-numbers` (`routes/api.js`) + `useEmergencyNumbers()` (`frames.jsx`, avec repli local `EMERGENCY_NUMBERS_FALLBACK` identique — un écran SOS ne doit jamais attendre un aller-retour réseau pour afficher un numéro qui compose très bien hors ligne). Exception documentée : le fallback PSC1 hors-ligne de `live-chat.jsx` garde SAMU/Pompiers codés en dur (jamais la Police, absente de ces protocoles) — ce fallback existe précisément pour fonctionner réseau coupé, un appel à cette route y romprait la garantie ; `screen-sos.jsx`/`screen-chat.jsx` (canvas, données de démo statiques) restent aussi codés en dur, cohérent avec le reste des données de canvas. |
+
+### Scripts (`scripts/`)
+
+| Fichier | Rôle |
+|---|---|
+| `sync-health-centers.js` | Script **autonome**, jamais importé ni appelé par `src/server.js` — exécution en ligne de commande (`node scripts/sync-health-centers.js`), prévu pour une tâche cron (voir section Localisation ci-dessous pour le détail complet : format API, mapping de type, pagination, upsert par lots). Exporte `resolveType`/`mapFeatureToRow`/`fetchAllFeatures` en plus de son exécution directe, pour rester testable sans réseau (voir `sync-health-centers.test.js`). |
+| `sync-health-centers.test.js` | Vérifie la logique de `sync-health-centers.js` (mapping de tags OSM, extraction d'une ligne, pagination) contre des données et un `fetch()` **factices** — aucun appel réseau réel, aucune écriture Supabase. Pas de framework de test (aucun n'est installé dans ce projet, voir Dette technique connue) : assertions `node:assert/strict` pures, exécution directe (`node scripts/sync-health-centers.test.js`). |
 
 ### Frontend (`public/`)
 
@@ -198,7 +208,7 @@ charger le fichier dans `index.html`, l'ajouter ici.
 | `screen-sos.jsx` / `live-sos.jsx` | **`screen-sos.jsx` est entièrement du code mort en production** (contrairement à `screen-chat.jsx` ci-dessus, qui partage des bulles réellement utilisées) : il n'exporte que `SOSCountdown`/`SOSConfirm`, tous deux réécrits par `live-sos.jsx` (chargé après dans `index.html`) — seul `canvas.html` exécute la version de `screen-sos.jsx`. Contient encore le même bug lot 9 (double frontière) sur son bouton Annuler, jamais corrigé ici (voir Dette technique connue). `SOSCountdown` (idle : grand bouton rouge pulsant + numéros rapides SAMU/Pompiers/Police en `sm-icon-tile`/`sm-icon-circle` bleu/orange/rouge pastel — même structure que la carte QR de l'accueil, pas d'aplat rouge plein réservé au seul bouton SOS ; counting : compte à rebours 5s sur un disque `var(--sm-shadow-md)`, cercle SVG rouge, vibration, GPS réel via `navigator.geolocation`) · `SOSConfirm` (carte Leaflet réelle centrée sur la position déclarée, "Alerte déclenchée" via `<Banner variant="success">` plutôt qu'un bloc vert fait main, liste des contacts avec badge "Notifié dans l'app" si `hasAccount`, sinon bouton "Alerter via WhatsApp" qui ouvre `wa.me` avec message + lien Google Maps géolocalisé — message généré dans la langue active de l'utilisateur, voir `buildWaUrl(..., lang)`). `live-sos.jsx` surcharge entièrement `screen-sos.jsx`. |
 | `screen-training.jsx` | `TrainingMobile` — parcours façon Duolingo : liste des 10 modules PSC1 avec barre de progression globale, déverrouillage séquentiel (toast si module verrouillé cliqué), badges de difficulté pastel (`DIFF_STYLES_T`), vignette photo par module (`mod.image` via `FallbackImage`, coins arrondis alignés sur l'échelle `sm-icon-tile`), `FloatingChatButton`. |
 | `screen-training-module.jsx` | `TrainingModuleScreen` — détail d'un module + quiz progressif (5 à 20 questions selon le module), soumission du score à `POST /training/:moduleId/complete`, déverrouille le module suivant si réussite ≥ 60%. Illustration d'en-tête (`mod.image` via `FallbackImage`, ~130px, fond de repli `mod.color`) affichée en haut de la phase Étapes, au-dessus du titre et du contenu. Texte des étapes en 16px (relisibilité). `useEffect` sur `mod?.id` qui réinitialise `phase`/`result` à chaque changement de module — sinon `nav.go('training_module')` vers le module suivant réutilisait le composant déjà monté et restait bloqué sur l'écran de résultat de l'ancien module. `QuizPhase` garde en mémoire (`wrongAnswersRef`) chaque question ratée (texte, réponse donnée, bonne réponse), transmis à `ResultPhase` via le résultat. Écran de résultat : bloc titre/message ("Module complété !"/"Essayez encore") via `<Banner variant="success"|"danger">` plutôt qu'un titre centré fait main ; dès que le score n'est pas 100%, section "Questions à revoir" listant chaque erreur (réponse donnée en rouge ✗, bonne réponse en vert ✓, couleurs alignées sur celles du `Banner`). Boutons : échec (< 60%) → "Recommencer le quiz" (`handleRetry`, repasse par les étapes) ; validé mais imparfait (60–99%) → "Module suivant" reste l'action principale (si dispo), + bouton secondaire "Revoir mes erreurs et refaire le quiz" (`handleRetryQuiz`, saute directement au quiz sans repasser par les étapes — la matière est déjà maîtrisée). |
-| `screen-map.jsx` | `MapScreen` — module Localisation : carte Leaflet + liste des centres de santé de San Pédro (`HEALTH_CENTERS`, 20 centres), position GPS temps réel via `navigator.geolocation.watchPosition`, distance Haversine, tri par proximité, filtres (Tous / Hôpitaux / Cliniques / Dispensaires / 24hsur24 — chip actif en `var(--sm-navy-deep)`, cohérent avec la tabbar), appel direct par centre — bouton "Appeler" remplacé par "Numéro non disponible" (désactivé) si `phone: null`. Si la géolocalisation échoue en `PERMISSION_DENIED` **et** que `isIOSDevice()` détecte iOS (userAgent, avec le cas iPad qui se présente en `Macintosh` + `maxTouchPoints`), remplace le bouton "Réessayer" (inopérant sur iOS une fois le refus enregistré) par les instructions manuelles Réglages → Safari → Position — "Réessayer" reste actif pour Android et les autres cas. Le bandeau d'erreur GPS utilise `<Banner variant="warning" icon="alert-circle">` avec `children` (titre + instructions/bouton conditionnels selon `denied`/iOS). `FloatingChatButton`. |
+| `screen-map.jsx` | `MapScreen` — module Localisation : carte Leaflet + liste des centres de santé, chargée via `window.API.healthCenters(lat, lng)` (`GET /api/health-centers`, désormais couverture nationale, voir section Localisation), position GPS temps réel via `navigator.geolocation.watchPosition`, distance Haversine (calculée côté client, redondante avec celle déjà renvoyée par le backend — comportement préexistant, inchangé), tri par proximité, filtres (Tous / Hôpitaux / Cliniques / Dispensaires / 24hsur24 — chip actif en `var(--sm-navy-deep)`, cohérent avec la tabbar). **Filtres partiellement obsolètes depuis le passage à healthsites.io** (fichier non modifié par ce changement, voir Décisions techniques) : "Dispensaires" ne matche plus aucun centre (la nouvelle taxonomie `type` n'a pas cette valeur, tout est reclassé en `hopital`/`clinique`/`pharmacie`/`centre_sante`/`autre`), et "24h" ne renvoie plus jamais de résultat (`available24h` n'existe plus dans les données). `TYPE_ICON`/`TYPE_COLOR`/`TYPE_BG` ne couvrent que `hopital`/`clinique`/`maternite`/`dispensaire`/`public` (anciennes valeurs) — un centre `pharmacie`/`centre_sante`/`autre` retombe sur l'icône/couleur générique (`map-pin`/`var(--sm-ink)`/`#F1F2F4`), pas de crash, juste moins distinctif visuellement. Appel direct par centre — bouton "Appeler" remplacé par "Numéro non disponible" (désactivé) si `phone: null`. Mention d'attribution discrète sous la carte (`map.osm_attribution`, licence ODbL — légalement requise, les tuiles ET désormais les centres de santé sont des données OpenStreetMap ; le badge Leaflet natif reste désactivé, `attributionControl: false`, pour rester cohérent avec le style de l'app). Si la géolocalisation échoue en `PERMISSION_DENIED` **et** que `isIOSDevice()` détecte iOS (userAgent, avec le cas iPad qui se présente en `Macintosh` + `maxTouchPoints`), remplace le bouton "Réessayer" (inopérant sur iOS une fois le refus enregistré) par les instructions manuelles Réglages → Safari → Position — "Réessayer" reste actif pour Android et les autres cas. Le bandeau d'erreur GPS utilise `<Banner variant="warning" icon="alert-circle">` avec `children` (titre + instructions/bouton conditionnels selon `denied`/iOS). `FloatingChatButton`. |
 | `live-chat.jsx` | Chat live complet : POST `/api/chat` (premiers secours + santé générale, garde-fous, mémoire de conversation complète), fallback PSC1 local (6 protocoles embarqués) — déclenché **uniquement** sur vraie panne réseau (`err.isNetworkError`), jamais sur une réponse serveur en erreur. `send()` retourne le résultat (utilisé par le mode vocal). Saisie vocale ponctuelle (bouton micro) : le transcript remplit le champ texte, **n'envoie jamais automatiquement** — confirmation par le bouton d'envoi comme au clavier. **Mode vocal continu** (bouton casque dans l'en-tête, `VoiceModeOverlay`) : écoute continue (`SpeechRecognition` `continuous`+`interimResults`), détection de fin de phrase par timeout de silence ~1.5s (+ `onspeechend` en complément), envoi auto à `/api/chat`, lecture de la réponse en Speech Synthesis (id partagé `'voice-live'` avec le bouton haut-parleur de la bulle affichée dans l'overlay — cliquer dessus interrompt la lecture), micro coupé pendant que l'app parle puis réécoute automatique à la fin. États visuels écoute/réflexion/réponse/pause/erreur, pause et sortie à tout moment. Watchdog de 3s après `rec.start()` (saisie ponctuelle ET mode continu) : si ni `onstart` ni `onerror` ne s'est déclenché, affiche un message clair au lieu de laisser l'UI bloquée sur "en écoute" — silence typique de Samsung Internet, qui expose souvent `webkitSpeechRecognition` sans que la reconnaissance fonctionne réellement. `isSamsungInternet()` (UA sniffing, même pattern que `isIOSDevice()` dans `screen-map.jsx`) adapte le message ("non supporté" et "watchdog silencieux") pour inviter explicitement à utiliser Chrome. Logs console `[voice]`/`[speech]` à chaque étape clé (démarrage/résultat/erreur reconnaissance, démarrage/onstart/fin synthèse) — rendre les échecs visibles plutôt que silencieux. Envoi image (aperçu dans la bulle, texte envoyé au vrai pipeline Claude — le system prompt lui interdit de prétendre diagnostiquer visuellement), auto-scroll, indicateur En ligne/Hors ligne. Surcharge `ChatListening` et `ChatResponse`. |
 | `live-emergency.jsx` | Version branchée backend de l'urgence — surcharge `EmergencyGuide` de `screen-emergency.jsx` (racine `<div position:absolute;inset:0>`, pas un Fragment, même raison que `HomeMobile`) |
 | `screen-profile.jsx` | `ProfileScreen` : en-tête dégradé `linear-gradient(180deg, #f8f9fa, white)` (aligné sur SOS/Localisation/`SubHeader`, remplace un fond blanc plat), carte profil avec barre de progression (complétion calculée sur 12 points : infos perso + médicales + contacts), badge "Profil complet" à 100%, badge "À compléter" sur la section médicale si groupe sanguin ou allergies manquants, `FloatingChatButton`. Navigue vers 3 sous-écrans dédiés : `ProfilePersonal` (infos perso, date de naissance via `BirthdateField`), `ProfileMedical` (carnet médical), `ProfileContacts` (contacts d'urgence, max 5, remplacement complet côté backend). Avatar + photo (resize canvas), changement mdp (Bearer token requis), déconnexion (nettoie aussi `sm_refresh_token`/`sm_expires_at`). Mode édition avec champs bleutés, barre sticky Annuler/Sauvegarder, `ProfileToast` (succès uniquement, `<Banner variant="success">`, positionnement absolu `top: 70` par-dessus l'écran — décalage deviné pour la hauteur du `SubHeader`, jamais mesuré, mais sans conséquence pratique pour un toast de succès éphémère). **Les erreurs (lot 8), elles, ne passent plus par ce composant** : `<Banner variant="danger">` est rendu EN LIGNE dans le flux normal du document (juste au-dessus de la barre Annuler/Sauvegarder, ou en tête de corps pour l'écran principal) — jamais un positionnement absolu à coordonnées fixes, qui avait rendu invisible le message d'erreur de `ProfilePersonal` sur certains rendus (le décalage devine ne correspondait à rien de visible à l'écran). Voir Décisions techniques. Corps scrollable (`overflow-y:auto`) — le corps est lui-même `display:flex; flex-direction:column` (pour son `gap` entre cartes), ce qui a longtemps empêché tout défilement même avec le fix `min-height:0` : ses enfants directs (les 3 cartes) héritaient de `flex-shrink:1` et se COMPRESSAIENT pour tenir dans l'espace disponible au lieu de déborder — "Changer le mot de passe"/"Conditions générales" invisibles sans qu'aucun `scrollHeight > clientHeight` ne se déclenche jamais. Voir styles.css pour le fix `flex-shrink:0` correspondant. Vérifié atteignable jusqu'à "Se déconnecter" sur iPhone SE (375×667, safe-area nulle sur un vrai appareil) et standard (390×844 avec safe-area réaliste). |
@@ -315,6 +325,7 @@ base neuve (voir aussi la section Variables d'environnement).
 | `emergency_contacts` | `id`, `user_id`, `name`, `phone`, `relation` | Contacts d'urgence, max 5 côté backend (400 si dépassé). `PUT /me` fait un remplacement complet (delete puis insert) quelle que soit la forme du payload (`emergencyContacts` tableau ou `emergencyContact` singulier, à plat ou nichés sous `medicalRecord`). |
 | `training_progress` | `user_id` (PK), `completed_modules` (`text[]`), `scores` (`jsonb`) | Progression formation, upsert à chaque `POST /training/:id/complete`. Score toujours clampé `[0,100]` en écriture et en lecture. |
 | `notifications` | `id`, `user_id`, `type`, `from_user`, `message`, `lat`, `lng`, `is_read` | Alertes in-app, alimentées par `routes/sos.js` quand un contact d'urgence a lui-même un compte. |
+| `health_centers` | `id` (text, `"<osm_type>/<osm_id>"`, ex. `node/2828406228`), `name`, `type` (`hopital`/`clinique`/`pharmacie`/`centre_sante`/`autre`, CHECK), `lat`, `lng`, `phone`, `address` (nullable), `source` (`'healthsites.io'` ou `'seed-manuel'`), `synced_at` | Couverture nationale des centres de santé, table de référence publique (pas de `user_id`) écrite uniquement par `scripts/sync-health-centers.js` (upsert sur `id`), lue par `GET /api/health-centers`. RLS activée SANS AUCUNE policy — même principe que le bucket `blood-type-proofs` (voir Sécurité) : seul le backend `service_role` y accède, l'absence de policy empêche tout accès direct anon/authenticated. Voir section Localisation ci-dessous pour l'architecture complète. |
 
 **Row Level Security** activée sur les 4 tables (`auth.uid() = id` / `= user_id`) —
 mais le backend passe toujours par le client `service_role` (`src/supabase.js`), qui
@@ -326,6 +337,130 @@ depuis le client, pas le mécanisme d'autorisation actuel (c'est `requireAuth` +
 crée automatiquement une ligne `profiles` (name, phone) à l'inscription. `POST
 /auth/register` complète ensuite cette ligne par un `upsert` (pas un simple
 `update`, voir Flux d'authentification ci-dessus).
+
+---
+
+## Localisation — centres de santé
+
+**Architecture délibérée : aucun appel direct à healthsites.io au moment où
+un utilisateur consulte la carte.** Sauv'Moi est une app de premiers
+secours — une fonctionnalité potentiellement critique (trouver le centre de
+santé le plus proche) ne doit jamais dépendre en temps réel de la
+disponibilité d'un service tiers. À la place :
+
+```
+scripts/sync-health-centers.js (tâche cron, indépendant du serveur Express)
+  → API healthsites.io v3 (données OpenStreetMap, licence ODbL)
+  → upsert dans la table Supabase health_centers (par lots de 500)
+
+GET /api/health-centers (routes/api.js, appelé par screen-map.jsx à chaque
+  consultation de l'écran Localisation)
+  → lit UNIQUEMENT la table Supabase health_centers (service_role)
+  → calcule la distance (haversineKm, inchangé) si lat/lng fournis
+  → jamais d'appel réseau vers healthsites.io à ce moment
+```
+
+**Table `health_centers`** : voir Base de données Supabase ci-dessus pour
+le schéma complet. RLS activée sans policy (accès direct impossible depuis
+un client anon/authenticated, seul le backend `service_role` la lit/écrit).
+
+**Seed initial** : la migration SQL insère les 20 centres de San Pédro
+auparavant codés en dur dans `src/data/health-centers.js` (`source:
+'seed-manuel'`, id préfixés `seed/...`) — garantit qu'il n'y a jamais de
+régression (carte vide) si le tout premier sync réel échoue ou tarde à
+être programmé. Ces lignes coexistent sans conflit avec celles qu'un sync
+réel écrira plus tard pour les mêmes établissements (id différents,
+`seed/...` vs `node/...`/`way/...`) — un nettoyage manuel des lignes
+`source = 'seed-manuel'` peut être fait après le premier sync réussi, si
+souhaité, mais n'est pas automatique.
+
+**Taxonomie `type`** : `hopital` / `clinique` / `pharmacie` / `centre_sante`
+/ `autre`, déduite des tags OpenStreetMap `healthcare`/`amenity` par
+`resolveType()` dans `scripts/sync-health-centers.js` (`healthcare`
+consulté en priorité, plus spécifique que `amenity` quand les deux tags
+coexistent sur un même établissement). Différente de l'ancienne taxonomie
+(`hopital`/`clinique`/`dispensaire`/`public`/`maternite`) — voir la
+Décision technique dédiée pour les conséquences côté `screen-map.jsx`
+(fichier volontairement non modifié par ce changement).
+
+**`scripts/sync-health-centers.js`** — script autonome (`node
+scripts/sync-health-centers.js`), jamais importé par `src/server.js` :
+- Lit `HEALTHSITES_API_KEY` (voir `.env.example`) — abandonne immédiatement
+  si absente.
+- Interroge `GET https://healthsites.io/api/v3/facilities/` avec
+  `api-key`, `page` (pagination incrémentée jusqu'à une page vide — la
+  documentation officielle ne précise pas de total explicite),
+  `country=Côte d'Ivoire`, `output=geojson`, `flat-properties=true`.
+  Garde-fou `MAX_PAGES` (500) pour ne jamais boucler indéfiniment en tâche
+  cron non surveillée.
+- Récupère **tous les types d'établissements**, sans filtrer (conforme à
+  la demande) — le filtrage se fait uniquement au niveau du `type` déduit,
+  pas au niveau de la requête HTTP.
+- `mapFeatureToRow()` convertit chaque feature GeoJSON en ligne
+  `health_centers` — défensif par construction (plusieurs noms de champs
+  plausibles essayés dans l'ordre pour `phone`/`address`, une ligne
+  inexploitable — coordonnées ou id OSM manquants — est ignorée plutôt que
+  de faire échouer tout le sync).
+- Upsert Supabase par lots de 500 lignes (`onConflict: 'id'`) — une table
+  nationale peut compter plusieurs milliers d'établissements, un seul
+  appel risquerait timeout/limite de charge.
+- Log clair à la fin : nombre d'établissements récupérés depuis
+  healthsites.io et nombre réellement synchronisé (inséré ou mis à jour)
+  dans Supabase, plus un avertissement si des lignes ont été ignorées.
+- N'écrit jamais une table vide par erreur : si la réponse API ne produit
+  aucune ligne exploitable, le script échoue explicitement (`process.exit(1)`)
+  **sans toucher à Supabase**, plutôt que de purger silencieusement les
+  données existantes.
+
+⚠️ **Format de réponse healthsites.io non vérifié contre un appel réel** au
+moment où ce script a été écrit — la clé `HEALTHSITES_API_KEY` n'était pas
+encore approuvée. Les PARAMÈTRES de requête viennent de la documentation
+officielle (`https://healthsites.io/api/docs/`), consultée directement.
+Les noms de CHAMPS dans chaque `properties` GeoJSON (`amenity`,
+`healthcare`, `name`, `phone`, `contact:phone`, `addr:*`) sont déduits des
+conventions de tags OpenStreetMap standard et d'exemples communautaires,
+pas d'une réponse authentifiée observée. **`mapFeatureToRow()` est la
+fonction à ajuster en priorité si le tout premier sync réel échoue ou
+produit des lignes inattendues.**
+
+**Tests** (`scripts/sync-health-centers.test.js`, `node
+scripts/sync-health-centers.test.js`) : logique de mapping de type,
+extraction d'une ligne à partir d'un feature GeoJSON, et pagination
+(`fetch()` global stubbé) — 18 cas, aucun appel réseau réel, aucune
+écriture Supabase. Ne couvre pas `upsertInBatches()` elle-même (chaînage
+Supabase non trivialement simulable sans framework de mock dans ce
+projet) — relu manuellement, chunking simple, risque jugé faible.
+
+**Relancer le sync manuellement** :
+```bash
+# Variables requises dans l'environnement (ce projet n'utilise pas dotenv,
+# voir .env.example) :
+#   HEALTHSITES_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+node scripts/sync-health-centers.js
+```
+
+**Programmer en cron sur o2switch** (à faire manuellement via cPanel, pas
+automatisé par ce dépôt) : cPanel → Cron Jobs → nouvelle tâche exécutant
+`node /chemin/vers/sauvmoi/scripts/sync-health-centers.js` avec les trois
+variables d'environnement ci-dessus disponibles dans l'environnement
+d'exécution du cron (cPanel permet généralement de les préfixer directement
+dans la commande, ex. `HEALTHSITES_API_KEY=... SUPABASE_URL=... node
+scripts/sync-health-centers.js`, ou via un fichier chargé par
+`--env-file`). Fréquence suggérée : hebdomadaire ou mensuelle — les
+données OpenStreetMap de centres de santé ne changent pas au jour le jour.
+
+**Route `GET /api/health-centers`** (`routes/api.js`) : lit désormais
+`health_centers` (Supabase) au lieu du tableau statique `HEALTH_CENTERS`
+— même calcul de distance (`haversineKm`, inchangé) et même forme de
+réponse JSON qu'avant, à une exception assumée : `available24h`
+n'existe pas dans la table (aucune donnée fiable côté OSM pour ce champ) et
+n'apparaît donc plus dans la réponse — voir la Décision technique dédiée
+pour les conséquences côté `screen-map.jsx` (fichier non modifié).
+
+**Attribution ODbL** : mention `map.osm_attribution` ("Données ©
+contributeurs OpenStreetMap") affichée sous la carte dans
+`screen-map.jsx` — légalement requise par la licence ODbL des données
+OpenStreetMap (tuiles ET, désormais, centres de santé).
 
 ---
 
@@ -482,7 +617,9 @@ pour une migration testée correctement :
 | SOS : simulation retirée | WebSocket + simulation SAMU/secouristes supprimés, remplacés par carte Leaflet + position GPS réelle + WhatsApp + notifications in-app | La simulation temps fictif n'apportait rien face à une vraie position + de vrais canaux d'alerte (WhatsApp, notif in-app) |
 | Notifications SOS | Vérification `hasAccount` par téléphone dans la table Supabase `profiles` côté `routes/sos.js` | Distingue contact avec compte (notifié in-app) vs sans compte (relayé par WhatsApp) |
 | Formation | Déverrouillage séquentiel par `order` — un module ne s'ouvre que si le précédent a un score ≥ 60% | Reproduit la mécanique "parcours" façon Duolingo, incite à progresser dans l'ordre |
-| Localisation | Leaflet.js + OpenStreetMap (pas de clé API) | Gratuit, aucune dépendance à Google Maps, adapté à un hackathon |
+| Localisation | Leaflet.js + tuiles OpenStreetMap (pas de clé API pour l'affichage de la carte) | Gratuit, aucune dépendance à Google Maps, adapté à un hackathon |
+| Centres de santé : sync différé plutôt qu'appel direct | `scripts/sync-health-centers.js` (tâche cron, autonome) écrit dans la table Supabase `health_centers` ; `GET /api/health-centers` ne lit QUE cette table, jamais l'API healthsites.io en direct — voir section Localisation pour l'architecture complète | App de premiers secours : une fonctionnalité potentiellement critique (trouver le centre de santé le plus proche) ne doit jamais dépendre en temps réel de la disponibilité d'un service tiers externe |
+| Centres de santé : nouvelle taxonomie `type`, `screen-map.jsx` non modifié | 5 catégories (`hopital`/`clinique`/`pharmacie`/`centre_sante`/`autre`) déduites des tags OSM, remplacent l'ancienne taxonomie (`hopital`/`clinique`/`dispensaire`/`public`/`maternite`) — `screen-map.jsx` reste inchangé comme demandé | Conséquences assumées, non corrigées ici (hors périmètre du changement demandé) : le filtre "Dispensaires" ne matche plus rien (valeur absente de la nouvelle taxonomie), le filtre "24h" ne renvoie plus jamais de résultat (`available24h` n'existe pas dans `health_centers`, aucune donnée fiable côté OSM pour ce champ), et `pharmacie`/`centre_sante`/`autre` n'ont pas d'icône/couleur dédiée dans `TYPE_ICON`/`TYPE_COLOR`/`TYPE_BG` (retombent sur le style générique `map-pin`, pas de crash) |
 | Centres de santé | Données statiques `HEALTH_CENTERS` (20 centres San Pédro, vérifiés 31/07/2026) codées en dur | Pas de temps pour une vraie API annuaire santé ivoirienne |
 | Profil : complétion | Calcul sur 12 points (infos perso + médicales + contacts) dans `screen-profile.jsx` | Donne un objectif concret à l'utilisateur, incite à remplir le carnet médical |
 | Profil : sous-écrans | `ProfilePersonal` / `ProfileMedical` / `ProfileContacts` séparés avec navigation dédiée | Remplace l'ancien formulaire unique — édition plus lisible sur mobile |
@@ -551,7 +688,7 @@ pour une migration testée correctement :
 - **Bouton flottant Chat IA** (`FloatingChatButton`) : accès rapide depuis Accueil, Formation, Localisation, Profil et SOS (idle)
 - **Module SOS réel** : compte à rebours 5s + position GPS réelle (`navigator.geolocation`) + carte Leaflet de confirmation + boutons WhatsApp réels (`wa.me` avec position géolocalisée) pour les contacts sans compte + notifications in-app réelles pour les contacts avec compte (vérification `hasAccount` via Supabase côté backend)
 - **Module Formation complet** : 10 modules PSC1, parcours façon Duolingo, quiz progressifs de 5 à 20 questions selon le module, déverrouillage séquentiel (un module ouvre le suivant à partir de 60% de réussite), progression persistée dans Supabase, écrans `screen-training.jsx` (liste + progression globale) et `screen-training-module.jsx` (détail + quiz, transition propre entre modules). Résultat de quiz : section "Questions à revoir" (réponse donnée vs bonne réponse) dès que le score n'est pas parfait, bouton "Revoir mes erreurs et refaire le quiz" pour un module déjà validé mais imparfait.
-- **Module Localisation complet** : carte Leaflet.js + OpenStreetMap, 20 centres de santé de San Pédro vérifiés (`health-centers.js`), suivi GPS temps réel (`watchPosition`), tri par distance (Haversine), filtres (Tous / Hôpitaux / Cliniques / Dispensaires / 24h sur 24), appel direct (ou "Numéro non disponible" si absent), message d'instructions manuelles si GPS refusé sur iOS, écran `screen-map.jsx`
+- **Module Localisation complet** : carte Leaflet.js + OpenStreetMap, centres de santé à **couverture nationale** (table Supabase `health_centers`, synchronisée depuis l'API healthsites.io par la tâche cron `scripts/sync-health-centers.js` — jamais d'appel direct à ce service tiers au moment où un utilisateur consulte la carte, voir section Localisation), 20 centres de San Pédro conservés en secours (`source: 'seed-manuel'`, tant qu'aucun sync réel n'a encore tourné), suivi GPS temps réel (`watchPosition`), tri par distance (Haversine), filtres (Tous / Hôpitaux / Cliniques / Dispensaires / 24h sur 24 — les deux derniers partiellement obsolètes depuis la nouvelle taxonomie de types, voir Décisions techniques), appel direct (ou "Numéro non disponible" si absent), mention d'attribution ODbL, message d'instructions manuelles si GPS refusé sur iOS, écran `screen-map.jsx`. **Sync réel pas encore exécuté** : clé `HEALTHSITES_API_KEY` pas encore approuvée par healthsites.io au moment de l'écriture, voir Feuille de route.
 - Profil utilisateur redesigné : carte profil avec barre de progression (complétion sur 12 points), badge "Profil complet" à 100%, sous-écrans dédiés `profile_personal` / `profile_medical` / `profile_contacts` avec navigation propre, données persistées dans Supabase. Avatar + photo (resize canvas), changement mdp, déconnexion. Mode édition champs bleutés, barre sticky, toast vert. Date de naissance via `BirthdateField` (calendrier ou texte).
 - **Typographie renforcée** : titres en gras (700) vs texte courant régulier (400) sur tout l'app, texte des étapes de formation agrandi (16px)
 - **Expérience iOS Safari** : hauteur d'écran fiable (repli `100vh`/`100dvh`), zones de sécurité (`env(safe-area-inset-*)`), scroll tactile fluide, sélection de texte désactivée sauf champs de saisie et réponses IA, message clair si GPS refusé (au lieu d'un "Réessayer" inopérant), icône d'écran d'accueil dédiée (`apple-touch-icon.png`)
@@ -579,6 +716,7 @@ pour une migration testée correctement :
 - [ ] Brancher `@capacitor/camera` sur les uploads photo du profil (natif Android)
 - [ ] `npm run build:mobile` + rebuild APK pour activer le scanner MLKit
 - [ ] Configurer `ANTHROPIC_API_KEY` sur Render (à vérifier — absente en prod lors des derniers tests → le chat tournait en fallback PSC1 même en production)
+- [ ] **Centres de santé** : exécuter `supabase/schema.sql` (bloc migration `health_centers` + seed) sur le projet Supabase de prod. Une fois `HEALTHSITES_API_KEY` approuvée par healthsites.io : lancer manuellement `node scripts/sync-health-centers.js` une première fois (observer attentivement les logs — voir l'avertissement dans le script sur le format de réponse non vérifié, ajuster `mapFeatureToRow()` si les données produites semblent incorrectes), puis programmer la tâche en cron sur o2switch (cPanel → Cron Jobs, voir section Localisation pour la commande exacte)
 
 ### Priorité moyenne
 - [ ] Tester le flux Google OAuth bout-en-bout avec de vraies clés Supabase déployées (non vérifiable en local sans projet Supabase réel — voir Flux d'authentification)
@@ -606,6 +744,7 @@ Constats vérifiés (grep/lecture du code réel, pas une supposition) plutôt qu
   - `POST /auth/request-otp` et `POST /auth/verify` (`src/routes/api.js`) — legacy, code OTP toujours `123456` en dur, aucun appel depuis le frontend.
   - Tout ce qui dépend de `DEMO_USER`/`RESCUERS`/`PAYMENT_METHODS`/`EMERGENCY_LIST` (`src/data/seed.js`) : `GET /api/home` (le résultat, `window.SM.home`, est bien rempli par `bootstrap()` mais **n'est lu par aucun écran** — vérifié par recherche de `SM.home` dans tout `public/`, seule occurrence restante hors `sm-state.js` est un `= null` à la déconnexion), `GET /api/emergencies` (même constat : `API.emergencies()`/`SM.emergencies` ne sont référencés nulle part dans `public/`, malgré `emergencies: null` toujours déclaré dans la forme de `window.SM`, voir État global partagé), `GET/POST /api/training/me`, `GET/PUT /api/medical-record` (legacy, remplacé par les routes Supabase de `routes/auth.js`/`routes/api.js`), `GET /api/payments/methods` + `POST /api/payments/initiate` + `POST/GET /api/payments/:id` (aucun des trois n'a de caller côté client — `API.paymentMethods()`/`payInitiate()`/`payConfirm()` dans `api-client.js` ne sont appelés par aucun écran). **Contredit la note "DEMO_USER sert encore de données statiques pour accueil/urgences/paiements" plus bas dans ce document (section Notes démo) : c'est vrai que ces routes existent et renvoient du `DEMO_USER`, mais aucune n'est plus consommée par un écran réel — corrigé dans cette même mise à jour.**
   - `API.rescuers()` (`public/api-client.js`) appelle `GET /api/rescuers/nearby`, une route qui **n'existe même plus côté serveur** (404 garanti si jamais invoquée) — mort des deux côtés.
+  - `src/data/health-centers.js` (`HEALTH_CENTERS`, 20 centres de San Pédro) — plus importé par `routes/api.js` depuis le passage de `GET /api/health-centers` à la table Supabase `health_centers` (couverture nationale, voir section Localisation). Les mêmes 20 entrées ont été copiées en dur dans la migration SQL (`source: 'seed-manuel'`), ce fichier JS n'a donc plus aucun rôle fonctionnel.
 - **`.sm-tabbar`/`TabBar` (`frames.jsx`, `styles.css`) : pas littéralement mort, mais un piège de maintenance.** Utilisé uniquement par `app.jsx` (canvas.html) ; l'app réelle utilise partout `HomeTabBar` (`screen-home.jsx`, styles inline, tout autre composant). Deux implémentations de tabbar parallèles qui peuvent diverger sans qu'aucune erreur ne le signale — un futur changement visuel de la tabbar appliqué à un seul des deux risque de rendre le canvas visuellement incohérent avec l'app réelle sans que personne ne s'en aperçoive avant de l'ouvrir.
 - **`screen-sos.jsx` et `screen-chat.jsx` (chargés par `canvas.html` via `app.jsx`, jamais par l'app réelle sauf pour les bulles de chat partagées de `screen-chat.jsx`, voir Fichiers clés) contiennent encore le bug "double frontière" corrigé au lot 9 sur leurs équivalents live (`live-sos.jsx`, `live-chat.jsx`)** — non corrigé intentionnellement lors du lot 9, la vérification par capture d'écran demandée portait sur les tailles de téléphone réel, hors du périmètre de `canvas.html`.
 

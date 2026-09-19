@@ -6,7 +6,6 @@ import {
   PAYMENT_METHODS, TIPS, DEMO_USER,
 } from '../data/seed.js';
 import { PROTOCOLS } from '../data/protocols.js';
-import { HEALTH_CENTERS } from '../data/health-centers.js';
 import { EMERGENCY_NUMBERS } from '../data/emergency-numbers.js';
 import { analyzeImage } from '../ai.js';
 import { supabase } from '../supabase.js';
@@ -564,11 +563,30 @@ router.get('/public/medical-card/:file', async (req, res) => {
 });
 
 // ─── CENTRES DE SANTÉ ────────────────────────────────────────────────────────
-router.get('/health-centers', (req, res) => {
+// Couverture nationale (Côte d'Ivoire), alimentée par
+// scripts/sync-health-centers.js depuis l'API healthsites.io (données
+// OpenStreetMap, licence ODbL — voir CLAUDE.md) — remplace l'ancienne liste
+// statique de 20 centres de San Pédro (src/data/health-centers.js, laissé
+// en place mais plus lu ici). Même calcul de distance (haversineKm) et même
+// forme de réponse JSON qu'avant ce changement, à une exception près :
+// `available24h` n'existe pas dans la table health_centers (aucune donnée
+// fiable pour ce champ dans la source OSM) et n'apparaît donc plus dans la
+// réponse — le filtre "24h" de screen-map.jsx (inchangé, hors périmètre de
+// ce lot) ne retournera donc plus aucun résultat, faute de donnée à filtrer.
+router.get('/health-centers', async (req, res) => {
   const lat = parseFloat(req.query.lat);
   const lng = parseFloat(req.query.lng);
   const hasCoords = !isNaN(lat) && !isNaN(lng);
-  const list = HEALTH_CENTERS.map(c => ({
+
+  const { data, error } = await supabase
+    .from('health_centers')
+    .select('id, name, type, lat, lng, phone');
+  if (error) {
+    console.error('[health-centers] lecture Supabase échouée:', error.message);
+    return res.status(500).json({ error: 'Centres de santé indisponibles' });
+  }
+
+  const list = data.map(c => ({
     ...c,
     distanceKm: hasCoords ? haversineKm(lat, lng, c.lat, c.lng) : null,
   }));

@@ -289,6 +289,15 @@ function MapScreen({ nav }) {
           </button>
         </div>
 
+        {/* Attribution ODbL — requise légalement, les tuiles ET les centres
+            de santé (healthsites.io, lui-même issu d'OpenStreetMap) sont
+            des données OpenStreetMap. Mention discrète plutôt que le badge
+            Leaflet par défaut (attributionControl désactivé plus haut, pour
+            rester cohérent avec le style de l'app). */}
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--sm-ink-400)', padding: '6px 16px 0' }}>
+          {t('map.osm_attribution')}
+        </div>
+
         {/* ── Filtres ───────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 8, padding: '14px 16px 6px', overflowX: 'auto', scrollbarWidth: 'none' }}>
           {FILTERS.map(f => (

@@ -195,6 +195,7 @@ window.I18N_FR = {
   'map.directions': 'Itinéraire',
   'map.no_results': 'Aucun établissement pour ce filtre',
   'map.my_position_popup': '📍 Ma position',
+  'map.osm_attribution': 'Données © contributeurs OpenStreetMap',
 
   // ── Conditions générales ─────────────────────────────────────────────────
   'terms.header_title': 'Conditions générales',

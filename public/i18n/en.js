@@ -195,6 +195,7 @@ window.I18N_EN = {
   'map.directions': 'Directions',
   'map.no_results': 'No establishments for this filter',
   'map.my_position_popup': '📍 My location',
+  'map.osm_attribution': 'Data © OpenStreetMap contributors',
 
   // ── Terms of use ─────────────────────────────────────────────────────────
   'terms.header_title': 'Terms of use',
