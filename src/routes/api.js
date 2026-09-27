@@ -15,10 +15,36 @@ import QRCode from 'qrcode';
 import sharp from 'sharp';
 import { buildMedicalCardSvg, buildUnavailableCardSvg } from '../medical-card.js';
 
-// URL publique du backend, encodée dans le QR médical (image PNG, voir plus
-// bas) — même convention que public/api-client.js (BASE hardcodée, override
-// possible pour le dev local).
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://sauvmoi.onrender.com';
+// URL publique et STABLE du backend, encodée DIRECTEMENT dans le QR médical
+// (voir buildQrResponse plus bas — QRCode.toDataURL(url, ...)) : c'est la
+// seule URL de tout le backend qui finit imprimée/scannée par un vrai
+// utilisateur, donc la seule qui ne doit JAMAIS être recalculée
+// dynamiquement à partir de la requête — contrairement à
+// public/api-client.js/supabase-client.js (base API dynamique par origine,
+// correcte LÀ car chaque appel est refait à chaque fois). Un QR imprimé
+// encode une URL figée pour toujours ; la faire dépendre du serveur qui a
+// généré ce QR précis (Render vs o2switch vs un futur domaine propre)
+// attacherait chaque QR imprimé à ce serveur indéfiniment, même après un
+// changement d'hébergement.
+//
+// Obligatoire en production — plus de repli SILENCIEUX vers Render (risque
+// réel : un déploiement sur un autre serveur générerait des QR pointant
+// vers Render sans que personne ne s'en aperçoive avant qu'un utilisateur
+// imprime sa fiche). Repli vers http://localhost:PORT accepté UNIQUEMENT
+// en l'absence de la variable, et toujours signalé bruyamment au démarrage
+// — acceptable en développement local, où aucun QR généré n'est destiné à
+// être réellement imprimé.
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || (() => {
+  const fallback = `http://localhost:${process.env.PORT || 3000}`;
+  console.error(
+    `[medical-card] PUBLIC_BASE_URL manquante — repli sur ${fallback}. ` +
+    'Acceptable en développement local UNIQUEMENT : en production, tout QR ' +
+    'médical généré maintenant encoderait cette adresse locale de façon ' +
+    'PERMANENTE, y compris après avoir défini la variable correctement plus ' +
+    'tard. Définir PUBLIC_BASE_URL avant tout déploiement réel (voir .env.example).'
+  );
+  return fallback;
+})();
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 // ─── Signature HMAC de la fiche médicale publique ──────────────────────────

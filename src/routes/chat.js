@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { get, save, uid } from '../store.js';
 import { generateReply } from '../ai.js';
 import { isNonEmptyString, isOptionalString } from '../validate.js';
@@ -20,12 +20,25 @@ const MAX_MESSAGE_LEN = 2000;
 // plus difficile à contourner qu'une IP puisqu'il faut un compte par
 // tentative. Même convention que loginLimiter/registerLimiter
 // (routes/auth.js) : express-rate-limit, message bilingue FR/EN.
+//
+// req.user est censé être TOUJOURS présent ici (requireAuth s'exécute
+// avant et rejette sinon) — le `|| req.ip` n'est qu'un filet de sécurité
+// pour un cas qui ne devrait jamais survenir. express-rate-limit ne peut
+// pas le savoir statiquement : sans ipKeyGenerator(), un req.ip IPv6 brut
+// n'est pas regroupé par sous-réseau, donc un client IPv6 pourrait changer
+// d'adresse dans son bloc /64 pour contourner la limite à chaque requête —
+// coût direct ici, cette route appelle l'API Claude (payante). Avertissement
+// ERR_ERL_KEY_GEN_IPV6 résolu en enveloppant le repli avec ipKeyGenerator
+// (regroupe par /56 par défaut, même comportement que le keyGenerator par
+// défaut de la librairie — voir loginLimiter/registerLimiter, qui n'ont
+// jamais eu ce défaut car ils utilisent ce défaut plutôt qu'un keyGenerator
+// personnalisé).
 const chatLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.id || req.ip,
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req.ip),
   message: { error: 'Trop de messages envoyés. Réessayez dans quelques minutes. / Too many messages sent. Please try again in a few minutes.' },
 });
 
