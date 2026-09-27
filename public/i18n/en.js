@@ -194,6 +194,8 @@ window.I18N_EN = {
   'map.number_unavailable': 'Number unavailable',
   'map.directions': 'Directions',
   'map.no_results': 'No establishments for this filter',
+  'map.load_error_title': 'Unable to load health centers',
+  'map.load_error_text': "The service is temporarily unavailable — this doesn't mean no centers exist. Try again, or use the emergency numbers below.",
   'map.my_position_popup': '📍 My location',
   'map.osm_attribution': 'Data © OpenStreetMap contributors',
 

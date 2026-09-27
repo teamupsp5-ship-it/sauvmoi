@@ -76,6 +76,14 @@ function MapScreen({ nav }) {
 
   const [centers, setCenters]   = useState([]);
   const [loading, setLoading]   = useState(true);
+  // Distinct de "0 résultat pour ce filtre" (voir sorted.length === 0 plus
+  // bas) : un échec serveur ne doit jamais se présenter comme une liste
+  // simplement vide — dans une app de premiers secours, ça laisserait
+  // croire qu'aucun centre de santé n'existe alors que c'est le chargement
+  // qui a échoué (même famille de défaut que le GPS absent/invalide du lot 1
+  // et l'état local optimiste du lot 5 : ne jamais masquer un échec réel
+  // derrière un état qui ressemble à un succès).
+  const [loadError, setLoadError] = useState(false);
   const [userPos, setUserPos]   = useState(null);   // { lat, lng, accuracy }
   const [gpsError, setGpsError] = useState(null);   // null | 'denied' | 'unavailable'
   const [filter, setFilter]     = useState('all');
@@ -182,13 +190,26 @@ function MapScreen({ nav }) {
   };
 
   // ── Chargement des centres depuis l'API ─────────────────────────────────
-  useEffect(() => {
-    const loc = userPos;
-    window.API.healthCenters(loc?.lat, loc?.lng)
-      .then(setCenters)
-      .catch(() => setCenters([]))
+  // Factorisé (pas juste un useEffect direct) pour être réutilisable par le
+  // bouton "Réessayer" de l'état d'erreur plus bas.
+  const loadHealthCenters = () => {
+    setLoading(true);
+    setLoadError(false);
+    window.API.healthCenters(userPos?.lat, userPos?.lng)
+      .then(data => { setCenters(data); setLoadError(false); })
+      .catch(e => {
+        // Jamais un échec silencieux qui se présente comme "aucun centre" —
+        // voir la note sur loadError plus haut. Le detail (status HTTP,
+        // message) part dans la console pour le diagnostic, jamais montré
+        // tel quel à l'utilisateur (message générique + bouton réessayer).
+        console.error('[map] chargement des centres de santé échoué:', e.status ?? '(réseau)', e.message);
+        setCenters([]);
+        setLoadError(true);
+      })
       .finally(() => setLoading(false));
-  }, []); // fetch une fois au montage ; le tri dynamique est fait en JS
+  };
+
+  useEffect(() => { loadHealthCenters(); }, []); // fetch une fois au montage ; le tri dynamique est fait en JS
 
   // ── Centrer la carte sur un centre ─────────────────────────────────────
   const selectCenter = c => {
@@ -334,14 +355,51 @@ function MapScreen({ nav }) {
           ))}
         </div>
 
-        {/* Compteur */}
-        <div style={{ padding: '6px 16px 10px', fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
-          {loading
-            ? t('map.loading_centers')
-            : t(sorted.length === 1 ? 'map.results_one' : 'map.results_other').replace('{n}', sorted.length)}
-        </div>
+        {/* Compteur — masqué en cas d'échec de chargement (le bandeau
+            d'erreur ci-dessous porte déjà le message, "0 établissement
+            trouvé" serait trompeur ici, voir loadError). */}
+        {!loadError && (
+          <div style={{ padding: '6px 16px 10px', fontSize: 13, color: 'var(--sm-ink-500)', fontFamily: 'var(--font-ui)' }}>
+            {loading
+              ? t('map.loading_centers')
+              : t(sorted.length === 1 ? 'map.results_one' : 'map.results_other').replace('{n}', sorted.length)}
+          </div>
+        )}
 
-        {/* ── Liste ─────────────────────────────────────────────────────── */}
+        {/* ── Échec de chargement — jamais confondu avec "aucun résultat
+            pour ce filtre" (voir la note sur loadError plus haut). Même
+            gabarit que le bandeau GPS refusé plus haut dans cet écran :
+            Banner + bouton Réessayer, mais ici en danger (échec serveur,
+            plus grave qu'un GPS simplement indisponible) et avec un rappel
+            des numéros d'urgence directs — dans une app de premiers
+            secours, ne jamais laisser un échec de chargement sans recours
+            immédiat. */}
+        {!loading && loadError && (
+          <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Banner variant="danger" icon="alert-circle" style={{ margin: 0 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t('map.load_error_title')}</div>
+              <div style={{ marginBottom: 10 }}>{t('map.load_error_text')}</div>
+              <button
+                onClick={loadHealthCenters}
+                style={{
+                  padding: '8px 16px', borderRadius: 8,
+                  background: '#C0392B', color: 'white', border: 'none',
+                  fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-ui)', cursor: 'pointer',
+                }}
+              >
+                {t('common.retry')}
+              </button>
+            </Banner>
+            <div>
+              <h3 className="sm-serif" style={{ fontSize: 16, marginBottom: 14 }}>{t('sos.emergency_numbers')}</h3>
+              <window.EmergencyQuickNumbers t={t} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Liste (masquée pendant un échec de chargement, voir le
+            bandeau d'erreur ci-dessus) ─────────────────────────────────── */}
+        {!loadError && (
         <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Skeletons */}
@@ -479,6 +537,7 @@ function MapScreen({ nav }) {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <FloatingChatButton nav={nav} />

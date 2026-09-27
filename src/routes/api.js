@@ -582,7 +582,14 @@ router.get('/health-centers', async (req, res) => {
     .from('health_centers')
     .select('id, name, type, lat, lng, phone');
   if (error) {
-    console.error('[health-centers] lecture Supabase échouée:', error.message);
+    // code/details/hint (pas seulement message) : une erreur PostgREST typique
+    // ici est '42P01' "relation \"health_centers\" does not exist" si le bloc
+    // MIGRATION de supabase/schema.sql n'a jamais été exécuté sur ce projet —
+    // le message seul ne le distingue pas clairement d'un autre échec (RLS,
+    // réseau Supabase, etc.) dans les logs serveur.
+    console.error('[health-centers] lecture Supabase échouée:', {
+      message: error.message, code: error.code, details: error.details, hint: error.hint,
+    });
     return res.status(500).json({ error: 'Centres de santé indisponibles' });
   }
 

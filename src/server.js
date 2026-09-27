@@ -111,6 +111,18 @@ app.use(helmet({
   frameguard: { action: 'deny' }, // X-Frame-Options — l'app n'est jamais destinée à être embarquée dans un iframe
   // HSTS reste sans effet en HTTP local (ignoré par les navigateurs hors
   // HTTPS) et s'applique correctement une fois servi en HTTPS sur Render.
+  //
+  // Referrer-Policy explicite : sans cette option, helmet applique son
+  // défaut 'no-referrer' (vérifié dans node_modules/helmet/index.cjs) —
+  // ça supprime le Referer sur TOUTES les requêtes sortantes du navigateur,
+  // y compris les tuiles Leaflet vers tile.openstreetmap.org. Les serveurs
+  // OSM exigent un Referer identifiant l'appelant (politique d'usage
+  // tile.openstreetmap.org) et renvoient 403 "Access blocked" sans lui —
+  // constaté en prod sur o2switch. 'strict-origin-when-cross-origin'
+  // envoie l'origine seule (https://sc3jdmi5414.universe.wf) aux domaines
+  // tiers, jamais le chemin/query de la page — aucune fuite de contenu de
+  // page, juste assez pour satisfaire la politique OSM.
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
 app.use(express.json({ limit: '8mb' }));

@@ -194,6 +194,8 @@ window.I18N_FR = {
   'map.number_unavailable': 'Numéro non disponible',
   'map.directions': 'Itinéraire',
   'map.no_results': 'Aucun établissement pour ce filtre',
+  'map.load_error_title': 'Impossible de charger les centres de santé',
+  'map.load_error_text': "Le service est temporairement indisponible — ce n'est pas qu'il n'existe aucun centre. Réessayez, ou utilisez les numéros d'urgence ci-dessous.",
   'map.my_position_popup': '📍 Ma position',
   'map.osm_attribution': 'Données © contributeurs OpenStreetMap',
 
