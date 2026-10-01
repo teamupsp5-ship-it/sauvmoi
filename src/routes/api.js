@@ -23,28 +23,46 @@ import { buildMedicalCardSvg, buildUnavailableCardSvg } from '../medical-card.js
 // public/api-client.js/supabase-client.js (base API dynamique par origine,
 // correcte LÀ car chaque appel est refait à chaque fois). Un QR imprimé
 // encode une URL figée pour toujours ; la faire dépendre du serveur qui a
-// généré ce QR précis (Render vs o2switch vs un futur domaine propre)
-// attacherait chaque QR imprimé à ce serveur indéfiniment, même après un
-// changement d'hébergement.
+// généré ce QR précis attacherait chaque QR imprimé à ce serveur
+// indéfiniment, même après un changement d'hébergement futur.
 //
-// Obligatoire en production — plus de repli SILENCIEUX vers Render (risque
-// réel : un déploiement sur un autre serveur générerait des QR pointant
-// vers Render sans que personne ne s'en aperçoive avant qu'un utilisateur
-// imprime sa fiche). Repli vers http://localhost:PORT accepté UNIQUEMENT
-// en l'absence de la variable, et toujours signalé bruyamment au démarrage
-// — acceptable en développement local, où aucun QR généré n'est destiné à
-// être réellement imprimé.
-const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || (() => {
+// Obligatoire en production (NODE_ENV=production) — plus AUCUN repli, ni
+// silencieux ni bruyant : une valeur absente ou invalide (doit commencer par
+// https://) fait échouer fermé la génération de QR (503, voir les deux routes
+// plus bas), jamais un repli vers localhost ou vers l'hôte de la requête. Un
+// déploiement sur un nouveau serveur sans cette variable définie ne doit
+// jamais pouvoir produire silencieusement des QR pointant vers une mauvaise
+// adresse — échouer bruyamment est le seul comportement sûr ici.
+// Hors production (dev local), un repli vers http://localhost:PORT reste
+// accepté et signalé bruyamment au démarrage — aucun QR généré en dev n'est
+// destiné à être réellement imprimé.
+function isValidPublicBaseUrl(url) {
+  return typeof url === 'string' && /^https:\/\//.test(url);
+}
+
+function getPublicBaseUrl() {
+  const raw = process.env.PUBLIC_BASE_URL;
+  if (isValidPublicBaseUrl(raw)) return raw;
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      `[medical-card] PUBLIC_BASE_URL ${raw ? `invalide (${raw}, doit commencer par https://)` : 'absente'} en ` +
+      'production — génération de QR refusée (échec fermé), aucun repli localhost ni vers l\'hôte de la requête. ' +
+      'Définir PUBLIC_BASE_URL avant tout déploiement réel (voir .env.example).'
+    );
+    return null;
+  }
+
   const fallback = `http://localhost:${process.env.PORT || 3000}`;
-  console.error(
-    `[medical-card] PUBLIC_BASE_URL manquante — repli sur ${fallback}. ` +
+  console.warn(
+    `[medical-card] PUBLIC_BASE_URL absente — repli sur ${fallback}. ` +
     'Acceptable en développement local UNIQUEMENT : en production, tout QR ' +
     'médical généré maintenant encoderait cette adresse locale de façon ' +
     'PERMANENTE, y compris après avoir défini la variable correctement plus ' +
     'tard. Définir PUBLIC_BASE_URL avant tout déploiement réel (voir .env.example).'
   );
   return fallback;
-})();
+}
 const SIX_MONTHS_MS = 6 * 30 * 24 * 60 * 60 * 1000;
 
 // ─── Signature HMAC de la fiche médicale publique ──────────────────────────
@@ -300,11 +318,11 @@ router.put('/medical-record', (req, res) => {
 // c'est ce qui garantit que l'URL — donc le contenu du QR affiché — reste
 // strictement identique tant que gen ne change pas, même consultée des
 // dizaines de fois.
-async function buildQrResponse(userId, gen, data) {
+async function buildQrResponse(userId, gen, data, baseUrl) {
   const expiresAt = gen + SIX_MONTHS_MS;
   const payload = { ...(data || { id: userId, nom: '', ageDays: null, bloodType: '', bloodTypeStatus: 'declared', allergies: [], conditions: [], contacts: [] }), generatedAt: gen, expiresAt };
   const sig = signMedicalCard(userId, gen, expiresAt);
-  const url = `${PUBLIC_BASE_URL}/api/public/medical-card/${userId}.png?gen=${gen}&exp=${expiresAt}&sig=${sig}`;
+  const url = `${baseUrl}/api/public/medical-card/${userId}.png?gen=${gen}&exp=${expiresAt}&sig=${sig}`;
   const qrDataUrl = await QRCode.toDataURL(url, { width: 300, margin: 2 });
   return { payload, qrDataUrl, url };
 }
@@ -321,6 +339,10 @@ router.get('/medical-record/qr', requireAuth, async (req, res) => {
     console.error('[medical-card] MEDICAL_CARD_SECRET absent — génération de QR refusée (échec fermé)');
     return res.status(500).json({ error: 'Configuration serveur invalide — QR médical indisponible' });
   }
+  const baseUrl = getPublicBaseUrl();
+  if (!baseUrl) {
+    return res.status(503).json({ error: 'Service indisponible — PUBLIC_BASE_URL non configurée, génération de QR refusée' });
+  }
   res.set('Cache-Control', 'no-store'); // données de santé — jamais en cache
   res.set('Pragma', 'no-cache');
   try {
@@ -334,7 +356,7 @@ router.get('/medical-record/qr', requireAuth, async (req, res) => {
         .eq('id', req.user.id);
       if (revokeErr) throw revokeErr;
     }
-    res.json(await buildQrResponse(req.user.id, gen, data));
+    res.json(await buildQrResponse(req.user.id, gen, data, baseUrl));
   } catch (e) {
     res.status(500).json({ error: 'Génération QR échouée', detail: e.message });
   }
@@ -349,6 +371,10 @@ router.post('/medical-record/qr/regenerate', requireAuth, async (req, res) => {
   if (!getMedicalCardSecret()) {
     console.error('[medical-card] MEDICAL_CARD_SECRET absent — régénération de QR refusée (échec fermé)');
     return res.status(500).json({ error: 'Configuration serveur invalide — QR médical indisponible' });
+  }
+  const baseUrl = getPublicBaseUrl();
+  if (!baseUrl) {
+    return res.status(503).json({ error: 'Service indisponible — PUBLIC_BASE_URL non configurée, régénération de QR refusée' });
   }
   res.set('Cache-Control', 'no-store');
   res.set('Pragma', 'no-cache');
@@ -366,7 +392,7 @@ router.post('/medical-record/qr/regenerate', requireAuth, async (req, res) => {
     if (!updatedProfile) throw new Error('Profil introuvable pour cet utilisateur — régénération non appliquée');
 
     const data = await loadMedicalCardData(req.user.id);
-    res.json(await buildQrResponse(req.user.id, gen, data));
+    res.json(await buildQrResponse(req.user.id, gen, data, baseUrl));
   } catch (e) {
     res.status(500).json({ error: 'Régénération du QR échouée', detail: e.message });
   }
@@ -654,4 +680,7 @@ router.post('/notifications/:id/read', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Exportées en plus du router, pour rester testables sans décrocher un vrai
+// serveur/Supabase (même convention que scripts/sync-health-centers.js).
+export { isValidPublicBaseUrl, getPublicBaseUrl };
 export default router;

@@ -21,10 +21,11 @@ process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
 
 const app = express();
 
-// Déployé derrière le proxy de Render — sans ça, req.ip renvoie l'IP interne
-// du proxy pour toutes les requêtes (au lieu du vrai client), ce qui rend
-// tout rate limiting par IP inopérant (une seule IP apparente pour tout le
-// monde) en plus de faire lever un avertissement à express-rate-limit.
+// Déployé derrière le proxy inverse d'o2switch (Apache/Passenger) — sans ça,
+// req.ip renvoie l'IP interne du proxy pour toutes les requêtes (au lieu du
+// vrai client), ce qui rend tout rate limiting par IP inopérant (une seule
+// IP apparente pour tout le monde) en plus de faire lever un avertissement à
+// express-rate-limit.
 app.set('trust proxy', 1);
 
 // ─── CORS — liste blanche explicite ─────────────────────────────────────────
@@ -35,17 +36,16 @@ app.set('trust proxy', 1);
 // (origines séparées par des virgules) pour ajouter un domaine propre sans
 // redéployer le code — valeurs par défaut couvrant tous les points d'entrée
 // connus de l'app :
-//   - https://sauvmoi.onrender.com    : production Render
+//   - https://sauvmoi.com, https://www.sauvmoi.com : production (o2switch)
 //   - https://localhost               : WebView Capacitor Android —
 //     capacitor.config.json a androidScheme:"https" sans `hostname`
 //     personnalisé, donc Capacitor sert l'app sous ce hostname par défaut
 //   - http://localhost:3000           : développement local
-//   - https://sc3jdmi5414.universe.wf : instance o2switch
 const DEFAULT_CORS_ORIGINS = [
-  'https://sauvmoi.onrender.com',
+  'https://sauvmoi.com',
+  'https://www.sauvmoi.com',
   'https://localhost',
   'http://localhost:3000',
-  'https://sc3jdmi5414.universe.wf',
 ];
 const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
   ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
@@ -97,7 +97,7 @@ const CSP_DIRECTIVES = {
   // session côté navigateur, voir supabase-client.js) — l'API Anthropic
   // n'a PAS besoin d'être ici : elle n'est jamais appelée depuis le
   // navigateur, uniquement depuis le backend (src/ai.js), donc hors CSP.
-  connectSrc: ["'self'", 'https://sauvmoi.onrender.com', 'https://*.supabase.co'],
+  connectSrc: ["'self'", 'https://sauvmoi.com', 'https://*.supabase.co'],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   // frame-ancestors prend le pas sur X-Frame-Options quand les deux sont
@@ -110,7 +110,8 @@ app.use(helmet({
   contentSecurityPolicy: { directives: CSP_DIRECTIVES },
   frameguard: { action: 'deny' }, // X-Frame-Options — l'app n'est jamais destinée à être embarquée dans un iframe
   // HSTS reste sans effet en HTTP local (ignoré par les navigateurs hors
-  // HTTPS) et s'applique correctement une fois servi en HTTPS sur Render.
+  // HTTPS) et s'applique correctement une fois servi en HTTPS (sauvmoi.com,
+  // Let's Encrypt via o2switch).
   //
   // Referrer-Policy explicite : sans cette option, helmet applique son
   // défaut 'no-referrer' (vérifié dans node_modules/helmet/index.cjs) —
@@ -119,9 +120,9 @@ app.use(helmet({
   // OSM exigent un Referer identifiant l'appelant (politique d'usage
   // tile.openstreetmap.org) et renvoient 403 "Access blocked" sans lui —
   // constaté en prod sur o2switch. 'strict-origin-when-cross-origin'
-  // envoie l'origine seule (https://sc3jdmi5414.universe.wf) aux domaines
-  // tiers, jamais le chemin/query de la page — aucune fuite de contenu de
-  // page, juste assez pour satisfaire la politique OSM.
+  // envoie l'origine seule (https://sauvmoi.com) aux domaines tiers, jamais
+  // le chemin/query de la page — aucune fuite de contenu de page, juste
+  // assez pour satisfaire la politique OSM.
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
