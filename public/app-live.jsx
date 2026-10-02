@@ -46,6 +46,12 @@ function LiveApp() {
   const SM = window.useSM();
   const lang = useLang();
   const t = useTranslation();
+  // Pose/maintient l'attribut data-bp sur .sm-live dès le montage — voir
+  // breakpoint.js. Non lu ici (infrastructure LOT 11 étape 1 uniquement,
+  // aucun écran ne consulte encore ce signal), mais garantit que l'attribut
+  // existe au premier rendu plutôt que de dépendre d'un écran enfant qui
+  // appellerait le hook lui-même.
+  useBreakpoint();
   // Écran de choix de langue avant même le splash si rien n'est encore
   // enregistré (window.SM_I18N.lang === null → useLang() renvoie 'fr' par
   // défaut pour l'affichage, mais on teste la valeur brute non-résolue ici

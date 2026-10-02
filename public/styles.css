@@ -67,6 +67,24 @@
      .sm-dark, une seule valeur pour les deux thèmes. */
   --sm-navy-deep: #0D1428;
   --sm-navy-deep-soft: rgba(13, 20, 40, 0.75);
+
+  /* ── Responsive (LOT 11, étape 1 — infrastructure seule) ────────────────
+     Déclarées ici pour référence/cohérence future, mais AUCUNE règle de ce
+     fichier ne les lit encore — la seule media query existante plus bas
+     (max-width:480px sur .sm-phone) reste écrite en dur, volontairement
+     inchangée (voir son commentaire). Les seuils ci-dessous dupliquent à la
+     main TABLET_MIN/DESKTOP_MIN de public/breakpoint.js : une media query
+     CSS ne peut pas lire une custom property pour SON PROPRE seuil
+     (`@media (min-width: var(--sm-bp-tablet))` n'est pas valide), donc le JS
+     et le CSS ne peuvent pas partager littéralement la même source — les
+     deux doivent être changés ensemble si ces seuils bougent un jour. Les
+     largeurs `--sm-shell-max-width-*` sont réservées pour les étapes
+     suivantes (tablette/bureau) et ne remplacent pas le `480px` actuel. */
+  --sm-bp-tablet: 640px;
+  --sm-bp-desktop: 1024px;
+  --sm-shell-max-width-mobile: 480px;
+  --sm-shell-max-width-tablet: 680px;
+  --sm-shell-max-width-desktop: 1200px;
 }
 
 /* ── Mode sombre ──────────────────────────────────────────────────────────
