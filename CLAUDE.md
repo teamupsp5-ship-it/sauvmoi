@@ -91,6 +91,41 @@ npm run android:open   # Ouvre Android Studio
 npm run android:run    # Lance sur émulateur ou device connecté
 ```
 
+**Procédure complète de build (lot 13)** — toujours depuis `main` (la branche
+de production), jamais `dev` directement :
+
+```bash
+git checkout main && git pull
+npm install              # installe aussi les plugins Capacitor npm
+npm run build:mobile     # npx cap sync android — synchronise ET les plugins natifs
+npm run android:open     # ouvre Android Studio pour builder/signer
+```
+
+⚠️ **Vérifié (lot 13) : `android/` n'a jamais été synchronisé depuis que
+`@capacitor-mlkit/barcode-scanning`/`@capacitor/camera` ont été ajoutés à
+`package.json`** — `android/capacitor.settings.gradle` ne référence encore
+que `capacitor-android` (le cœur). `npm run build:mobile` est donc
+**obligatoire avant tout premier build réel**, pas juste une bonne pratique.
+
+**Avant toute diffusion (Play Store ou APK partagé)** : incrémenter
+`versionCode` (entier, doit strictement augmenter à chaque release) ET
+`versionName` (chaîne lisible, ex. "1.1") dans
+`android/app/build.gradle` — actuellement `versionCode 1`/`versionName
+"1.0"`, jamais encore incrémentés (le projet n'a jamais été buildé).
+
+**Keystore de signature — aucune dans ce dépôt, aucune créée à ce jour.**
+`android/app/build.gradle` ne déclare aucun `signingConfig` dans
+`buildTypes.release` : une release y est donc **non signée** par défaut. Une
+vraie release (Play Store ou distribution hors store) nécessite de générer
+une keystore (`keytool -genkey -v -keystore sauvmoi-release.keystore -alias
+sauvmoi -keyalg RSA -keysize 2048 -validity 10000`, ou via l'assistant
+Android Studio Build → Generate Signed Bundle/APK) et de référencer son
+chemin/mot de passe dans un `signingConfig` — **jamais commité** :
+`*.keystore`/`*.jks` sont dans `.gitignore` depuis ce lot. Perdre cette
+keystore, ou en changer, rend impossible toute mise à jour future de l'app
+une fois publiée (une release Play Store doit être signée avec la même clé
+que la précédente) — à sauvegarder séparément du dépôt dès sa création.
+
 ---
 
 ## Architecture — deux points d'entrée
@@ -744,6 +779,8 @@ pour une migration testée correctement :
 | Lot 9 : une seule frontière par élément | Une carte se définit par son fond ET son ombre, jamais un contour en plus (`border` retiré partout où `boxShadow` était déjà présent — `.sm-card`, cartes Accueil/QR/fiche victime/profil, boutons choix de langue, bouton pause vocal, bouton Scanner un QR). Entre deux rubriques, l'espacement sépare — les traits `borderBottom`/`borderTop` génériques entre sections ont été retirés au profit du rythme vertical, sauf chrome fixe (en-tête/pied collés sans espace au contenu scrollable, ex. `SubHeader`/`SaveBar`). Pour une longue liste où un séparateur reste utile (infos perso/médicales, contacts, champs du QR), un token unique par thème `--sm-divider` (light `#EFE9DC`, dark `#3A3A3A` — plus clair que les surfaces de carte qu'il borde, jamais l'inverse) porté par une seule classe centralisée `.sm-row-divider` dans `styles.css`, plutôt que des `border-bottom` hardcodés par écran | Un objet borduré ET ombré a deux frontières pour une seule limite, perçu comme "sale" ; un séparateur foncé sur un fond sombre se lit comme une fissure, pas un trait fin |
 | `.sm-row-divider` : trait inset en `background-image`, pas `border-bottom` | `background-image: linear-gradient(var(--sm-divider), var(--sm-divider))` avec `background-size: calc(100% - 32px) 1px; background-position: center bottom`, `:last-child { background-image: none }` pour masquer automatiquement le dernier élément — les 4 déclarations `background-*` portent `!important` | Un `border-bottom` classique ne peut pas être inset (retrait des bords de la carte) sans un `margin`/`padding` supplémentaire qui casserait l'alignement des lignes ; `:last-child` évite de recalculer un index sur des listes dont certaines lignes sont conditionnelles (ex. tableau de champs du QR). `!important` nécessaire : un style inline `background: '#F4F8FF'` (raccourci) réinitialise silencieusement `background-image` à `none` en cascade CSS normale, et un style inline à priorité normale bat toujours une règle de classe à priorité normale — même logique déjà en place pour les surcharges de thème sombre dans ce fichier |
 | Fiche médicale QR : motif de refus catégorisé (lot 12) | `resolveMedicalCardAvailability({ id, genRaw, expRaw, sig, loadData })` (`src/routes/api.js`) classe tout refus de `GET /public/medical-card/:file` dans l'une de 5 catégories exactes — `signature_invalide` (ligne 566 : gen/exp/sig manquants ; ligne 572 : non numériques ; ligne 581 : signature invalide/absente), `expiree` (ligne 585), `introuvable` (ligne 595, profil absent), `revoquee` (ligne 602, `gen` antérieur à `qr_generated_at`), `autre` (ligne 562 : secret serveur absent ; ligne 592 : échec de chargement, ex. panne Supabase) — logguée via `console.warn` dans la route (jamais dans la réponse HTTP, toujours identique quel que soit le motif : voir Fichiers clés). Extraite en fonction pure-async testable (`loadData` injectable) plutôt que laissée inline dans le handler Express | Diagnostiquer en production POURQUOI une fiche scannée s'affiche "indisponible" (lien expiré ? régénéré depuis ? profil supprimé ? secret mal configuré côté o2switch ?) sans exposer cette distinction à un appelant externe, qui pourrait sinon l'utiliser pour sonder l'existence d'un profil ou la validité d'une signature par essais successifs. Jamais le jeton (`sig`) ni une donnée médicale dans le log — seul `id` (identifiant de profil) y figure, nécessaire au diagnostic. Testée (`api.medical-card-availability.test.js`, 9 cas couvrant les 5 catégories + le cas passant, signatures HMAC recalculées indépendamment plutôt que via une fonction de signature exportée) |
+| Android : permissions géolocalisation, aucun plugin dédié (lot 13) | `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` ajoutées à `android/app/src/main/AndroidManifest.xml`, **sans** `@capacitor/geolocation` — vérifié directement dans le code source de Capacitor (`node_modules/@capacitor/android/.../BridgeWebChromeClient.java`, `onGeolocationPermissionsShowPrompt()`) : dès que le manifeste déclare ces deux permissions, Capacitor lance lui-même l'invite système (`permissionLauncher.launch(geoPermissions)`) pour `navigator.geolocation`, sans plugin supplémentaire | SOS et Localisation utilisent `navigator.geolocation` (API web standard), jamais branchés à un plugin Capacitor de géolocalisation — sans ces permissions dans le manifeste, la WebView ne peut pas demander l'autorisation à l'utilisateur et l'API échoue silencieusement sur Android, cassant les deux fonctionnalités à l'usage (confirmé par audit avant ce lot, jamais testé sur un vrai APK buildé) |
+| Android : `allowMixedContent` passé à `false` (lot 13) | `capacitor.config.json` — vérifié par grep exhaustif de `public/` (y compris `index.html` et tous les scripts chargés par l'app réelle) : aucune ressource réseau `http://` n'est chargée nulle part. Les seules occurrences de la chaîne `http://` dans tout le dépôt sont des déclarations d'espace de noms XML (`xmlns="http://www.w3.org/2000/svg"`) dans des SVG inline de `design-canvas.jsx`/`tweaks-panel.jsx` — jamais résolues comme requêtes réseau, et ces deux fichiers ne sont de toute façon chargés que par `canvas.html` (outil de design), jamais par `index.html` | `allowMixedContent: true` affaiblit la politique de sécurité de la WebView (autorise du contenu actif non chiffré sur une page HTTPS) sans aucun bénéfice ici puisqu'aucune ressource http:// n'est réellement utilisée — à remettre à `true` seulement si une vraie dépendance http:// apparaissait un jour (ex. un CDN tiers sans HTTPS, à éviter) |
 
 ---
 

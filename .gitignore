@@ -16,3 +16,10 @@ npm-debug.log*
 # Système
 .DS_Store
 Thumbs.db
+
+# Keystore de signature Android (lot 13) — jamais dans le dépôt. Une release
+# non signée avec la mauvaise clé, ou une clé exposée publiquement, rend
+# impossible toute mise à jour future de l'app sur le Play Store (une
+# nouvelle release doit être signée avec la MÊME clé que la précédente).
+*.keystore
+*.jks

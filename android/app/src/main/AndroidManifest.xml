@@ -39,4 +39,14 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- SOS (déclencher l'alerte) et Localisation (centres de santé proches)
+         utilisent navigator.geolocation (API web), pas un plugin Capacitor
+         dédié — voir CLAUDE.md, section Localisation/SOS. Sans ces deux
+         permissions, BridgeWebChromeClient.onGeolocationPermissionsShowPrompt()
+         (node_modules/@capacitor/android) ne peut pas lancer la demande
+         d'autorisation runtime : vérifié dans son code source, elle gère déjà
+         l'invite système elle-même dès que le manifeste déclare ces
+         permissions — aucun plugin supplémentaire nécessaire. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>
