@@ -69,6 +69,10 @@ window.I18N_FR = {
   'auth.google_unavailable': 'Connexion Google indisponible pour le moment.',
   'auth.google_unavailable_retry': 'Connexion Google indisponible — réessayez plus tard ou utilisez votre e-mail.',
   'auth.google_failed': 'Échec de la connexion Google',
+  // Natif uniquement (lot 13b) — refus explicite côté Google (l'utilisateur
+  // annule sur l'écran de consentement), distinct d'une simple fermeture de
+  // l'onglet qui ne déclenche aucun message du tout (voir supabase-client.js).
+  'auth.google_cancelled': 'Connexion Google annulée.',
   'auth.network_error_check_connection': 'Erreur réseau — vérifiez votre connexion.',
   'auth.continue_google': 'Continuer avec Google',
   'auth.google_redirecting': 'Redirection…',

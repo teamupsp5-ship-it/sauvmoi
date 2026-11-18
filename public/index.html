@@ -52,6 +52,9 @@
   <!-- Client API + état partagé (chargés avant les écrans) -->
   <script src="api-client.js"></script>
   <script src="sm-state.js"></script>
+  <!-- Avant supabase-client.js : expose window.parseOAuthCallbackUrl, utilisé
+       par son listener appUrlOpen (connexion Google native, lot 13b). -->
+  <script src="oauth-callback.js"></script>
   <script src="supabase-client.js"></script>
 
   <!-- Primitives & écrans d'origine (design intact) -->

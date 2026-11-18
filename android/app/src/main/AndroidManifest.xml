@@ -22,6 +22,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Lien profond du retour OAuth Google natif (lot 13b) —
+                 schéma personnalisé, pas un App Link HTTPS vérifié (aucune
+                 keystore stable n'existe encore, voir CLAUDE.md/lot 13a ;
+                 un schéma personnalisé n'a pas besoin de vérification de
+                 domaine). launchMode="singleTask" ci-dessus est nécessaire
+                 pour que ce lien route vers l'Activity déjà existante
+                 (onNewIntent) plutôt que d'en recréer une nouvelle instance.
+                 Capté côté JS par App.addListener('appUrlOpen', ...) dans
+                 public/supabase-client.js. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ci.sauvmoi.app" android:host="auth-callback" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -69,6 +69,10 @@ window.I18N_EN = {
   'auth.google_unavailable': 'Google sign-in is unavailable right now.',
   'auth.google_unavailable_retry': 'Google sign-in unavailable — try again later or use your email.',
   'auth.google_failed': 'Google sign-in failed',
+  // Native only (lot 13b) — explicit refusal on Google's side (user cancels
+  // on the consent screen), distinct from just closing the tab, which
+  // triggers no message at all (see supabase-client.js).
+  'auth.google_cancelled': 'Google sign-in was cancelled.',
   'auth.network_error_check_connection': 'Network error — check your connection.',
   'auth.continue_google': 'Continue with Google',
   'auth.google_redirecting': 'Redirecting…',

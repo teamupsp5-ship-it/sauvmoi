@@ -74,6 +74,21 @@ function LiveApp() {
     }
   });
 
+  // LOT 13b — connexion Google native (PKCE + lien profond) : le callback
+  // OAuth est traité dans supabase-client.js (appUrlOpen), hors de cet arbre
+  // de composants, qui pose ce flag une fois la session synchronisée avec
+  // succès. Contrairement au web (où un rechargement de page complet fait
+  // naturellement passer par screen-splash.jsx, qui décide lui-même
+  // 'home'/'auth'), il n'y a ici aucune navigation de page pour déclencher
+  // cette redirection — ce script n'a pas accès à `nav` autrement. Même
+  // garde-fou/mécanique que SM.sessionExpired juste au-dessus.
+  React.useEffect(() => {
+    if (SM.oauthNativeSynced && navRef.current) {
+      window.SM.oauthNativeSynced = false;
+      navRef.current.reset('home');
+    }
+  });
+
   return (
     <div className="sm-live" style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
       {SM.offline && (

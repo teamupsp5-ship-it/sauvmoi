@@ -78,11 +78,25 @@ function applySession(data, nav) {
 function AuthScreen({ nav }) {
   useLucide();
   const t = useTranslation();
+  const SM = window.useSM();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [googleLoading, setGoogleLoading] = React.useState(false);
+
+  // LOT 13b — le callback OAuth natif (lien profond) arrive via
+  // supabase-client.js, hors de cet arbre de composants (appUrlOpen peut se
+  // déclencher alors que cet écran n'est même plus monté si le retour a été
+  // lent) : un échec y pose window.SM.oauthError plutôt que de rester
+  // silencieux. Même mécanisme de remise à zéro immédiate que
+  // SM.sessionExpired dans app-live.jsx — affiché une seule fois.
+  React.useEffect(() => {
+    if (SM.oauthError) {
+      setError(SM.oauthError);
+      window.SM.oauthError = null;
+    }
+  });
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -99,10 +113,20 @@ function AuthScreen({ nav }) {
     }
   }
 
-  // signInWithOAuth redirige immédiatement la page vers Google en cas de
-  // succès — il n'y a rien à faire après (pas de nav.reset ici) : le retour
-  // sur Sauv'Moi est géré par supabase-client.js (synchronisation auto au
-  // chargement) avant même que ce composant ne soit remonté.
+  // Web : signInWithOAuth redirige immédiatement la page vers Google en cas
+  // de succès — il n'y a rien à faire après (pas de nav.reset ici) : le
+  // retour sur Sauv'Moi est géré par supabase-client.js (synchronisation
+  // auto au chargement) avant même que ce composant ne soit remonté.
+  //
+  // Natif (lot 13b) : signInWithOAuth({ skipBrowserRedirect: true }) ne
+  // navigue PAS la WebView embarquée — une navigation directe y serait
+  // typiquement refusée par Google (Error 403: disallowed_useragent pour les
+  // WebViews génériques). L'URL retournée est ouverte dans un vrai
+  // navigateur système (Chrome Custom Tabs, @capacitor/browser) ; le retour
+  // par lien profond (ci.sauvmoi.app://auth-callback) est traité entièrement
+  // par supabase-client.js (appUrlOpen), pas ici — ce composant peut même
+  // être démonté avant que ça n'arrive (voir le watcher SM.oauthError
+  // ci-dessus, qui fonctionne indépendamment du montage de cet écran).
   async function handleGoogleLogin() {
     setError('');
     if (!window.getSupabaseClient) {
@@ -116,11 +140,29 @@ function AuthScreen({ nav }) {
         setError(t('auth.google_unavailable_retry'));
         return;
       }
-      const { error: oauthErr } = await client.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      });
-      if (oauthErr) setError(oauthErr.message || t('auth.google_failed'));
+      const isNativeApp = !!(window.Capacitor?.isNativePlatform?.());
+      if (isNativeApp) {
+        const Browser = window.Capacitor?.Plugins?.Browser;
+        if (!Browser) {
+          setError(t('auth.google_unavailable'));
+          return;
+        }
+        const { data, error: oauthErr } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: 'ci.sauvmoi.app://auth-callback', skipBrowserRedirect: true },
+        });
+        if (oauthErr || !data?.url) { setError(t('auth.google_failed')); return; }
+        await Browser.open({ url: data.url });
+        // Pas de Browser.close() ICI : l'onglet doit rester ouvert tant que
+        // l'utilisateur interagit avec Google. La fermeture a lieu une fois
+        // le lien profond reçu, voir ci-dessous.
+      } else {
+        const { error: oauthErr } = await client.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin },
+        });
+        if (oauthErr) setError(oauthErr.message || t('auth.google_failed'));
+      }
     } catch {
       setError(t('auth.network_error_check_connection'));
     } finally {
