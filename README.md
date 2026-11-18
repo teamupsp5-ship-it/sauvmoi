@@ -1,72 +1,159 @@
-# Sauv'Moi — Application complète
+# Sauv'Moi
 
-App IA de premiers secours (Côte d'Ivoire). **Frontend + backend réunis** : un seul serveur, une seule commande.
-Node.js + Express + WebSocket. **Aucune base de données à installer.**
+Application mobile de premiers secours pour la Côte d'Ivoire (projet hackathon
+"IA et service universel des télécommunications TIC"). IA vocale de premiers
+secours, SOS géolocalisé, localisation des centres de santé, formations PSC1
+gamifiées, fiche médicale d'urgence par QR code.
+
+**Node.js + Express (backend) + React/JSX transpilé par Babel Standalone côté
+navigateur (aucun bundler) + Supabase (authentification + base de données) +
+Capacitor (app Android).**
+
+---
+
+## ⚠️ Prérequis : un projet Supabase configuré
+
+Depuis la migration vers Supabase, **le serveur ne démarre pas sans une base
+Supabase valide** — contrairement à une version antérieure du projet qui
+tournait entièrement en mémoire. Sans ça, `npm start` échoue immédiatement
+avec `supabaseUrl is required.`
+
+1. Créer un projet sur [supabase.com](https://supabase.com) (gratuit).
+2. Dans l'éditeur SQL du projet (Dashboard → SQL Editor), exécuter
+   l'intégralité de `supabase/schema.sql` — crée les tables (`profiles`,
+   `emergency_contacts`, `training_progress`, `notifications`,
+   `health_centers`), les policies RLS et le trigger de création de profil.
+3. Copier `.env.example` vers `.env` et renseigner au minimum :
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+     (Dashboard Supabase → Project Settings → API)
+   - `MEDICAL_CARD_SECRET` — une chaîne aléatoire (ex. `openssl rand -hex 32`),
+     nécessaire pour signer la fiche médicale QR ; sans elle, tout ce qui
+     touche au QR médical échoue volontairement (échec fermé)
+   - `PUBLIC_BASE_URL` — en local, `http://localhost:3000` suffit (voir
+     `.env.example` pour le détail et les implications en production)
+
+`ANTHROPIC_API_KEY` et `HEALTHSITES_API_KEY` restent optionnelles (voir plus
+bas).
 
 ## Lancer l'application
 
-### En un clic (recommandé pour la démo)
-- **Windows** : double-cliquez sur `Lancer-Sauvmoi.bat`
-- **macOS** : double-cliquez sur `Lancer-Sauvmoi.command` (1re fois : clic-droit → Ouvrir)
-- **Linux** : `./Lancer-Sauvmoi.command`
-
-Le lanceur vérifie Node.js, installe les dépendances la première fois, démarre le serveur **et** ouvre le navigateur sur l'app. Voir `COMMENT-LANCER.txt` pour le détail.
-
-### En ligne de commande (1 commande)
-
 ```bash
 npm install
-npm start
+npm start          # production
+npm run dev        # développement, rechargement auto (node --watch)
 ```
 
-Puis ouvre **http://localhost:3000** dans ton navigateur. C'est l'application réelle, branchée au backend.
+Ouvrir **http://localhost:3000**.
 
-> 💡 Pour la démo : si le wifi du hackathon est mauvais, ça n'a aucune importance — tout tourne en local sur ta machine.
+### En un clic (Windows/macOS/Linux)
+- **Windows** : double-cliquer sur `Lancer-Sauvmoi.bat`
+- **macOS/Linux** : `Lancer-Sauvmoi.command` (macOS, 1ʳᵉ fois : clic-droit →
+  Ouvrir) ou `./Lancer-Sauvmoi.command`
+
+Ces lanceurs installent les dépendances au premier lancement et ouvrent le
+navigateur automatiquement, mais **ne configurent pas `.env` à votre place**
+— à faire une fois manuellement (voir Prérequis ci-dessus) avant de les
+utiliser.
 
 ### Autres URL
-- `http://localhost:3000/` → **l'application** (1 téléphone live)
-- `http://localhost:3000/canvas.html` → le **design canvas** d'origine (vue d'ensemble des 5 écrans, pour présenter la maquette)
+- `http://localhost:3000/` → l'application réelle (téléphone plein écran)
+- `http://localhost:3000/canvas.html` → le design canvas (plusieurs écrans
+  côte à côte, outil de développement/maquette — pas l'app réelle)
 - `http://localhost:3000/api/health` → santé de l'API
 
 ## IA : deux modes automatiques
-- **Sans clé** (par défaut) → le chat répond via des **protocoles PSC1 validés en dur**. Idéal démo : zéro hallucination, marche hors-ligne.
-- **Avec Claude** → `cp .env.example .env`, renseigne `ANTHROPIC_API_KEY`, relance. Le chat passe sur Claude, **bridé par les mêmes protocoles**.
+- **Sans `ANTHROPIC_API_KEY`** (par défaut) → le chat utilise des protocoles
+  PSC1 validés, codés en dur. Fonctionne hors-ligne, zéro hallucination.
+- **Avec `ANTHROPIC_API_KEY`** → le chat passe sur Claude
+  (`claude-haiku-4-5-20251001`), guidé par les mêmes protocoles comme
+  garde-fou, jamais de diagnostic ni de posologie.
 
-## Le parcours de démo (ce qui est vraiment branché)
+## Ce qui est réellement branché
 
-1. **Accueil** — données chargées depuis l'API (`/api/home`).
-2. **Chat IA** ⭐ — touche le micro de l'accueil → l'app « entend » une phrase, l'envoie au backend, et **affiche la vraie réponse de l'IA** mot à mot, avec le bon protocole détecté.
-3. **Urgence → Guidage** — le guidage pas-à-pas charge le **protocole réel** correspondant au contexte (`/api/protocols/:id`).
-4. **SOS temps réel** ⭐⭐ — depuis l'onglet SOS, le compte à rebours déclenche une **vraie alerte** ; l'écran de suivi s'abonne au **WebSocket** : le SAMU passe à « reçu », les secouristes acceptent **un par un en direct**, l'ETA défile. C'est le moment fort.
-5. **Formations** — catalogue gamifié (les paiements Mobile Money sont simulés côté API).
+- **Authentification réelle** (Supabase) : inscription en 2 étapes (infos
+  perso + profil médical), connexion email/mot de passe, connexion Google
+  (OAuth), session persistante avec rafraîchissement automatique du JWT.
+- **Chat IA** : premiers secours et santé générale, mémoire de conversation,
+  saisie vocale et mode vocal continu (Web Speech API), lecture des réponses
+  à voix haute.
+- **SOS réel** : géolocalisation du téléphone (`navigator.geolocation`),
+  carte Leaflet/OpenStreetMap centrée sur la position déclarée, alerte
+  WhatsApp pré-remplie pour les contacts sans compte, notification in-app
+  réelle pour les contacts qui ont un compte Sauv'Moi.
+- **Formations PSC1** : 10 modules, quiz progressifs, déverrouillage
+  séquentiel, progression persistée dans Supabase.
+- **Localisation** : centres de santé à couverture nationale (Côte d'Ivoire),
+  synchronisés depuis l'API healthsites.io (OpenStreetMap) par une tâche
+  cron indépendante (`scripts/sync-health-centers.js`) — jamais d'appel
+  direct à ce service tiers pendant la consultation de la carte.
+- **Fiche médicale QR** : génération d'un QR signé (HMAC) encodant une image
+  publique de la fiche d'urgence, scannable par n'importe quel appareil
+  photo, avec révocation réelle à la régénération.
 
 ## Comment c'est assemblé
 
-Le frontend d'origine était un *design canvas* (maquette statique). Pour en faire une app utilisable, sans toucher au design :
-
 ```
 public/
-  index.html          ← APP réelle (charge les écrans + surcharges live)
-  canvas.html         ← design canvas d'origine (préservé)
-  api-client.js       ← window.API : pont REST + WebSocket vers le backend
-  sm-state.js         ← window.SM : état partagé rempli par l'API
-  frames.jsx, screen-*.jsx   ← écrans d'origine (design intact)
-  live-chat.jsx       ← surcharge ChatListening/ChatResponse (vraie IA)
-  live-sos.jsx        ← surcharge SOSCountdown/SOSConfirm (WebSocket live)
-  live-emergency.jsx  ← surcharge EmergencyGuide (protocole réel)
-  app-live.jsx        ← point d'entrée : 1 téléphone plein écran
-src/                  ← backend (Express + WebSocket + IA + données)
+  index.html          ← point d'entrée de l'app réelle (charge app-live.jsx)
+  canvas.html          ← design canvas (maquette, plusieurs écrans côte à côte)
+  api-client.js        ← window.API : client HTTP vers le backend
+  sm-state.js          ← window.SM : état partagé (session, données live)
+  frames.jsx, screen-*.jsx   ← primitives et écrans (design + logique)
+  live-chat.jsx, live-sos.jsx, screen-qr-scanner.jsx
+                        ← surcharges "vivantes" (branchées au vrai backend),
+                          chargées après les écrans d'origine pour les remplacer
+  app-live.jsx          ← point d'entrée réel : registre des écrans, navigation
+src/
+  server.js             ← Express : monte routes/auth, api, chat, sos, training
+  routes/                ← auth (Supabase), chat (Claude/fallback), sos, training, api
+  supabase.js            ← client Supabase (service_role, backend uniquement)
+  medical-card.js        ← génération SVG→PNG de la fiche d'urgence
+  data/                  ← protocoles PSC1, modules de formation, numéros d'urgence
+scripts/
+  sync-health-centers.js ← tâche cron autonome (healthsites.io → Supabase)
+supabase/schema.sql      ← schéma complet (tables, RLS, trigger) à exécuter manuellement
 ```
 
-Les fichiers `live-*.jsx` sont chargés **après** les originaux : ils remplacent les écrans dynamiques par des versions branchées au backend, en gardant exactement le même rendu visuel.
+Aucun bundler : Babel Standalone transpile le JSX directement dans le
+navigateur. Voir `CLAUDE.md` à la racine du dépôt pour la documentation
+technique complète (architecture détaillée, décisions, dette technique
+connue, procédure de déploiement).
 
-## Déploiement (au-delà du PC local)
-Le serveur lit `process.env.PORT`, donc il marche tel quel sur Render, Railway, etc. Pour une URL publique rapide depuis ton PC :
+## Tests
+
+Pas de framework de test — fichiers `*.test.js` exécutés directement avec
+`node`, assertions `node:assert/strict`, aucun appel réseau réel :
+
 ```bash
-npm start                 # terminal 1
-npx ngrok http 3000       # terminal 2 → URL publique (WebSocket inclus)
+node scripts/sync-health-centers.test.js
+node src/routes/api.public-base-url.test.js
+node src/routes/api.medical-card-availability.test.js
 ```
+
+## Mobile (Android, Capacitor)
+
+```bash
+npm run android:add    # une seule fois : génère le dossier android/
+npm run build:mobile   # synchronise public/ → android/ après chaque modif front
+npm run android:open   # ouvre Android Studio
+npm run android:run    # lance sur émulateur ou appareil connecté
+```
+
+## Déploiement
+
+Hébergement de production : **o2switch** (`https://sauvmoi.com`), déploiement
+manuel via cPanel Git Version Control — voir `CLAUDE.md`, section
+"Déploiement & infrastructure", pour la procédure complète et les variables
+d'environnement requises côté serveur.
 
 ## ⚠️ Important (au-delà de la démo)
-- Les protocoles de secours doivent être **relus par un formateur PSC1 / professionnel de santé** avant tout usage réel.
-- SAMU 185, secouristes, paiements et analyse caméra sont **simulés**. En production : partenariat services d'urgence, agrégateur Mobile Money (CinetPay / PayDunya / Hub2), modèle de vision, conformité **ARTCI** pour les données de santé.
+
+- Les protocoles de premiers secours doivent être **relus par un formateur
+  PSC1 / professionnel de santé** avant tout usage réel.
+- Les paiements Mobile Money sont **simulés** (pas d'appel agrégateur réel).
+- La connexion Google (OAuth) et le flux d'inscription complet n'ont pas été
+  vérifiés de bout en bout avec un vrai projet Supabase de production au
+  moment de la rédaction — préparer un compte de démo à l'avance plutôt que
+  de compter dessus en conditions réelles.
+- Les tokens de session restent en `localStorage` (pas de cookies
+  `httpOnly`) — compromis documenté dans `CLAUDE.md`, section Sécurité.
