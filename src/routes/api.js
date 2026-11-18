@@ -545,11 +545,72 @@ router.get('/medical-record/blood-type-proof', requireAuth, async (req, res) => 
 //   .json → mêmes données en JSON (utilisé par screen-qr-scanner.jsx pour
 //           afficher la fiche riche EN INTERNE sans réanalyser une image)
 //
-// Quatre motifs de refus (signature absente/invalide, expirée, révoquée)
-// plus le cas profil introuvable partagent tous la MÊME réponse générique
-// (voir sendUnavailable) : ne jamais laisser un appelant distinguer lequel
-// s'applique en sondant l'URL. Le détail exact part uniquement dans les logs
-// serveur (console.warn/error), jamais dans la réponse HTTP.
+// ─── Motif exact de refus (LOT 12 — diagnostic) ────────────────────────────
+// Extrait de la route pour rester testable sans Express ni Supabase réels
+// (loadData injectable, voir api.medical-card-availability.test.js). Classe
+// chaque refus dans UNE des 5 catégories canoniques demandées :
+//   'signature_invalide' | 'expiree' | 'revoquee' | 'introuvable' | 'autre'
+// Logique de décision inchangée par rapport à l'ancienne version inline de
+// la route (même ordre, mêmes conditions) — seule la catégorisation est
+// nouvelle. Ne retourne (et le futur appelant ne logge) ni le jeton `sig`
+// ni aucune donnée médicale : uniquement la catégorie, un détail texte
+// générique, et `id` (identifiant de profil, pas une donnée de santé).
+async function resolveMedicalCardAvailability({ id, genRaw, expRaw, sig, loadData = loadMedicalCardData }) {
+  // Échec fermé : sans secret, impossible de vérifier quoi que ce soit —
+  // refuse tout plutôt que de servir une fiche non authentifiée.
+  if (!getMedicalCardSecret()) {
+    return { ok: false, category: 'autre', detail: 'secret serveur non configuré' };
+  }
+
+  if (!genRaw || !expRaw || !sig) {
+    return { ok: false, category: 'signature_invalide', detail: 'gen/exp/sig manquants' };
+  }
+
+  const gen = Number(genRaw);
+  const exp = Number(expRaw);
+  if (!Number.isFinite(gen) || !Number.isFinite(exp)) {
+    return { ok: false, category: 'signature_invalide', detail: 'gen/exp non numériques' };
+  }
+
+  // Signature vérifiée AVANT toute autre décision : gen/exp ne sont dignes
+  // de confiance qu'une fois authentifiés — les utiliser pour la vérif
+  // d'expiration avant la signature reviendrait à faire confiance à des
+  // valeurs qu'un client peut fabriquer librement (exactement le bug corrigé
+  // ici : un exp retiré ou falsifié ne doit jamais être exploitable).
+  if (!verifyMedicalCardSignature(id, gen, exp, sig)) {
+    return { ok: false, category: 'signature_invalide', detail: 'signature invalide ou absente' };
+  }
+
+  if (Date.now() > exp) {
+    return { ok: false, category: 'expiree', detail: 'expirée' };
+  }
+
+  let data;
+  try {
+    data = await loadData(id);
+  } catch (e) {
+    return { ok: false, category: 'autre', detail: `erreur de chargement : ${e.message}` };
+  }
+  if (!data) {
+    return { ok: false, category: 'introuvable', detail: 'profil introuvable' };
+  }
+
+  // Révocation : un QR régénéré depuis (qr_generated_at plus récent que le
+  // gen de cette URL) invalide toute ancienne URL, même signée et non
+  // expirée — voir le commentaire sur GET /medical-record/qr ci-dessus.
+  if (data.qrGeneratedAt != null && gen < data.qrGeneratedAt) {
+    return { ok: false, category: 'revoquee', detail: 'révoquée par une régénération plus récente' };
+  }
+
+  return { ok: true, data, gen, exp };
+}
+
+// Les 5 catégories de refus ci-dessus partagent toutes la MÊME réponse
+// générique (voir sendUnavailable) : ne jamais laisser un appelant
+// distinguer laquelle s'applique en sondant l'URL. Le détail exact part
+// uniquement dans les logs serveur (console.warn), jamais dans la réponse
+// HTTP — et jamais le jeton (`sig`) ni une donnée médicale, voir
+// resolveMedicalCardAvailability ci-dessus.
 router.get('/public/medical-card/:file', async (req, res) => {
   // Des données de santé n'ont pas à séjourner dans un cache — y compris sur
   // les réponses de refus, qui portent quand même un `Fiche indisponible`.
@@ -559,8 +620,8 @@ router.get('/public/medical-card/:file', async (req, res) => {
   if (!m) return res.status(400).json({ error: 'Format invalide' });
   const [, id, format] = m;
 
-  const sendUnavailable = async (reason) => {
-    console.warn(`[medical-card] fiche refusée (${reason}) — id: ${id}`);
+  const sendUnavailable = async (category, detail) => {
+    console.warn(`[medical-card] fiche refusée — motif: ${category} (${detail}) — id: ${id}`);
     if (format === 'json') return res.status(404).json({ error: 'Fiche indisponible' });
     const svg = buildUnavailableCardSvg('Fiche indisponible');
     const png = await sharp(Buffer.from(svg)).png().toBuffer();
@@ -568,43 +629,11 @@ router.get('/public/medical-card/:file', async (req, res) => {
     return res.send(png);
   };
 
-  // Échec fermé : sans secret, impossible de vérifier quoi que ce soit —
-  // refuse tout plutôt que de servir une fiche non authentifiée.
-  if (!getMedicalCardSecret()) {
-    console.error('[medical-card] MEDICAL_CARD_SECRET absent — lecture refusée (échec fermé)');
-    return sendUnavailable('secret serveur non configuré');
-  }
-
   const { gen: genRaw, exp: expRaw, sig } = req.query;
-  if (!genRaw || !expRaw || !sig) return sendUnavailable('gen/exp/sig manquants');
+  const result = await resolveMedicalCardAvailability({ id, genRaw, expRaw, sig });
+  if (!result.ok) return sendUnavailable(result.category, result.detail);
 
-  const gen = Number(genRaw);
-  const exp = Number(expRaw);
-  if (!Number.isFinite(gen) || !Number.isFinite(exp)) return sendUnavailable('gen/exp non numériques');
-
-  // Signature vérifiée AVANT toute autre décision : gen/exp ne sont dignes
-  // de confiance qu'une fois authentifiés — les utiliser pour la vérif
-  // d'expiration avant la signature reviendrait à faire confiance à des
-  // valeurs qu'un client peut fabriquer librement (exactement le bug corrigé
-  // ici : un exp retiré ou falsifié ne doit jamais être exploitable).
-  if (!verifyMedicalCardSignature(id, gen, exp, sig)) return sendUnavailable('signature invalide ou absente');
-
-  if (Date.now() > exp) return sendUnavailable('expirée');
-
-  let data = null;
-  try {
-    data = await loadMedicalCardData(id);
-  } catch (e) {
-    console.error('[medical-card] chargement échoué pour', id, ':', e.message);
-    return sendUnavailable('erreur de chargement');
-  }
-  if (!data) return sendUnavailable('profil introuvable');
-
-  // Révocation : un QR régénéré depuis (qr_generated_at plus récent que le
-  // gen de cette URL) invalide toute ancienne URL, même signée et non
-  // expirée — voir le commentaire sur GET /medical-record/qr ci-dessus.
-  if (data.qrGeneratedAt != null && gen < data.qrGeneratedAt) return sendUnavailable('révoquée par une régénération plus récente');
-
+  const { data, gen, exp } = result;
   if (format === 'json') {
     return res.json({ ...data, generatedAt: gen, expiresAt: exp });
   }
@@ -682,5 +711,5 @@ router.post('/notifications/:id/read', requireAuth, async (req, res) => {
 
 // Exportées en plus du router, pour rester testables sans décrocher un vrai
 // serveur/Supabase (même convention que scripts/sync-health-centers.js).
-export { isValidPublicBaseUrl, getPublicBaseUrl };
+export { isValidPublicBaseUrl, getPublicBaseUrl, resolveMedicalCardAvailability };
 export default router;
