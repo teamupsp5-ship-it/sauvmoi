@@ -232,8 +232,8 @@ create table if not exists health_centers (
 alter table health_centers enable row level security;
 
 -- Seed initial : les 20 centres de San Pédro déjà présents dans
--- src/data/health-centers.js (fichier laissé en place mais plus lu par le
--- backend après ce lot), insérés avec source = 'seed-manuel' pour ne
+-- src/data/health-centers.js (fichier supprimé au lot 14b, plus aucun rôle
+-- fonctionnel une fois ces lignes migrées ici), insérés avec source = 'seed-manuel' pour ne
 -- jamais dépendre du tout premier sync healthsites.io — si ce sync échoue
 -- ou tarde, la carte affiche quand même ces 20 centres au lieu d'être vide.
 -- Identifiants préfixés "seed/" (jamais "node/"/"way/"/"relation/", le

@@ -561,8 +561,9 @@ router.get('/public/medical-card/:file', async (req, res) => {
 // Couverture nationale (Côte d'Ivoire), alimentée par
 // scripts/sync-health-centers.js depuis l'API healthsites.io (données
 // OpenStreetMap, licence ODbL — voir CLAUDE.md) — remplace l'ancienne liste
-// statique de 20 centres de San Pédro (src/data/health-centers.js, laissé
-// en place mais plus lu ici). Même calcul de distance (haversineKm) et même
+// statique de 20 centres de San Pédro (src/data/health-centers.js, supprimé
+// au lot 14b — les mêmes 20 entrées restent dans la migration SQL de
+// supabase/schema.sql, source 'seed-manuel'). Même calcul de distance (haversineKm) et même
 // forme de réponse JSON qu'avant ce changement, à une exception près :
 // `available24h` n'existe pas dans la table health_centers (aucune donnée
 // fiable pour ce champ dans la source OSM) et n'apparaît donc plus dans la
