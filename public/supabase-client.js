@@ -27,6 +27,13 @@
 // JAMAIS dupliquer la traduction session Supabase → session applicative —
 // le chemin web est un pur refactor de l'ancien code, comportement
 // strictement inchangé.
+//
+// LOT 13c — fiabilité du retour natif : le client natif utilise
+// persistSession:true + un storageKey dédié (voir NATIVE_OAUTH_STORAGE_KEY
+// dans oauth-callback.js) pour que le verifier PKCE survive à un
+// redémarrage du process pendant Custom Tabs ; et App.getLaunchUrl() est
+// consulté en plus de appUrlOpen pour couvrir le démarrage à froid via lien
+// profond. Voir CLAUDE.md pour le détail complet.
 (function () {
   // Même repli que api-client.js (voir son commentaire pour le détail) : le
   // backend tourne à la même origine que le frontend statique (o2switch,
@@ -52,14 +59,35 @@
       if (!cfgRes.ok) return null;
       const cfg = await cfgRes.json();
       if (!cfg.supabaseUrl || !cfg.supabaseAnonKey) return null;
-      // persistSession/autoRefreshToken désactivés dans les deux cas : ce
-      // client ne sert qu'à obtenir la session issue du callback OAuth, pas
-      // à gérer une session dans la durée — c'est déjà le rôle de
-      // sm_token/sm_refresh_token et du refresh automatique dans
-      // api-client.js. Deux gestionnaires de session en parallèle
-      // risqueraient de diverger.
+      // autoRefreshToken désactivé dans les deux cas : ce client ne sert
+      // qu'à obtenir la session issue du callback OAuth, pas à gérer une
+      // session dans la durée — c'est déjà le rôle de sm_token/
+      // sm_refresh_token et du refresh automatique dans api-client.js.
+      //
+      // LOT 13c — persistSession DOIT être true côté natif, pas false comme
+      // sur le web. Vérifié dans node_modules/@supabase/auth-js (GoTrueClient,
+      // constructeur) : quel que soit le `storage` passé en option, il est
+      // IGNORÉ et remplacé par un stockage EN MÉMOIRE dès que
+      // persistSession:false — y compris pour le verifier PKCE lui-même (il
+      // passe par ce même `this.storage`). Avec persistSession:false (config
+      // d'origine de ce lot), tuer le process pendant que l'utilisateur est
+      // dans Chrome Custom Tabs (fréquent sous pression mémoire Android)
+      // perdait le verifier, faisant échouer exchangeCodeForSession au
+      // retour. storageKey dédié (NATIVE_OAUTH_STORAGE_KEY, oauth-callback.js)
+      // + nettoyage explicite après chaque tentative (clearNativeOAuthStorage,
+      // appelé dans tous les chemins de sortie ci-dessous) pour ne jamais
+      // laisser la session temporaire que GoTrueClient écrit aussi sous ce
+      // storageKey traîner en parallèle de sm_token/sm_refresh_token — seul
+      // le verifier a besoin de survivre, pas une seconde copie de session.
       const authOptions = isNativeApp
-        ? { flowType: 'pkce', detectSessionInUrl: false, persistSession: false, autoRefreshToken: false }
+        ? {
+            flowType: 'pkce',
+            detectSessionInUrl: false,
+            persistSession: true,
+            storageKey: window.NATIVE_OAUTH_STORAGE_KEY,
+            storage: window.localStorage,
+            autoRefreshToken: false,
+          }
         : { detectSessionInUrl: true, persistSession: false, autoRefreshToken: false };
       window.SM_SUPABASE = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
         auth: authOptions,
@@ -139,44 +167,63 @@
       }
     })();
   } else {
-    // Natif (lot 13b) : le retour OAuth arrive par lien profond
+    // Natif (lot 13b/13c) : le retour OAuth arrive par lien profond
     // (ci.sauvmoi.app://auth-callback?code=...), jamais par une navigation
-    // de page — App.addListener('appUrlOpen', ...) est le seul point
-    // d'entrée possible ici, enregistré une fois au chargement du script.
-    const App = window.Capacitor?.Plugins?.App;
-    if (App && typeof App.addListener === 'function') {
-      App.addListener('appUrlOpen', async ({ url }) => {
+    // de page. DEUX points d'entrée possibles, pas un seul :
+    //   - App.addListener('appUrlOpen', ...) : app encore en vie (mise en
+    //     arrière-plan pendant Custom Tabs, cas normal) -> onNewIntent().
+    //   - App.getLaunchUrl() : app TUÉE par l'OS pendant que l'utilisateur
+    //     était dans Custom Tabs (fréquent sous pression mémoire Android) et
+    //     relancée directement par le lien profond -> c'est l'intent de
+    //     démarrage lui-même (bridge.getIntentUri() côté natif), jamais vu
+    //     par appUrlOpen. Vérifié dans
+    //     node_modules/@capacitor/app/android/.../AppPlugin.java : les deux
+    //     mécanismes sont bien distincts, ni l'un ni l'autre ne couvre le
+    //     cas de l'autre. Sans ce second chemin, un redémarrage à froid
+    //     perdait silencieusement le retour OAuth.
+    // lastHandledUrl déduplique : sur certains redémarrages à froid,
+    // getLaunchUrl() ET un appUrlOpen tardif peuvent tous les deux livrer la
+    // même URL — un code d'autorisation est à usage unique de toute façon,
+    // mais éviter un double échange évite aussi un message d'erreur parasite.
+    let lastHandledUrl = null;
+
+    async function handleOAuthDeepLink(url) {
+      if (!url || url === lastHandledUrl) return;
+      lastHandledUrl = url;
+      try {
+        if (!window.parseOAuthCallbackUrl) return;
+        const { code, error, errorDescription } = window.parseOAuthCallbackUrl(url);
+        if (!code && !error) return; // lien profond pour une tout autre raison — ne pas toucher aux Custom Tabs pour rien
+
+        // Fermeture des Custom Tabs dès réception du lien profond, succès
+        // ou échec confondus — l'utilisateur est de toute façon revenu
+        // dans l'app à cet instant, l'onglet navigateur n'a plus d'utilité.
+        // .catch(() => {}) : jamais bloquant si déjà fermé par le système
+        // (notamment sur un démarrage à froid via getLaunchUrl, où aucun
+        // Custom Tabs n'est peut-être même encore ouvert).
+        window.Capacitor?.Plugins?.Browser?.close?.().catch(() => {});
+
+        if (error) {
+          // Refus explicite côté Google (l'utilisateur annule sur l'écran
+          // de consentement — fermer simplement l'onglet Custom Tabs sans
+          // jamais atteindre cet écran ne déclenche PAS de lien profond du
+          // tout, voir CLAUDE.md pour la distinction) — jamais un échec
+          // silencieux. Le détail anglais de Google part en log, jamais
+          // affiché tel quel.
+          console.warn('[supabase-client] OAuth refusé côté Google:', error, errorDescription || '');
+          window.SM.oauthError = window.t ? window.t('auth.google_cancelled') : 'Google sign-in was cancelled.';
+          window.SM.emit();
+          return;
+        }
+        // code est forcément non-null ici : le garde-fou plus haut
+        // (!code && !error) a déjà éliminé le seul autre cas possible.
+
+        const client = await ensureClient();
+        if (!client) {
+          failNativeOAuth(window.t ? window.t('auth.google_unavailable_retry') : null, 'client Supabase indisponible pour l\'échange PKCE');
+          return;
+        }
         try {
-          if (!window.parseOAuthCallbackUrl) return;
-          const { code, error, errorDescription } = window.parseOAuthCallbackUrl(url);
-          if (!code && !error) return; // appUrlOpen pour une tout autre raison — ne pas toucher aux Custom Tabs pour rien
-
-          // Fermeture des Custom Tabs dès réception du lien profond, succès
-          // ou échec confondus — l'utilisateur est de toute façon revenu
-          // dans l'app à cet instant, l'onglet navigateur n'a plus d'utilité.
-          // .catch(() => {}) : jamais bloquant si déjà fermé par le système.
-          window.Capacitor?.Plugins?.Browser?.close?.().catch(() => {});
-
-          if (error) {
-            // Refus explicite côté Google (l'utilisateur annule sur l'écran
-            // de consentement — fermer simplement l'onglet Custom Tabs sans
-            // jamais atteindre cet écran ne déclenche PAS appUrlOpen du
-            // tout, voir CLAUDE.md pour la distinction) — jamais un échec
-            // silencieux. Le détail anglais de Google part en log, jamais
-            // affiché tel quel.
-            console.warn('[supabase-client] OAuth refusé côté Google:', error, errorDescription || '');
-            window.SM.oauthError = window.t ? window.t('auth.google_cancelled') : 'Google sign-in was cancelled.';
-            window.SM.emit();
-            return;
-          }
-          // code est forcément non-null ici : le garde-fou plus haut
-          // (!code && !error) a déjà éliminé le seul autre cas possible.
-
-          const client = await ensureClient();
-          if (!client) {
-            failNativeOAuth(window.t ? window.t('auth.google_unavailable_retry') : null, 'client Supabase indisponible pour l\'échange PKCE');
-            return;
-          }
           const { data, error: exchangeErr } = await client.auth.exchangeCodeForSession(code);
           if (exchangeErr || !data || !data.session) {
             failNativeOAuth(null, 'exchangeCodeForSession échoué: ' + (exchangeErr?.message || 'session absente'));
@@ -195,10 +242,35 @@
           // depuis l'extérieur de l'arbre de composants.
           window.SM.oauthNativeSynced = true;
           window.SM.emit();
-        } catch (e) {
-          failNativeOAuth(null, 'callback OAuth natif en exception: ' + e.message);
+        } finally {
+          // LOT 13c — dans TOUS les cas (succès ou échec) : le verifier PKCE
+          // est déjà supprimé par auth-js lui-même dans exchangeCodeForSession
+          // (vérifié dans son code source, try ET catch), mais la session
+          // temporaire que GoTrueClient écrit sous ce même storageKey (voir
+          // persistSession:true ci-dessus) ne doit jamais traîner plus
+          // longtemps que l'échange — sm_token/sm_refresh_token (déjà écrits
+          // par syncGoogleSession en cas de succès) restent la seule copie
+          // durable de la session.
+          window.clearNativeOAuthStorage?.(window.localStorage, window.NATIVE_OAUTH_STORAGE_KEY);
         }
-      });
+      } catch (e) {
+        failNativeOAuth(null, 'callback OAuth natif en exception: ' + e.message);
+      }
+    }
+
+    const App = window.Capacitor?.Plugins?.App;
+    if (App && typeof App.addListener === 'function') {
+      App.addListener('appUrlOpen', ({ url }) => handleOAuthDeepLink(url));
+    }
+    // Démarrage à froid via lien profond (app tuée par l'OS pendant Custom
+    // Tabs) : getLaunchUrl() porte l'intent de départ, jamais vu par
+    // appUrlOpen (onNewIntent ne se déclenche que pour un intent reçu APRÈS
+    // le démarrage). Vérifié dans le README/sources @capacitor/app plutôt
+    // que supposé.
+    if (App && typeof App.getLaunchUrl === 'function') {
+      App.getLaunchUrl()
+        .then((launch) => { if (launch && launch.url) handleOAuthDeepLink(launch.url); })
+        .catch(() => {});
     }
   }
 })();
