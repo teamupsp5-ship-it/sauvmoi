@@ -128,9 +128,11 @@
     clearSession,
 
     // Accueil / contenu
+    // home() : plus appelée par aucun écran (voir sm-state.js), conservée
+    // pour la même raison que la route serveur GET /api/home elle-même
+    // (compatibilité d'anciennes APK déjà installées, voir CLAUDE.md).
     home: () => req('/api/home'),
     me: () => req('/api/me'),
-    emergencies: () => req('/api/emergencies'),
     protocol: (id) => req('/api/protocols/' + id),
     analyzeImage: () => req('/api/vision/analyze', { method: 'POST' }),
 
@@ -146,24 +148,14 @@
     rescuers: () => req('/api/rescuers/nearby'),
 
     // Formations
-    trainingPath: () => req('/api/training/path'),
-    courses: (filter) => req('/api/training/courses' + (filter ? '?filter=' + filter : '')),
-    trainingMe: () => req('/api/training/me'),
     trainingModules: (lang) => req('/api/training/modules' + (lang ? '?lang=' + lang.toLowerCase() : '')),
     trainingComplete: (moduleId, score, total) =>
       req('/api/training/' + moduleId + '/complete', { method: 'POST', body: { score, total } }),
-
-    // Paiements
-    paymentMethods: () => req('/api/payments/methods'),
-    payInitiate: (courseId, method, phone) =>
-      req('/api/payments/initiate', { method: 'POST', body: { courseId, method, phone } }),
-    payConfirm: (id) => req('/api/payments/' + id + '/confirm', { method: 'POST' }),
 
     // Profil utilisateur
     updateMe: (data) => req('/api/me', { method: 'PUT', body: data }),
 
     // Carnet médical
-    medicalRecord: () => req('/api/medical-record'),
     // Lecture pure : réutilise le QR déjà généré (gen/exp/sig stables), n'en
     // recrée un que s'il n'en existe encore aucun — voir routes/api.js.
     medicalQr: () => req('/api/medical-record/qr'),

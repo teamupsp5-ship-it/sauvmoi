@@ -1,10 +1,6 @@
 import { Router } from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { get, save, uid } from '../store.js';
-import {
-  EMERGENCY_LIST, COURSES, TRAINING_PATH, RESCUERS,
-  PAYMENT_METHODS, TIPS, DEMO_USER,
-} from '../data/seed.js';
+import { TIPS, RESCUERS, DEMO_USER } from '../data/seed.js';
 import { PROTOCOLS } from '../data/protocols.js';
 import { EMERGENCY_NUMBERS } from '../data/emergency-numbers.js';
 import { analyzeImage } from '../ai.js';
@@ -195,6 +191,11 @@ router.get('/emergency-numbers', (req, res) => {
 // l'utilisateur connecté et ne mutait que le DEMO_USER partagé.
 
 // ─── ACCUEIL ────────────────────────────────────────────────────────────────
+// Conservée pour compatibilité des anciennes APK (LOT 14b) — window.API.home()
+// a été retiré du frontend (voir sm-state.js, plus aucun écran ne lit
+// window.SM.home), mais des APK déjà installées chez des testeurs appellent
+// encore cette route au démarrage. À supprimer quand plus aucune ancienne
+// version ne circule.
 router.get('/home', (req, res) => {
   const now = new Date();
   res.json({
@@ -210,11 +211,7 @@ router.get('/home', (req, res) => {
   });
 });
 
-router.get('/tips', (req, res) => res.json(TIPS));
-
-// ─── URGENCES & PROTOCOLES ───────────────────────────────────────────────────
-router.get('/emergencies', (req, res) => res.json(EMERGENCY_LIST));
-
+// ─── PROTOCOLES ──────────────────────────────────────────────────────────────
 router.get('/protocols/:id', (req, res) => {
   const p = PROTOCOLS[req.params.id];
   if (!p) return res.status(404).json({ error: 'protocole inconnu' });
@@ -226,70 +223,7 @@ router.post('/vision/analyze', (req, res) => {
   res.json(analyzeImage());
 });
 
-// ─── FORMATIONS ──────────────────────────────────────────────────────────────
-router.get('/training/path', (req, res) => res.json(TRAINING_PATH));
-
-router.get('/training/courses', (req, res) => {
-  const { filter } = req.query;
-  let list = COURSES;
-  if (filter === 'free') list = COURSES.filter((c) => c.tag === 'free');
-  if (filter === 'premium') list = COURSES.filter((c) => c.tag === 'premium');
-  res.json(list);
-});
-
-router.get('/training/me', (req, res) => res.json(DEMO_USER.training));
-
-router.post('/training/progress', (req, res) => {
-  const { xp = 0 } = req.body || {};
-  DEMO_USER.training.xp += xp;
-  res.json(DEMO_USER.training);
-});
-
-// ─── PAIEMENTS Mobile Money (simulés) ────────────────────────────────────────
-router.get('/payments/methods', (req, res) => res.json(PAYMENT_METHODS));
-
-router.post('/payments/initiate', (req, res) => {
-  const { courseId, method, phone } = req.body || {};
-  const course = COURSES.find((c) => c.id === courseId);
-  if (!course) return res.status(404).json({ error: 'cours inconnu' });
-  if (!PAYMENT_METHODS.some((m) => m.id === method)) return res.status(400).json({ error: 'moyen de paiement invalide' });
-  const id = uid('pay');
-  const payment = {
-    id, courseId, method, phone,
-    amountFcfa: course.priceFcfa,
-    status: 'pending',
-    ussdPrompt: method === 'visa' ? null : 'Validez la transaction sur votre téléphone (#144#)',
-    createdAt: Date.now(),
-  };
-  get().payments[id] = payment;
-  save();
-  res.json(payment);
-});
-
-// callback simulé (en prod : webhook de l'agrégateur type CinetPay/PayDunya)
-router.post('/payments/:id/confirm', (req, res) => {
-  const p = get().payments[req.params.id];
-  if (!p) return res.status(404).json({ error: 'paiement inconnu' });
-  p.status = 'success';
-  p.confirmedAt = Date.now();
-  save();
-  res.json(p);
-});
-
-router.get('/payments/:id', (req, res) => {
-  const p = get().payments[req.params.id];
-  if (!p) return res.status(404).json({ error: 'paiement inconnu' });
-  res.json(p);
-});
-
 // ─── CARNET MÉDICAL & QR ─────────────────────────────────────────────────────
-router.get('/medical-record', (req, res) => res.json(DEMO_USER.medicalRecord));
-
-router.put('/medical-record', (req, res) => {
-  DEMO_USER.medicalRecord = { ...DEMO_USER.medicalRecord, ...(req.body || {}) };
-  res.json(DEMO_USER.medicalRecord);
-});
-
 // Construit la réponse {payload, qrDataUrl, url} pour un id/gen déjà connus
 // (soit rechargés depuis qr_generated_at, soit tout juste écrits par une
 // régénération) — partagé par GET /medical-record/qr et

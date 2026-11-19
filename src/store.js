@@ -10,7 +10,6 @@ const DB_PATH = join(__dirname, '..', '.data', 'db.json');
 const empty = {
   conversations: {},   // id -> { id, title, lang, messages:[], updatedAt }
   sosAlerts: {},       // id -> alert
-  payments: {},        // id -> payment
   notifications: {},   // id -> { id, userId, alertId, message, lat, lng, createdAt, read }
 };
 

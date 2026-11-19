@@ -5,7 +5,6 @@ window.SM = {
   lang: (window.TWEAK_DEFAULTS && window.TWEAK_DEFAULTS.lang) || 'FR',
 
   // rempli au démarrage par bootstrap()
-  home: null,
   user: null,
 
   // conversation en cours (chat vocal)
@@ -50,11 +49,7 @@ window.useSM = function useSM() {
 window.SM.bootstrap = async function bootstrap() {
   if (!window.SM.token) return;
   try {
-    const [home, user] = await Promise.all([
-      window.API.home(), window.API.me(),
-    ]);
-    window.SM.home = home;
-    window.SM.user = user;
+    window.SM.user = await window.API.me();
     window.SM.offline = false;
     window.SM.emit();
   } catch (e) {

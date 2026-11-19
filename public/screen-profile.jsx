@@ -293,7 +293,7 @@ function ProfileScreen({ nav }) {
     localStorage.removeItem('sm_refresh_token');
     localStorage.removeItem('sm_expires_at');
     localStorage.removeItem('sm_user');
-    window.SM.token = null; window.SM.user = null; window.SM.home = null;
+    window.SM.token = null; window.SM.user = null;
     window.SM.emit(); nav.reset('auth');
   }
 
