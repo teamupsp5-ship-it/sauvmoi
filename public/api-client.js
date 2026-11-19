@@ -145,7 +145,6 @@
     sosTrigger: (loc = {}) => req('/api/sos/trigger', { method: 'POST', body: loc }),
     sosStatus: (id) => req('/api/sos/' + id + '/status'),
     sosCancel: (id) => req('/api/sos/' + id + '/cancel', { method: 'POST' }),
-    rescuers: () => req('/api/rescuers/nearby'),
 
     // Formations
     trainingModules: (lang) => req('/api/training/modules' + (lang ? '?lang=' + lang.toLowerCase() : '')),
