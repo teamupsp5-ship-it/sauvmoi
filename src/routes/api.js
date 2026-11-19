@@ -190,26 +190,6 @@ router.get('/emergency-numbers', (req, res) => {
   res.json(EMERGENCY_NUMBERS);
 });
 
-// ─── AUTH : téléphone + OTP (standard Afrique de l'Ouest) ───────────────────
-router.post('/auth/request-otp', (req, res) => {
-  const { phone } = req.body || {};
-  if (!phone) return res.status(400).json({ error: 'phone requis' });
-  const code = '123456'; // démo : code fixe (en prod → SMS via agrégateur)
-  get().otps[phone] = code;
-  save();
-  res.json({ sent: true, channel: 'sms', demoCode: code }); // demoCode affiché pour la démo
-});
-
-router.post('/auth/verify', (req, res) => {
-  const { phone, code } = req.body || {};
-  if (get().otps[phone] !== code) return res.status(401).json({ error: 'code invalide' });
-  delete get().otps[phone];
-  const user = { ...DEMO_USER, phone };
-  get().users[user.id] = user;
-  save();
-  res.json({ token: `demo.${user.id}`, user });
-});
-
 // GET /me et PUT /me ont été déplacés dans routes/auth.js (requireAuth +
 // table Supabase profiles) — l'ancien /me ici ignorait complètement
 // l'utilisateur connecté et ne mutait que le DEMO_USER partagé.

@@ -8,11 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, '..', '.data', 'db.json');
 
 const empty = {
-  users: {},
   conversations: {},   // id -> { id, title, lang, messages:[], updatedAt }
   sosAlerts: {},       // id -> alert
   payments: {},        // id -> payment
-  otps: {},            // phone -> code
   notifications: {},   // id -> { id, userId, alertId, message, lat, lng, createdAt, read }
 };
 
