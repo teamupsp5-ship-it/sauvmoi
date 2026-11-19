@@ -82,8 +82,8 @@ export function createApp() {
     endpoints: [
       'GET /api/config',
       'POST /api/auth/login', 'POST /api/auth/register', 'POST /api/auth/google-sync', 'GET /api/me', 'PUT /api/me',
-      'GET /api/home (compatibilité anciennes APK uniquement)', 'GET /api/protocols/:id',
-      'POST /api/vision/analyze', 'POST /api/chat', 'GET /api/conversations',
+      'GET /api/home (compatibilité anciennes APK uniquement)',
+      'POST /api/chat', 'GET /api/conversations',
       'POST /api/sos/trigger', 'GET /api/sos/:id/status', 'POST /api/sos/:id/cancel',
       'GET /api/notifications', 'POST /api/notifications/:id/read',
       'GET /api/training/modules', 'POST /api/training/:moduleId/complete',

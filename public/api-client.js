@@ -133,8 +133,6 @@
     // (compatibilité d'anciennes APK déjà installées, voir CLAUDE.md).
     home: () => req('/api/home'),
     me: () => req('/api/me'),
-    protocol: (id) => req('/api/protocols/' + id),
-    analyzeImage: () => req('/api/vision/analyze', { method: 'POST' }),
 
     // Chat IA
     chat: (message, lang, conversationId) =>

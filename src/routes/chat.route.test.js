@@ -33,7 +33,7 @@ mock.module('../supabase.js', {
 
 const FAKE_REPLY = { reply: 'Réponse simulée de test.', suggestedActions: [], protocolRef: null, source: 'fake-test' };
 mock.module('../ai.js', {
-  exports: { generateReply: async () => FAKE_REPLY, analyzeImage: () => ({}) },
+  exports: { generateReply: async () => FAKE_REPLY },
 });
 
 const { createApp } = await import('../app.js');

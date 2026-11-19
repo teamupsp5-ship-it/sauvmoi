@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { TIPS, RESCUERS, DEMO_USER } from '../data/seed.js';
-import { PROTOCOLS } from '../data/protocols.js';
 import { EMERGENCY_NUMBERS } from '../data/emergency-numbers.js';
-import { analyzeImage } from '../ai.js';
 import { supabase } from '../supabase.js';
 import { requireAuth } from './auth.js';
 import { validateProofDataUrl } from '../validate.js';
@@ -209,18 +207,6 @@ router.get('/home', (req, res) => {
       medical: { bloodType: DEMO_USER.medicalRecord.bloodType, allergies: DEMO_USER.medicalRecord.allergies.length },
     },
   });
-});
-
-// ─── PROTOCOLES ──────────────────────────────────────────────────────────────
-router.get('/protocols/:id', (req, res) => {
-  const p = PROTOCOLS[req.params.id];
-  if (!p) return res.status(404).json({ error: 'protocole inconnu' });
-  res.json({ ...p, disclaimer: "Contenu pédagogique. En urgence vitale, appelez le 185." });
-});
-
-router.post('/vision/analyze', (req, res) => {
-  // En prod : recevoir une image et appeler un modèle de vision.
-  res.json(analyzeImage());
 });
 
 // ─── CARNET MÉDICAL & QR ─────────────────────────────────────────────────────

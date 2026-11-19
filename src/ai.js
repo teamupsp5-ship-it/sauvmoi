@@ -166,14 +166,3 @@ export async function generateReply(messages, lang = 'FR') {
     return fallbackReply(lastUser, lang);
   }
 }
-
-// Analyse "caméra" (scriptée pour la démo — branchez un modèle de vision plus tard)
-export function analyzeImage() {
-  return {
-    label: 'Plaie au bras · hémorragie modérée',
-    labelEn: 'Wound on arm · moderate bleeding',
-    confidence: 0.94,
-    protocolRef: 'hemo',
-    advice: PROTOCOLS.hemo.steps[0].desc,
-  };
-}
