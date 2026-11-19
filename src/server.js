@@ -1,163 +1,17 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { load } from './store.js';
-import authRoutes from './routes/auth.js';
-import apiRoutes from './routes/api.js';
-import chatRoutes from './routes/chat.js';
-import sosRoutes from './routes/sos.js';
-import trainingRoutes from './routes/training.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const PUBLIC_DIR = join(__dirname, '..', 'public');
+import { createApp } from './app.js';
 
 load();
 
 process.on('uncaughtException', (e) => console.error('[uncaught]', e));
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
 
-const app = express();
-
-// Déployé derrière le proxy inverse d'o2switch (Apache/Passenger) — sans ça,
-// req.ip renvoie l'IP interne du proxy pour toutes les requêtes (au lieu du
-// vrai client), ce qui rend tout rate limiting par IP inopérant (une seule
-// IP apparente pour tout le monde) en plus de faire lever un avertissement à
-// express-rate-limit.
-app.set('trust proxy', 1);
-
-// ─── CORS — liste blanche explicite ─────────────────────────────────────────
-// cors() sans options reflétait n'importe quelle origine — combiné à
-// l'absence d'authentification sur /chat (désormais corrigée, voir
-// routes/chat.js), ça laissait n'importe quel site tiers appeler l'API
-// depuis le navigateur d'un visiteur. Configurable via CORS_ALLOWED_ORIGINS
-// (origines séparées par des virgules) pour ajouter un domaine propre sans
-// redéployer le code — valeurs par défaut couvrant tous les points d'entrée
-// connus de l'app :
-//   - https://sauvmoi.com, https://www.sauvmoi.com : production (o2switch)
-//   - https://localhost               : WebView Capacitor Android —
-//     capacitor.config.json a androidScheme:"https" sans `hostname`
-//     personnalisé, donc Capacitor sert l'app sous ce hostname par défaut
-//   - http://localhost:3000           : développement local
-const DEFAULT_CORS_ORIGINS = [
-  'https://sauvmoi.com',
-  'https://www.sauvmoi.com',
-  'https://localhost',
-  'http://localhost:3000',
-];
-const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS
-  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : DEFAULT_CORS_ORIGINS;
-
-app.use(cors({
-  origin(origin, callback) {
-    // Pas d'en-tête Origin (requête same-origin, curl, health check...) :
-    // rien à vérifier ici, cors() par défaut ne l'aurait pas bloqué non plus.
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    callback(null, false);
-  },
-}));
-
-// ─── Content-Security-Policy ────────────────────────────────────────────────
-// L'app n'a pas de bundler : tout le JSX est transpilé EN DIRECT dans le
-// navigateur par Babel Standalone (<script type="text/babel" src="...">).
-// Vérifié empiriquement (testé avec 'unsafe-eval' seul → tout l'écran reste
-// blanc, erreurs CSP en console) : Babel Standalone n'exécute PAS le code
-// transpilé via eval()/Function(), il l'injecte comme un NOUVEL élément
-// <script> avec le code en texte — ce que le navigateur traite comme du
-// "script inline", peu importe que le <script> d'origine ait un `src=`.
-// script-src a donc besoin à la fois de 'unsafe-inline' (exécuter ce script
-// injecté) ET 'unsafe-eval' (Babel/regenerator-runtime utilisent aussi
-// Function() en interne pour async/await) — sans bundler, une CSP stricte
-// sur script-src n'est tout simplement pas atteignable ici ; c'est le
-// compromis assumé de cette architecture (voir aussi le point sur les
-// tokens localStorage dans CLAUDE.md, qui documente cette même limite).
-// Les autres directives (surtout connect-src) restent une vraie protection
-// même dans ce contexte : si une injection HTML/script arrivait malgré tout
-// à s'exécuter, connect-src empêche encore l'exfiltration du token vers un
-// domaine autre que notre propre API/Supabase.
-const CSP_DIRECTIVES = {
-  defaultSrc: ["'self'"],
-  scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://unpkg.com', 'https://cdn.jsdelivr.net'],
-  styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://unpkg.com'],
-  fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-  // 'blob:' nécessaire : screen-profile.jsx (photo de profil), live-chat.jsx
-  // (aperçu image envoyée au chat) et screen-qr-scanner.jsx (repli web du
-  // scanner) chargent tous un fichier sélectionné localement via
-  // `new Image(); img.src = URL.createObjectURL(file)` — sans 'blob:' ici,
-  // le navigateur bloque ce chargement au niveau CSP (silencieusement : ni
-  // onload ni onerror ne se déclenchent), rendant ces trois fonctionnalités
-  // inopérantes. Trouvé en vérifiant le LOT 6 (le correctif du découplage de
-  // handlePhoto() ne pouvait pas être observé tant que l'image ne chargeait
-  // jamais du tout, quel que soit l'état de la logique de sauvegarde).
-  imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://images.pexels.com', 'https://*.tile.openstreetmap.org', 'https://unpkg.com'],
-  // API Sauv'Moi (prod + dev local) + Supabase (OAuth Google et lecture de
-  // session côté navigateur, voir supabase-client.js) — l'API Anthropic
-  // n'a PAS besoin d'être ici : elle n'est jamais appelée depuis le
-  // navigateur, uniquement depuis le backend (src/ai.js), donc hors CSP.
-  connectSrc: ["'self'", 'https://sauvmoi.com', 'https://*.supabase.co'],
-  objectSrc: ["'none'"],
-  baseUri: ["'self'"],
-  // frame-ancestors prend le pas sur X-Frame-Options quand les deux sont
-  // présents — explicite à 'none' pour ne pas laisser le défaut Helmet
-  // ('self') contredire silencieusement le frameguard 'deny' ci-dessous.
-  frameAncestors: ["'none'"],
-};
-
-app.use(helmet({
-  contentSecurityPolicy: { directives: CSP_DIRECTIVES },
-  frameguard: { action: 'deny' }, // X-Frame-Options — l'app n'est jamais destinée à être embarquée dans un iframe
-  // HSTS reste sans effet en HTTP local (ignoré par les navigateurs hors
-  // HTTPS) et s'applique correctement une fois servi en HTTPS (sauvmoi.com,
-  // Let's Encrypt via o2switch).
-  //
-  // Referrer-Policy explicite : sans cette option, helmet applique son
-  // défaut 'no-referrer' (vérifié dans node_modules/helmet/index.cjs) —
-  // ça supprime le Referer sur TOUTES les requêtes sortantes du navigateur,
-  // y compris les tuiles Leaflet vers tile.openstreetmap.org. Les serveurs
-  // OSM exigent un Referer identifiant l'appelant (politique d'usage
-  // tile.openstreetmap.org) et renvoient 403 "Access blocked" sans lui —
-  // constaté en prod sur o2switch. 'strict-origin-when-cross-origin'
-  // envoie l'origine seule (https://sauvmoi.com) aux domaines tiers, jamais
-  // le chemin/query de la page — aucune fuite de contenu de page, juste
-  // assez pour satisfaire la politique OSM.
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-}));
-
-app.use(express.json({ limit: '8mb' }));
-app.use((req, _res, next) => { console.log(`${req.method} ${req.url}`); next(); });
-
-app.use(express.static(PUBLIC_DIR));
-
-app.get('/api', (_req, res) => res.json({
-  app: "Sauv'Moi API", status: 'ok', version: '1.0.0',
-  ai: process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback-protocoles',
-}));
-
-app.get('/api/health', (_req, res) => res.json({
-  ok: true,
-  ai: process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback',
-  endpoints: [
-    'GET /api/config',
-    'POST /api/auth/login', 'POST /api/auth/register', 'POST /api/auth/google-sync', 'GET /api/me', 'PUT /api/me',
-    'GET /api/home', 'GET /api/emergencies', 'GET /api/protocols/:id',
-    'POST /api/vision/analyze', 'POST /api/chat', 'GET /api/conversations',
-    'POST /api/sos/trigger', 'GET /api/sos/:id/status', 'POST /api/sos/:id/cancel',
-    'GET /api/notifications', 'POST /api/notifications/:id/read',
-    'GET /api/training/path', 'GET /api/training/courses',
-    'POST /api/payments/initiate', 'POST /api/payments/:id/confirm',
-    'GET /api/medical-record', 'GET /api/medical-record/qr',
-    'GET /api/public/medical-card/:id.png', 'GET /api/public/medical-card/:id.json',
-  ],
-}));
-
-app.use('/api', authRoutes);
-app.use('/api', apiRoutes);
-app.use('/api', chatRoutes);
-app.use('/api', sosRoutes);
-app.use('/api', trainingRoutes);
+// Construction de l'app Express extraite dans app.js (LOT 14a) — réutilisée
+// telle quelle par les tests d'intégration HTTP (src/routes/*.test.js), qui
+// ont besoin d'un app importable sans socket déjà ouvert. Comportement de
+// production strictement inchangé : app.listen() reste ici, seul point qui
+// démarre réellement le serveur.
+const app = createApp();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

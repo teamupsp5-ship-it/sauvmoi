@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test": "node scripts/run-tests.mjs",
     "android:add": "npx cap add android",
     "build:mobile": "npx cap sync android",
     "android:open": "npx cap open android",
